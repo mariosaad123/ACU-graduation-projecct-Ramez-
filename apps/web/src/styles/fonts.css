@@ -1,0 +1,11 @@
+/*
+ * Fonts are self-hosted: no requests to third-party CDNs, and they keep working offline.
+ * Each file declares unicode-range subsets, so browsers only download the scripts a page
+ * actually renders. Chinese and Japanese are declared separately in fonts-cjk.css, which is
+ * loaded after the first render because its hundreds of subset rules would block it.
+ */
+@import '@fontsource/ibm-plex-sans-arabic/400.css';
+@import '@fontsource/ibm-plex-sans-arabic/500.css';
+@import '@fontsource/ibm-plex-sans-arabic/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/700.css';
+@import '@fontsource-variable/alexandria/wght.css';

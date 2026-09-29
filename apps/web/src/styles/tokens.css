@@ -1,0 +1,207 @@
+/*
+ * Design tokens.
+ * Primitives describe the raw palette and scales. Components must use the semantic
+ * tokens further down, so that the theme can change without touching components.
+ * Contrast pairs are verified by src/styles/tokens.test.ts.
+ */
+
+:root {
+  /* Neutral */
+  --gray-0: #fff;
+  --gray-50: #f7f8fa;
+  --gray-100: #eef0f4;
+  --gray-200: #dde1e8;
+  --gray-300: #c3c9d3;
+  --gray-400: #98a1b0;
+  --gray-500: #677082;
+  --gray-600: #4f5868;
+  --gray-700: #3b4351;
+  --gray-800: #262c37;
+  --gray-900: #161a22;
+
+  /* Brand blue, derived from the ACU navy (#063d7d) */
+  --blue-50: #eef3fb;
+  --blue-100: #d9e4f5;
+  --blue-200: #b3c8eb;
+  --blue-300: #7fa2db;
+  --blue-400: #4a7ac6;
+  --blue-500: #2459ae;
+  --blue-600: #174593;
+  --blue-700: #10377a;
+  --blue-800: #0b2a5f;
+  --blue-900: #071d43;
+
+  /* ACU gold, for achievements and certificates */
+  --gold-50: #fcf6e3;
+  --gold-100: #f8ecc4;
+  --gold-500: #cfad42;
+  --gold-700: #7c6210;
+
+  /* Skills */
+  --teal-50: #e8f6f5;
+  --teal-100: #c9ebe8;
+  --teal-500: #138a85;
+  --teal-700: #0b5e5b;
+
+  --coral-50: #fdeef0;
+  --coral-100: #fad5da;
+  --coral-500: #d0435a;
+  --coral-700: #9b2338;
+
+  --sky-50: #e8f3fb;
+  --sky-100: #cae4f6;
+  --sky-500: #1b7fc4;
+  --sky-700: #0f5a8e;
+
+  --ochre-50: #fdf4e3;
+  --ochre-100: #f9e4bb;
+  --ochre-500: #c7861a;
+  --ochre-700: #7f520a;
+
+  /* Status */
+  --green-50: #eaf6ec;
+  --green-500: #2e8b4a;
+  --green-700: #1d6134;
+  --amber-50: #fdf5e1;
+  --amber-500: #d49a14;
+  --amber-700: #7a5608;
+  --red-50: #fdecec;
+  --red-500: #c62d3b;
+  --red-700: #971d29;
+
+  /* Typography */
+  --font-display-base: 'Alexandria Variable', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-body-base: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-display-base);
+  --font-body: var(--font-body-base);
+  --font-zh: 'Noto Sans SC Variable', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-ja: 'Noto Sans JP Variable', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: clamp(1.5rem, 1.3rem + 0.9vw, 1.875rem);
+  --text-3xl: clamp(1.875rem, 1.5rem + 1.6vw, 2.5rem);
+  --text-4xl: clamp(2.25rem, 1.6rem + 2.8vw, 3.5rem);
+  --text-5xl: clamp(2.75rem, 1.7rem + 4.4vw, 4.75rem);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-body: 1.6;
+  --leading-body-ar: 1.8;
+
+  /* Spacing, 4px base */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 999px;
+  --border-width: 1px;
+
+  /* Elevation, only for floating layers */
+  --shadow-overlay: 0 12px 32px rgb(22 26 34 / 14%), 0 2px 6px rgb(22 26 34 / 8%);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout */
+  --container-max: 72rem;
+  --container-gutter: var(--space-4);
+  --header-height: 4rem;
+
+  --z-header: 100;
+  --z-overlay: 200;
+  --z-toast: 300;
+}
+
+@media (width >= 40rem) {
+  :root {
+    --container-gutter: var(--space-6);
+  }
+}
+
+@media (width >= 64rem) {
+  :root {
+    --container-gutter: var(--space-8);
+    --header-height: 4.5rem;
+  }
+}
+
+/* Semantic tokens */
+/* stylelint-disable-next-line no-duplicate-selectors -- primitives and semantic tokens are separate layers */
+:root {
+  --color-bg: var(--gray-0);
+  --color-surface: var(--gray-0);
+  --color-surface-muted: var(--gray-50);
+  --color-surface-sunken: var(--gray-100);
+
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+  --color-text-muted: var(--gray-500);
+  --color-text-on-action: var(--gray-0);
+
+  --color-border: var(--gray-200);
+  --color-border-strong: var(--gray-300);
+  --color-border-input: var(--gray-500);
+
+  --color-action: var(--blue-600);
+  --color-action-hover: var(--blue-700);
+  --color-action-active: var(--blue-800);
+  --color-action-subtle: var(--blue-50);
+  --color-action-subtle-hover: var(--blue-100);
+  --color-link: var(--blue-600);
+
+  --color-focus-ring: var(--blue-500);
+
+  --color-success: var(--green-700);
+  --color-success-bg: var(--green-50);
+  --color-warning: var(--amber-700);
+  --color-warning-bg: var(--amber-50);
+  --color-danger: var(--red-700);
+  --color-danger-solid: var(--red-500);
+  --color-danger-solid-hover: var(--red-700);
+  --color-danger-bg: var(--red-50);
+  --color-info: var(--blue-700);
+  --color-info-bg: var(--blue-50);
+
+  --color-achievement: var(--gold-700);
+  --color-achievement-bg: var(--gold-50);
+  --color-achievement-accent: var(--gold-500);
+
+  --color-listening: var(--teal-700);
+  --color-listening-accent: var(--teal-500);
+  --color-listening-bg: var(--teal-50);
+  --color-speaking: var(--coral-700);
+  --color-speaking-accent: var(--coral-500);
+  --color-speaking-bg: var(--coral-50);
+  --color-reading: var(--sky-700);
+  --color-reading-accent: var(--sky-500);
+  --color-reading-bg: var(--sky-50);
+  --color-writing: var(--ochre-700);
+  --color-writing-accent: var(--ochre-500);
+  --color-writing-bg: var(--ochre-50);
+}

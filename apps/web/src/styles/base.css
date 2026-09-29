@@ -1,0 +1,151 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  color-scheme: light;
+  text-size-adjust: 100%;
+  scroll-padding-block-start: calc(var(--header-height) + var(--space-4));
+  scrollbar-gutter: stable;
+}
+
+/* The page behind a modal dialog must not scroll. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+body {
+  min-block-size: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
+}
+
+/*
+ * Arabic script needs more vertical room for its ascenders and diacritics.
+ * Zero specificity so headings keep their own tighter leading.
+ */
+:where([lang|='ar']) {
+  line-height: var(--leading-body-ar);
+}
+
+/*
+ * Font per script. The stacks are variables, so headings (display) and text (body) both switch.
+ * Any element that declares a language re-applies the body font, because font-family is inherited
+ * as an already computed value and would not pick up the new variable on its own.
+ */
+:lang(zh) {
+  --font-body: var(--font-zh);
+  --font-display: var(--font-zh);
+}
+
+:lang(ja) {
+  --font-body: var(--font-ja);
+  --font-display: var(--font-ja);
+}
+
+:is(:lang(ar), :lang(en), :lang(fr), :lang(de)) {
+  --font-body: var(--font-body-base);
+  --font-display: var(--font-display-base);
+}
+
+:where([lang]) {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+/* Tracking is only tightened for Latin text; letter-spacing breaks joined Arabic letters. */
+:is(h1, h2):lang(en) {
+  letter-spacing: -0.015em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-inline-size: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--color-link);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--blue-100);
+  color: var(--blue-900);
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Arrows and other direction-dependent icons point the other way in right-to-left pages. */
+[dir='rtl'] .mirror-in-rtl {
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
