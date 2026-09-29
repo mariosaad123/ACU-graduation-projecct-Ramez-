@@ -1,0 +1,30 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #e3e3e3;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: #444;
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #b5b5b5;
+}
+
+.status[data-state='online'] .dot {
+  background: #1f9d55;
+}
+
+.status[data-state='offline'] .dot {
+  background: #c62828;
+}
+
+.version {
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
