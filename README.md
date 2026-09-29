@@ -14,14 +14,14 @@ Information Technology, Ahram Canadian University.
 
 ## Tech stack
 
-| Layer    | Choice                                                     |
-| -------- | ---------------------------------------------------------- |
-| Web      | React 19, Vite, TypeScript, CSS Modules                    |
-| API      | Node.js 24, Express 5, TypeScript, Zod, Pino               |
-| Shared   | Zod schemas and types used by both the web app and the API |
-| Database | PostgreSQL 18 (Docker Compose for local development)       |
-| Quality  | ESLint (type-aware), Prettier, Vitest, Husky, commitlint   |
-| CI       | GitHub Actions                                             |
+| Layer    | Choice                                                              |
+| -------- | ------------------------------------------------------------------- |
+| Web      | React 19, Vite, TypeScript, CSS Modules, React Router, i18next      |
+| API      | Node.js 24, Express 5, TypeScript, Zod, Pino                        |
+| Shared   | Zod schemas and types used by both the web app and the API          |
+| Database | PostgreSQL 18 (Docker Compose for local development)                |
+| Quality  | ESLint (type-aware), Stylelint, Prettier, Vitest, Husky, commitlint |
+| CI       | GitHub Actions                                                      |
 
 ## Repository layout
 
@@ -34,7 +34,9 @@ packages/
 docs/         Architecture notes and conventions
 ```
 
-See [docs/architecture.md](docs/architecture.md) for how the pieces fit together.
+See [docs/architecture.md](docs/architecture.md) for how the pieces fit together and
+[docs/design-system.md](docs/design-system.md) for the visual language. The live component
+reference is at `/design-system` in the running app.
 
 ## Getting started
 
@@ -60,7 +62,8 @@ then run `pnpm db:up`.
 | `pnpm build`        | Build every package                          |
 | `pnpm test`         | Run all unit and integration tests           |
 | `pnpm typecheck`    | Type-check every package                     |
-| `pnpm lint`         | Lint the whole repository                    |
+| `pnpm lint`         | Lint TypeScript across the repository        |
+| `pnpm lint:css`     | Lint stylesheets (logical properties only)   |
 | `pnpm format`       | Format files with Prettier                   |
 | `pnpm db:up / down` | Start or stop the local PostgreSQL container |
 

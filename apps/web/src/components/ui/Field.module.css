@@ -1,0 +1,76 @@
+.field {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+.label {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.optional {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
+.error svg {
+  flex-shrink: 0;
+  inline-size: 1.1em;
+  block-size: 1.1em;
+}
+
+/* Shared control styles, used by inputs, text areas and selects. */
+.control {
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  border: var(--border-width) solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.control:disabled {
+  cursor: not-allowed;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.invalid .control {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
+}
+
+.control:focus-visible {
+  outline: none;
+  border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 1px var(--color-focus-ring);
+}
+
+/* Hover must not hide the error colour or the focus ring. */
+.field:not(.invalid) .control:hover:not(:disabled, :focus-visible) {
+  border-color: var(--color-text-secondary);
+}

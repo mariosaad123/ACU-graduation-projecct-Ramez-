@@ -1,0 +1,49 @@
+.progress {
+  --progress-color: var(--color-action);
+
+  display: grid;
+  gap: var(--space-2);
+}
+
+.progress[data-skill='listening'] {
+  --progress-color: var(--color-listening-accent);
+}
+
+.progress[data-skill='speaking'] {
+  --progress-color: var(--color-speaking-accent);
+}
+
+.progress[data-skill='reading'] {
+  --progress-color: var(--color-reading-accent);
+}
+
+.progress[data-skill='writing'] {
+  --progress-color: var(--color-writing-accent);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.value {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  block-size: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+}
+
+.fill {
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--progress-color);
+  transition: inline-size var(--duration-slow) var(--ease-standard);
+}

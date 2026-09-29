@@ -1,0 +1,132 @@
+.header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-header);
+  border-block-end: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-block-size: var(--header-height);
+}
+
+.desktopNav {
+  display: none;
+  flex: 1;
+}
+
+.list {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--header-height);
+  padding-inline: var(--space-3);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.link:hover {
+  color: var(--color-text);
+}
+
+.link::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--space-3);
+  inset-block-end: -1px;
+  block-size: 3px;
+  background: transparent;
+}
+
+.active {
+  color: var(--color-action);
+  font-weight: var(--weight-semibold);
+}
+
+.active::after {
+  background: var(--color-action);
+}
+
+.link:focus-visible {
+  outline-offset: -4px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.wideOnly {
+  display: none;
+}
+
+.mobilePanel {
+  border-block-start: var(--border-width) solid var(--color-border);
+  padding-block: var(--space-2) var(--space-6);
+}
+
+.mobileList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobileList .link {
+  display: flex;
+  min-block-size: 3rem;
+  padding-inline: 0;
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.mobileList .link::after {
+  inset-inline: auto 0;
+  inset-block: var(--space-3);
+  inline-size: 3px;
+  block-size: auto;
+}
+
+.mobileActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-start: var(--space-5);
+}
+
+@media (width >= 40rem) {
+  .wideOnly {
+    display: inline-flex;
+  }
+
+  .mobileActions {
+    display: none;
+  }
+}
+
+@media (width >= 64rem) {
+  .desktopNav {
+    display: block;
+  }
+
+  .menuToggle,
+  .mobilePanel {
+    display: none;
+  }
+}

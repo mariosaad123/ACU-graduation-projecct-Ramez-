@@ -1,0 +1,101 @@
+.group {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.error {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  align-items: start;
+}
+
+.input {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  margin: 0;
+  margin-block-start: 0.2em;
+  border: 1.5px solid var(--color-border-input);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--color-action);
+}
+
+.label {
+  cursor: pointer;
+}
+
+.input:disabled + .label {
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+}
+
+.checkbox {
+  border-radius: var(--radius-sm);
+}
+
+.checkbox:checked {
+  border-color: var(--color-action);
+  background-color: var(--color-action);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 80%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.radio {
+  border-radius: var(--radius-full);
+}
+
+.radio::after {
+  content: '';
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: var(--radius-full);
+  background: var(--color-action);
+  scale: 0;
+  transition: scale var(--duration-fast) var(--ease-standard);
+}
+
+.radio:checked {
+  border-color: var(--color-action);
+}
+
+.radio:checked::after {
+  scale: 1;
+}
+
+.hint {
+  grid-column: 2;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

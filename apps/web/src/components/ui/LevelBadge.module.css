@@ -1,0 +1,61 @@
+.levelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.code {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-action);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Six bars rising left to right, like a ladder. Kept left-to-right in every language, as CEFR is. */
+.ladder {
+  display: inline-flex;
+  direction: ltr;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: 0.875rem;
+}
+
+.step {
+  inline-size: 4px;
+  border-radius: 1px;
+  background: var(--color-border-strong);
+}
+
+.step:nth-child(1) {
+  block-size: 30%;
+}
+
+.step:nth-child(2) {
+  block-size: 44%;
+}
+
+.step:nth-child(3) {
+  block-size: 58%;
+}
+
+.step:nth-child(4) {
+  block-size: 72%;
+}
+
+.step:nth-child(5) {
+  block-size: 86%;
+}
+
+.step:nth-child(6) {
+  block-size: 100%;
+}
+
+.step[data-reached='true'] {
+  background: var(--color-action);
+}

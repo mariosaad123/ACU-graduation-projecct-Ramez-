@@ -1,0 +1,20 @@
+.wrapper {
+  position: relative;
+}
+
+.select {
+  appearance: none;
+  padding-inline-end: var(--space-10);
+  cursor: pointer;
+}
+
+.caret {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--space-3);
+  inline-size: 1rem;
+  block-size: 1rem;
+  translate: 0 -50%;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
