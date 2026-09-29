@@ -1,0 +1,357 @@
+.page {
+  padding-block: var(--space-12) var(--space-8);
+}
+
+.pageHeader {
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: 48rem;
+  padding-block-end: var(--space-10);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.pageTitle {
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-bold);
+}
+
+.intro {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-10);
+  padding-block-start: var(--space-10);
+}
+
+@media (width >= 64rem) {
+  .layout {
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--space-12);
+  }
+}
+
+.toc {
+  align-self: start;
+}
+
+@media (width >= 64rem) {
+  .toc {
+    position: sticky;
+    inset-block-start: calc(var(--header-height) + var(--space-6));
+  }
+}
+
+.tocTitle {
+  margin-block-end: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.tocList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width >= 64rem) {
+  .tocList {
+    display: grid;
+    gap: var(--space-1);
+    border-inline-start: var(--border-width) solid var(--color-border);
+  }
+}
+
+.tocLink {
+  display: block;
+  padding-block: var(--space-1);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+@media (width >= 64rem) {
+  .tocLink {
+    margin-inline-start: -1px;
+    padding-inline-start: var(--space-4);
+    border-inline-start: 2px solid transparent;
+  }
+
+  .tocLink:hover {
+    border-inline-start-color: var(--color-border-strong);
+  }
+}
+
+.tocLink:hover {
+  color: var(--color-text);
+}
+
+.content {
+  display: grid;
+  gap: var(--space-16);
+  min-inline-size: 0;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sectionHeader {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 44rem;
+}
+
+.sectionTitle {
+  font-size: var(--text-2xl);
+}
+
+.sectionDescription {
+  color: var(--color-text-secondary);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.groupTitle {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.note {
+  color: var(--color-text-secondary);
+}
+
+.inverse {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--gray-900);
+  color: var(--gray-0);
+}
+
+/* Colour */
+.palettes {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.palette {
+  display: grid;
+  gap: var(--space-1);
+}
+
+@media (width >= 40rem) {
+  .palette {
+    grid-template-columns: 4rem 1fr;
+    align-items: center;
+    gap: var(--space-3);
+  }
+}
+
+.paletteName {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.swatches {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.swatch {
+  display: flex;
+  align-items: flex-end;
+  block-size: 3rem;
+  padding: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: rgb(0 0 0 / 55%);
+}
+
+.swatch[data-dark='true'] {
+  color: rgb(255 255 255 / 85%);
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pair {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pairSample {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+
+.pairTokens {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+/* Typography */
+.typeGrid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@media (width >= 48rem) {
+  .typeGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.typeColumn {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.headingSample {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+}
+
+.scale {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scaleRow {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.scaleRow code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.scaleRow span {
+  overflow: hidden;
+  font-family: var(--font-display);
+  line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scripts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scriptSample {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: var(--text-xl);
+}
+
+/* Forms */
+.formGrid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@media (width >= 48rem) {
+  .formGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+/* Data display */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-4);
+}
+
+.demoCard {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.demoCard > :last-child {
+  inline-size: 100%;
+}
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.skeletonCard {
+  display: grid;
+  gap: var(--space-3);
+  inline-size: min(100%, 22rem);
+}
