@@ -12,6 +12,9 @@ coverage/
 .env.*
 !.env.example
 
+# Local embedded database (development without Docker)
+.data/
+
 # Logs
 *.log
 logs/
