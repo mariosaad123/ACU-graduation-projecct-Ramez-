@@ -1,0 +1,155 @@
+/* Laid out from the space the picker actually gets, not the viewport, so it fits any column. */
+.picker {
+  container-type: inline-size;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.body {
+  clear: both;
+  display: grid;
+  gap: var(--space-6);
+  align-items: center;
+}
+
+@container (inline-size >= 40rem) {
+  .body {
+    grid-template-columns: minmax(12rem, 16rem) 1fr;
+    gap: var(--space-8);
+  }
+}
+
+/* Floating takes the legend out of the fieldset border, so the picker can sit inside any box. */
+.legend {
+  float: inline-start;
+  inline-size: 100%;
+  margin-block-end: var(--space-4);
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+}
+
+.aperture {
+  inline-size: min(100%, 14rem);
+  margin-inline: auto;
+  overflow: visible;
+}
+
+.blade {
+  cursor: pointer;
+}
+
+.bladeShape {
+  fill: var(--color-surface-sunken);
+  stroke: var(--color-bg);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  transition: fill var(--duration-base) var(--ease-standard);
+}
+
+.glyph {
+  fill: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  pointer-events: none;
+  transition: fill var(--duration-base) var(--ease-standard);
+}
+
+.blade[data-highlighted='true'] .bladeShape {
+  fill: var(--blue-100);
+}
+
+.blade[data-highlighted='true'] .glyph {
+  fill: var(--blue-800);
+}
+
+.blade[data-selected='true'] .bladeShape {
+  fill: var(--color-action);
+}
+
+.blade[data-selected='true'] .glyph {
+  fill: var(--color-text-on-action);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  position: relative;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  block-size: 100%;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.option[data-highlighted='true'] .optionLabel {
+  border-color: var(--blue-300);
+  background: var(--color-action-subtle);
+}
+
+.option input:checked + .optionLabel {
+  border-color: var(--color-action);
+  background: var(--color-action-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-action);
+}
+
+.option input:focus-visible + .optionLabel {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.optionGlyph {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.option input:checked + .optionLabel .optionGlyph {
+  background: var(--color-action);
+  color: var(--color-text-on-action);
+}
+
+.optionText {
+  display: grid;
+  min-inline-size: 0;
+  line-height: var(--leading-snug);
+}
+
+.optionText > :first-child {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.optionTranslation {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
