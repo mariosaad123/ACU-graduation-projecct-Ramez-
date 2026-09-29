@@ -70,8 +70,7 @@ the two meet inside the white rim around the globe, so the join is invisible whe
   briefly, while the globe breathes. A full turn is needed before the loop restarts, because the
   letters differ from blade to blade.
 - **Hover and focus:** the header mark turns by one blade with a slight overshoot.
-- **Buttons** keep a single-colour aperture spinner that follows the text colour, since the
-  full-colour emblem would clash with a blue button.
+- The same emblem is the loading indicator everywhere, including inside busy buttons.
 - With reduced motion enabled, the mark stays still.
 
 The language picker uses a separate six-blade aperture, one blade per language on the platform,

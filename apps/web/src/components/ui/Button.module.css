@@ -31,6 +31,10 @@
   block-size: 1.15em;
 }
 
+.spinner {
+  display: inline-flex;
+}
+
 .label {
   display: inline-flex;
   align-items: center;

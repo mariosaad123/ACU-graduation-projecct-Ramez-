@@ -75,7 +75,7 @@ export function VoiceRecorder({
               aria-label={t('recorder.start')}
             >
               {state.status === 'requesting' ? (
-                <Spinner tone="current" size="1.5rem" label={false} />
+                <Spinner size="2rem" label={false} />
               ) : (
                 <MicrophoneIcon weight="fill" />
               )}

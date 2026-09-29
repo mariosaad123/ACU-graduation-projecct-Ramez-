@@ -30,7 +30,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...rest}
     >
-      {loading ? <Spinner size="1.1em" tone="current" label={false} /> : iconStart}
+      {loading ? <Spinner size="1.35em" label={false} className={styles.spinner} /> : iconStart}
       <span className={styles.label}>{children}</span>
       {!loading && iconEnd}
     </button>
