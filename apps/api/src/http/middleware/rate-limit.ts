@@ -1,0 +1,23 @@
+import { rateLimit } from 'express-rate-limit';
+import type { RateLimit } from '../dependencies';
+import { HttpError } from '../http-error';
+
+/**
+ * Per-IP limiter answering with our standard error body. The in-memory store suits a single API
+ * instance; a shared store (e.g. Redis) is needed before running several instances.
+ */
+export function limitRequests({ windowMs, limit }: RateLimit) {
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_req, _res, next, options) => {
+      next(
+        new HttpError(429, 'RATE_LIMITED', 'Too many requests, please slow down', {
+          details: { retryAfterSeconds: Math.ceil(options.windowMs / 1000) },
+        }),
+      );
+    },
+  });
+}

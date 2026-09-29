@@ -50,6 +50,8 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, next) => {
       code: httpError.code,
       message: httpError.message,
       requestId: typeof req.id === 'string' ? req.id : 'unknown',
+      ...(httpError.details && { details: httpError.details }),
+      ...(httpError.fields && { fields: httpError.fields }),
     },
   };
 
