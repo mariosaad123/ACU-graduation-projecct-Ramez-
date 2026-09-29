@@ -15,8 +15,8 @@
     "test": "pnpm --recursive test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
+    "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path .git/info/exclude",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "prepare": "husky"
