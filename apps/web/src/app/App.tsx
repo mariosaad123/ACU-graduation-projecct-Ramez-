@@ -1,17 +1,18 @@
-import { ApiStatus } from '../features/system/ApiStatus';
-import { useApiHealth } from '../features/system/use-api-health';
-import styles from './App.module.css';
+import type { i18n as I18n } from 'i18next';
+import { I18nextProvider } from 'react-i18next';
+import { createBrowserRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { ToastProvider } from '../components/ui/toast/ToastProvider';
+import { routes } from './routes';
 
-export function App() {
-  const health = useApiHealth();
+const router = createBrowserRouter(routes);
 
+export function App({ i18n }: { i18n: I18n }) {
   return (
-    <main className={styles.page}>
-      <h1 className={styles.title}>ACU Language Platform</h1>
-      <p className={styles.subtitle}>
-        Faculty of Languages and Translation · Ahram Canadian University
-      </p>
-      <ApiStatus health={health} />
-    </main>
+    <I18nextProvider i18n={i18n}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </I18nextProvider>
   );
 }

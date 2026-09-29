@@ -1,36 +1,52 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { App } from './App';
+import { SiteHeader } from '../components/layout/SiteHeader';
+import { renderWithProviders } from '../test/render';
 
-function stubFetch(implementation: () => Promise<Response>) {
-  vi.stubGlobal('fetch', vi.fn(implementation));
-}
+describe('interface language', () => {
+  it('sets the document language and direction for Arabic', () => {
+    renderWithProviders(<SiteHeader />, { locale: 'ar' });
 
-describe('App', () => {
-  it('shows the API version when the health check succeeds', async () => {
-    stubFetch(() =>
-      Promise.resolve(Response.json({ status: 'ok', version: '1.2.3', uptimeSeconds: 10 })),
-    );
-
-    render(<App />);
-
-    expect(await screen.findByText('API online')).toBeInTheDocument();
-    expect(screen.getByText('v1.2.3')).toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute('lang', 'ar');
+    expect(document.documentElement).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByRole('link', { name: 'تحديد المستوى' })).toBeInTheDocument();
   });
 
-  it('reports the API as unreachable when the request fails', async () => {
-    stubFetch(() => Promise.reject(new TypeError('Failed to fetch')));
+  it('switches to English, flips the direction and remembers the choice', async () => {
+    const user = userEvent.setup();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    renderWithProviders(<SiteHeader />, { locale: 'ar' });
 
-    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Switch the interface to English' }));
 
-    expect(await screen.findByText('API unreachable')).toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute('dir', 'ltr');
+    expect(screen.getAllByRole('link', { name: 'Placement test' }).length).toBeGreaterThan(0);
+    expect(setItem).toHaveBeenCalledWith('acu.locale', 'en');
+  });
+});
+
+describe('SiteHeader', () => {
+  it('opens and closes the mobile menu, returning focus on Escape', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SiteHeader />);
+
+    const toggle = screen.getByRole('button', { name: 'Open menu' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveAccessibleName('Close menu');
+
+    await user.keyboard('{Escape}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
   });
 
-  it('treats a response that breaks the contract as unreachable', async () => {
-    stubFetch(() => Promise.resolve(Response.json({ status: 'maybe' })));
+  it('marks the current section in the navigation', () => {
+    renderWithProviders(<SiteHeader />, { route: '/library' });
 
-    render(<App />);
-
-    expect(await screen.findByText('API unreachable')).toBeInTheDocument();
+    const [current] = screen.getAllByRole('link', { name: 'Library' });
+    expect(current).toHaveAttribute('aria-current', 'page');
   });
 });

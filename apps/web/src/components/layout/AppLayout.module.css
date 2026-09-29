@@ -1,0 +1,13 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+}
+
+.main {
+  flex: 1;
+}
+
+.main:focus {
+  outline: none;
+}
