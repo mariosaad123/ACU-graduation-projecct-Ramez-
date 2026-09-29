@@ -1,0 +1,35 @@
+.mark {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.blade {
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.brand .blade[data-emphasis='strong'] {
+  fill: var(--blue-600);
+}
+
+.brand .blade[data-emphasis='soft'] {
+  fill: var(--blue-400);
+}
+
+.current .blade {
+  fill: currentcolor;
+}
+
+.current .blade[data-emphasis='soft'] {
+  fill-opacity: 0.55;
+}
+
+.spinning {
+  animation: turn 1.4s var(--ease-standard) infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
