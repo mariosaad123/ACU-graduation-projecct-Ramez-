@@ -8,12 +8,12 @@ const env = loadEnv();
 const logger = createLogger(env);
 const app = createApp({ env, logger });
 
-const server = app.listen(env.PORT, (error) => {
+const server = app.listen(env.API_PORT, (error) => {
   if (error) {
     logger.fatal({ err: error }, 'Failed to start the API server');
     process.exit(1);
   }
-  logger.info(`API listening on http://localhost:${env.PORT}`);
+  logger.info(`API listening on http://localhost:${env.API_PORT}`);
 });
 
 function shutdown(signal: NodeJS.Signals): void {

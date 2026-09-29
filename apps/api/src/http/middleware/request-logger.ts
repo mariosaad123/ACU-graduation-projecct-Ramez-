@@ -8,6 +8,14 @@ const SAFE_REQUEST_ID = /^[\w-]{1,64}$/;
 export function requestLogger(logger: Logger) {
   return pinoHttp({
     logger,
+    serializers: {
+      req: (req: { id: unknown; method: string; url: string }) => ({
+        id: req.id,
+        method: req.method,
+        url: req.url,
+      }),
+      res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+    },
     genReqId(req, res) {
       const incoming = req.headers[REQUEST_ID_HEADER];
       const id = typeof incoming === 'string' && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
