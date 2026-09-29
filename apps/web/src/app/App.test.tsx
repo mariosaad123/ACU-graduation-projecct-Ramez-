@@ -8,8 +8,8 @@ function stubFetch(implementation: () => Promise<Response>) {
 
 describe('App', () => {
   it('shows the API version when the health check succeeds', async () => {
-    stubFetch(async () =>
-      Response.json({ status: 'ok', version: '1.2.3', uptimeSeconds: 10 }),
+    stubFetch(() =>
+      Promise.resolve(Response.json({ status: 'ok', version: '1.2.3', uptimeSeconds: 10 })),
     );
 
     render(<App />);
@@ -27,7 +27,7 @@ describe('App', () => {
   });
 
   it('treats a response that breaks the contract as unreachable', async () => {
-    stubFetch(async () => Response.json({ status: 'maybe' }));
+    stubFetch(() => Promise.resolve(Response.json({ status: 'maybe' })));
 
     render(<App />);
 

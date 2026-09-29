@@ -2,9 +2,7 @@ import { healthResponseSchema } from '@acu/shared';
 import { useEffect, useState } from 'react';
 
 export type ApiHealth =
-  | { state: 'checking' }
-  | { state: 'online'; version: string }
-  | { state: 'offline' };
+  { state: 'checking' } | { state: 'online'; version: string } | { state: 'offline' };
 
 export function useApiHealth(): ApiHealth {
   const [health, setHealth] = useState<ApiHealth>({ state: 'checking' });
@@ -29,7 +27,9 @@ export function useApiHealth(): ApiHealth {
     }
 
     void check();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   return health;

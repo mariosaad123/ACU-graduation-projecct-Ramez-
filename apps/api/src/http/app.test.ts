@@ -3,11 +3,16 @@ import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
+import type { ErrorResponseBody } from './http-error';
 
 const app = createApp({
   env: { CORS_ORIGIN: 'http://localhost:5173' },
   logger: pino({ level: 'silent' }),
 });
+
+function errorOf(response: { body: unknown }): ErrorResponseBody['error'] {
+  return (response.body as ErrorResponseBody).error;
+}
 
 describe('GET /api/health', () => {
   it('responds with a body that matches the shared contract', async () => {
@@ -21,8 +26,8 @@ describe('error handling', () => {
   it('returns a structured 404 for unknown routes', async () => {
     const response = await request(app).get('/api/does-not-exist').expect(404);
 
-    expect(response.body).toMatchObject({ error: { code: 'NOT_FOUND' } });
-    expect(response.body.error.requestId).toBe(response.headers['x-request-id']);
+    expect(errorOf(response).code).toBe('NOT_FOUND');
+    expect(errorOf(response).requestId).toBe(response.headers['x-request-id']);
   });
 
   it('rejects malformed JSON with a 400', async () => {
@@ -32,7 +37,7 @@ describe('error handling', () => {
       .send('{"broken":')
       .expect(400);
 
-    expect(response.body.error.code).toBe('MALFORMED_JSON');
+    expect(errorOf(response).code).toBe('MALFORMED_JSON');
   });
 
   it('rejects bodies above the size limit', async () => {
@@ -41,7 +46,7 @@ describe('error handling', () => {
       .send({ text: 'x'.repeat(200_000) })
       .expect(413);
 
-    expect(response.body.error.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(errorOf(response).code).toBe('PAYLOAD_TOO_LARGE');
   });
 });
 

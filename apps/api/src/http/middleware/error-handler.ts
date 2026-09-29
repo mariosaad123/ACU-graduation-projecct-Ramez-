@@ -46,7 +46,11 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, next) => {
   }
 
   const body: ErrorResponseBody = {
-    error: { code: httpError.code, message: httpError.message, requestId: String(req.id) },
+    error: {
+      code: httpError.code,
+      message: httpError.message,
+      requestId: typeof req.id === 'string' ? req.id : 'unknown',
+    },
   };
 
   res.status(httpError.status).json(body);

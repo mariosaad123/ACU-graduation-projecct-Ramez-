@@ -18,7 +18,8 @@ export function requestLogger(logger: Logger) {
     },
     genReqId(req, res) {
       const incoming = req.headers[REQUEST_ID_HEADER];
-      const id = typeof incoming === 'string' && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
+      const id =
+        typeof incoming === 'string' && SAFE_REQUEST_ID.test(incoming) ? incoming : randomUUID();
       res.setHeader(REQUEST_ID_HEADER, id);
       return id;
     },
