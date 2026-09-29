@@ -1,0 +1,71 @@
+.dialog {
+  inline-size: calc(100% - 2 * var(--container-gutter));
+  max-block-size: calc(100dvb - 2 * var(--space-8));
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-overlay);
+}
+
+.dialog[open] {
+  animation: enter var(--duration-base) var(--ease-standard);
+}
+
+.dialog::backdrop {
+  background: rgb(22 26 34 / 45%);
+}
+
+.sm {
+  max-inline-size: 26rem;
+}
+
+.md {
+  max-inline-size: 36rem;
+}
+
+.surface {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.title {
+  font-size: var(--text-xl);
+  padding-block-start: var(--space-1);
+}
+
+.close {
+  margin-block-start: calc(-1 * var(--space-1));
+  margin-inline-end: calc(-1 * var(--space-2));
+}
+
+.description {
+  color: var(--color-text-secondary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-block-start: var(--space-2);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    translate: 0 var(--space-2);
+  }
+}

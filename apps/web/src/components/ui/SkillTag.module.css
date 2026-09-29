@@ -1,0 +1,35 @@
+.skillTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.skillTag svg {
+  inline-size: 1.15em;
+  block-size: 1.15em;
+}
+
+.skillTag[data-skill='listening'] {
+  background: var(--color-listening-bg);
+  color: var(--color-listening);
+}
+
+.skillTag[data-skill='speaking'] {
+  background: var(--color-speaking-bg);
+  color: var(--color-speaking);
+}
+
+.skillTag[data-skill='reading'] {
+  background: var(--color-reading-bg);
+  color: var(--color-reading);
+}
+
+.skillTag[data-skill='writing'] {
+  background: var(--color-writing-bg);
+  color: var(--color-writing);
+}
