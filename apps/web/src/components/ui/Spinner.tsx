@@ -1,8 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { ApertureMark } from '../brand/ApertureMark';
+import { Emblem } from '../brand/Emblem';
 
 interface SpinnerProps {
   size?: string;
+  /**
+   * `brand` spins the faculty emblem. `current` is a single-colour aperture that follows the
+   * text colour, for places such as buttons where the full-colour emblem would clash.
+   */
   tone?: 'brand' | 'current';
   /** Announced to screen readers. Omit when the spinner sits inside an element that already says it is busy. */
   label?: string | false;
@@ -15,7 +20,11 @@ export function Spinner({ size = '1.5rem', tone = 'brand', label, className }: S
 
   return (
     <span role={announcement ? 'status' : undefined} className={className}>
-      <ApertureMark size={size} tone={tone} gapColor="transparent" spinning />
+      {tone === 'brand' ? (
+        <Emblem size={size} spinning />
+      ) : (
+        <ApertureMark size={size} tone="current" gapColor="transparent" spinning />
+      )}
       {announcement && <span className="visually-hidden">{announcement}</span>}
     </span>
   );

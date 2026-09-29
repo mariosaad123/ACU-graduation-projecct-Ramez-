@@ -61,9 +61,21 @@ breaks joined letters.
 
 ## Brand mark
 
-The six-blade aperture comes from the faculty logo, one blade per language. It is generated
-from geometry (`components/brand/aperture-geometry.ts`) rather than drawn by hand, and is used
-as the logo, the favicon, the loading indicator and the language picker.
+The platform mark is the faculty emblem: eight orange blades carrying letters from different
+scripts, around a globe (`components/brand/Emblem.tsx`). It is rendered as two stacked copies of
+one image. The outer ring is masked with a radial gradient and the globe is clipped to a circle;
+the two meet inside the white rim around the globe, so the join is invisible when the ring moves.
+
+- **Loading:** the ring clicks round blade by blade (8 × 45°), easing into each stop and pausing
+  briefly, while the globe breathes. A full turn is needed before the loop restarts, because the
+  letters differ from blade to blade.
+- **Hover and focus:** the header mark turns by one blade with a slight overshoot.
+- **Buttons** keep a single-colour aperture spinner that follows the text colour, since the
+  full-colour emblem would clash with a blue button.
+- With reduced motion enabled, the mark stays still.
+
+The language picker uses a separate six-blade aperture, one blade per language on the platform,
+generated from geometry in `components/brand/aperture-geometry.ts`.
 
 ## Components
 

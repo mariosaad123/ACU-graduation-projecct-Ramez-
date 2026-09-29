@@ -17,7 +17,9 @@ const ar = {
     media: 'الصوت',
   },
   brand: {
-    body: 'العدسة ذات الشفرات الست مأخوذة من شعار كلية اللغات والترجمة؛ كل شفرة تمثل لغة من لغات المنصة. تُرسم بالكود رياضيًا، وتُستخدم شعارًا ومؤشر تحميل ومحددًا للغة.',
+    body: 'شعار المنصة هو عدسة كلية اللغات والترجمة: ثماني شفرات تحمل حروفًا من لغات العالم حول الكرة الأرضية. عند الحركة تدور حلقة الشفرات وحدها والكرة ثابتة في المنتصف، شفرةً بعد شفرة مثل حلقة عدسة الكاميرا. محدد اللغة يستخدم عدسة من ست شفرات، واحدة لكل لغة في المنصة.',
+    loading: 'مؤشر التحميل',
+    hover: 'مرّر المؤشر فوق الشعار ليدور شفرة واحدة',
     selected: 'اللغة المختارة',
   },
   colors: {
@@ -139,7 +141,9 @@ const en: Copy = {
     media: 'Audio',
   },
   brand: {
-    body: 'The six-blade aperture comes from the Faculty of Languages and Translation logo; each blade stands for one of the languages on the platform. It is drawn from geometry in code and used as the logo, the loading indicator and the language picker.',
+    body: 'The platform mark is the Faculty of Languages and Translation aperture: eight blades carrying letters from the world’s scripts around a globe. In motion only the ring of blades turns while the globe stays still, clicking round blade by blade like a camera lens. The language picker uses a six-blade aperture, one blade per language on the platform.',
+    loading: 'Loading indicator',
+    hover: 'Hover over the mark to turn it by one blade',
     selected: 'Selected language',
   },
   colors: {

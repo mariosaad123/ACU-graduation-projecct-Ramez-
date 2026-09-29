@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import acuLogo from '../../assets/brand/acu-logo.webp';
 import facultyLogo from '../../assets/brand/faculty-logo.webp';
 import { ApiStatus } from '../../features/system/ApiStatus';
-import { ApertureMark } from '../brand/ApertureMark';
+import { Emblem } from '../brand/Emblem';
 import { Container } from './Container';
 import { FOOTER_NAV } from './nav-items';
 import styles from './SiteFooter.module.css';
@@ -17,7 +17,7 @@ export function SiteFooter() {
       <Container className={styles.top}>
         <div className={styles.identity}>
           <p className={styles.brand}>
-            <ApertureMark size="1.75rem" gapColor="var(--color-surface-muted)" />
+            <Emblem size="2rem" />
             {t('brand.name')}
           </p>
           <p className={styles.affiliation}>

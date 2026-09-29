@@ -144,6 +144,17 @@
   color: var(--color-text-secondary);
 }
 
+.motionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-10);
+}
+
+.hoverDemo {
+  display: inline-grid;
+  border-radius: var(--radius-full);
+}
+
 .inverse {
   display: inline-grid;
   place-items: center;
