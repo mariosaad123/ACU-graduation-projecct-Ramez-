@@ -8,7 +8,11 @@
     "build": "tsup",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=.env src/cli/migrate.ts",
+    "doctor-code:set": "tsx --env-file-if-exists=.env src/cli/set-doctor-code.ts",
+    "admin:grant": "tsx --env-file-if-exists=.env src/cli/grant-admin.ts"
   },
   "dependencies": {
     "@acu/shared": "workspace:*",
