@@ -1,0 +1,20 @@
+{
+  "name": "acu-language-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Language learning platform for the Faculty of Languages and Translation, Ahram Canadian University.",
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --recursive build",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}
