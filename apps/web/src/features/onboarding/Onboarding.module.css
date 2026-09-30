@@ -1,0 +1,263 @@
+.page {
+  display: grid;
+  gap: var(--space-8);
+  max-inline-size: 56rem;
+  padding-block: var(--space-10) var(--space-8);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-2);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--color-text);
+}
+
+.backIcon {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+}
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stepText {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-action);
+}
+
+.stepBars {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.stepBars span {
+  inline-size: 2rem;
+  block-size: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+}
+
+.stepBars span[data-done='true'] {
+  background: var(--color-action);
+}
+
+.title {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+}
+
+.lead {
+  max-inline-size: 40rem;
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+}
+
+/* Role choice */
+.roles {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (width >= 44rem) {
+  .roles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.roleCard {
+  --role-accent: var(--color-action);
+  --role-bg: var(--color-action-subtle);
+
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--color-border);
+  border-block-start: 4px solid var(--role-accent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    translate var(--duration-base) var(--ease-standard);
+}
+
+.roleCard[data-tone='doctor'] {
+  --role-accent: var(--gold-500);
+  --role-bg: var(--color-achievement-bg);
+}
+
+.roleCard:hover {
+  border-color: var(--role-accent);
+  box-shadow: var(--shadow-overlay);
+  translate: 0 -2px;
+}
+
+.roleIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  border-radius: var(--radius-md);
+  background: var(--role-bg);
+  color: var(--role-accent);
+}
+
+.roleCard[data-tone='doctor'] .roleIcon {
+  color: var(--color-achievement);
+}
+
+.roleIcon svg {
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+
+.roleTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+}
+
+.roleBody {
+  color: var(--color-text-secondary);
+}
+
+.roleNote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-achievement);
+  font-weight: var(--weight-medium);
+}
+
+.roleCta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  color: var(--color-action);
+  font-weight: var(--weight-semibold);
+}
+
+.ctaIcon {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  transition: translate var(--duration-base) var(--ease-standard);
+}
+
+/* Nudges the arrow forward, which is leftwards in Arabic. */
+.roleCard:hover .ctaIcon {
+  translate: 4px 0;
+}
+
+.roleCard:hover .ctaIcon:dir(rtl) {
+  translate: -4px 0;
+}
+
+/* Setup forms */
+.form {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+@media (width >= 40rem) {
+  .form {
+    padding: var(--space-8);
+  }
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (width >= 44rem) {
+  .formGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fullRow {
+    grid-column: 1 / -1;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.goals {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (width >= 44rem) {
+  .goals {
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  }
+}
+
+.secretField {
+  position: relative;
+}
+
+.revealButton {
+  position: absolute;
+  inset-block-end: 0.25rem;
+  inset-inline-end: 0.25rem;
+}
+
+.secretField input {
+  padding-inline-end: var(--space-12);
+}
+
+.verify {
+  display: grid;
+  gap: var(--space-5);
+  justify-items: start;
+}
+
+.muted {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.inlineLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.inlineLink:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
