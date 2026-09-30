@@ -92,6 +92,11 @@ export async function createTestContext(
     googleConfigured?: boolean;
     env?: Record<string, string>;
     rateLimits?: RateLimits;
+    /**
+     * Reuse another context's database. Each embedded PostgreSQL holds a large block of memory,
+     * so a test that only needs a differently configured app should not start a second one.
+     */
+    shareDatabaseWith?: TestContext;
   } = {},
 ): Promise<TestContext> {
   const env = loadEnv({
@@ -101,8 +106,11 @@ export async function createTestContext(
     WEB_ORIGIN,
     ...options.env,
   });
-  const database = createDatabase(env.DATABASE_URL);
-  await database.migrate();
+  const shared = options.shareDatabaseWith?.database;
+  const database = shared ?? createDatabase(env.DATABASE_URL);
+  if (!shared) {
+    await database.migrate();
+  }
 
   const provider = new FakeIdentityProvider();
   const mailer = new MemoryMailer();
@@ -126,7 +134,8 @@ export async function createTestContext(
     advance: (ms) => {
       current = new Date(current.getTime() + ms);
     },
-    close: () => database.close(),
+    // A shared database belongs to the context that created it.
+    close: () => (shared ? Promise.resolve() : database.close()),
   };
 }
 

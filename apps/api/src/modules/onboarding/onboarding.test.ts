@@ -51,6 +51,10 @@ async function me(agent: Agent) {
   return meResponseSchema.parse((await agent.get('/api/me').expect(200)).body).user;
 }
 
+async function revokeAllDoctorCodes() {
+  await context.database.db.update(doctorAccessCodes).set({ revokedAt: new Date() });
+}
+
 function errorCode(response: { body: unknown }): string {
   return (response.body as { error: { code: string } }).error.code;
 }
@@ -151,28 +155,35 @@ describe('doctor onboarding: access code', () => {
   });
 
   it('is closed until an administrator sets a code', async () => {
-    const fresh = await createTestContext();
-    const { agent } = await signIn(fresh);
+    await revokeAllDoctorCodes();
+    try {
+      const { agent } = await signIn(context);
 
-    const response = await post(agent, '/api/onboarding/doctor', doctorRequest()).expect(503);
-    expect(errorCode(response)).toBe('DOCTOR_CODE_NOT_CONFIGURED');
-    await fresh.close();
+      const response = await post(agent, '/api/onboarding/doctor', doctorRequest()).expect(503);
+      expect(errorCode(response)).toBe('DOCTOR_CODE_NOT_CONFIGURED');
+    } finally {
+      await setDoctorCode(context);
+    }
   });
 
   it('stops accepting a code once it is revoked', async () => {
-    const fresh = await createTestContext();
-    await setDoctorCode(fresh, 'old-code');
-    await fresh.database.db.update(doctorAccessCodes).set({ revokedAt: new Date() });
-    await setDoctorCode(fresh, 'new-code');
-    const { agent } = await signIn(fresh);
+    await revokeAllDoctorCodes();
+    try {
+      await setDoctorCode(context, 'old-code');
+      await revokeAllDoctorCodes();
+      await setDoctorCode(context, 'new-code');
+      const { agent } = await signIn(context);
 
-    await post(agent, '/api/onboarding/doctor', doctorRequest({ accessCode: 'old-code' })).expect(
-      403,
-    );
-    await post(agent, '/api/onboarding/doctor', doctorRequest({ accessCode: 'new-code' })).expect(
-      200,
-    );
-    await fresh.close();
+      await post(agent, '/api/onboarding/doctor', doctorRequest({ accessCode: 'old-code' })).expect(
+        403,
+      );
+      await post(agent, '/api/onboarding/doctor', doctorRequest({ accessCode: 'new-code' })).expect(
+        200,
+      );
+    } finally {
+      await revokeAllDoctorCodes();
+      await setDoctorCode(context);
+    }
   });
 
   it('accepts university email addresses only', async () => {

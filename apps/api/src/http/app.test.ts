@@ -83,6 +83,7 @@ describe('CSRF protection', () => {
 describe('rate limiting', () => {
   it('slows down one address that sends too many sign-in requests', async () => {
     const limited = await createTestContext({
+      shareDatabaseWith: context,
       rateLimits: {
         api: { windowMs: 60_000, limit: 1000 },
         auth: { windowMs: 60_000, limit: 3 },

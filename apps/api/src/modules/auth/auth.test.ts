@@ -42,7 +42,10 @@ describe('starting Google sign-in', () => {
   });
 
   it('sends people back to the sign-in page when Google is not configured', async () => {
-    const unconfigured = await createTestContext({ googleConfigured: false });
+    const unconfigured = await createTestContext({
+      googleConfigured: false,
+      shareDatabaseWith: context,
+    });
     const response = await request(unconfigured.app).get('/api/auth/google/start').expect(303);
 
     expect(response.headers.location).toBe(`${WEB_ORIGIN}/sign-in?error=google_unavailable`);
