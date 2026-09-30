@@ -1,13 +1,18 @@
 import { normalizeJoinCode, type JoinPreview, type StudentGroup } from '@acu/shared';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database } from '../../db/client';
-import { doctorProfiles, groupMembers, groups, type User } from '../../db/schema';
+import { doctorProfiles, groupMembers, groups, users, type User } from '../../db/schema';
 import { HttpError } from '../../http/http-error';
 import { countRecentAudit, recordAudit } from '../audit/audit';
+import { unreadCounts } from '../chat/chat.service';
+import { fileUrl } from '../files/files.service';
 import { ensureStudentLanguage } from '../students/student-languages.service';
+import { avatarUrlOf } from '../users/avatar';
 import type { GroupsContext } from './groups.service';
 
 const MINUTE_MS = 60 * 1000;
+
+const doctorPicture = { avatarUrl: users.avatarUrl, avatarFileId: users.avatarFileId };
 
 /** Wrong codes allowed per student and hour: plenty for typos, far too few to guess one. */
 export const JOIN_CODE_FAILURE_LIMIT = 10;
@@ -52,9 +57,10 @@ async function findJoinable(context: GroupsContext, student: User, rawCode: stri
   }
 
   const [found] = await context.db
-    .select({ group: groups, doctorName: doctorProfiles.displayName })
+    .select({ group: groups, doctorName: doctorProfiles.displayName, doctor: doctorPicture })
     .from(groups)
     .innerJoin(doctorProfiles, eq(doctorProfiles.userId, groups.doctorId))
+    .innerJoin(users, eq(users.id, groups.doctorId))
     .where(eq(groups.joinCode, code));
   if (!found) {
     return rejectCode(context, student, failures);
@@ -82,13 +88,15 @@ export async function previewJoin(
   student: User,
   rawCode: string,
 ): Promise<JoinPreview> {
-  const { group, doctorName, membership } = await findJoinable(context, student, rawCode);
+  const { group, doctorName, doctor, membership } = await findJoinable(context, student, rawCode);
   return {
     group: {
       name: group.name,
       description: group.description,
       language: group.language,
+      photoUrl: group.photoFileId ? fileUrl(group.photoFileId) : null,
       doctorName,
+      doctorAvatarUrl: avatarUrlOf(doctor),
       requiresApproval: group.requiresApproval,
     },
     membership,
@@ -158,12 +166,14 @@ export async function listStudentGroups(db: Database, student: User): Promise<St
     .select({
       group: groups,
       doctorName: doctorProfiles.displayName,
+      doctor: doctorPicture,
       status: groupMembers.status,
       joinedAt: groupMembers.joinedAt,
     })
     .from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId))
     .innerJoin(doctorProfiles, eq(doctorProfiles.userId, groups.doctorId))
+    .innerJoin(users, eq(users.id, groups.doctorId))
     .where(
       and(
         eq(groupMembers.studentId, student.id),
@@ -173,14 +183,23 @@ export async function listStudentGroups(db: Database, student: User): Promise<St
     )
     .orderBy(asc(groupMembers.joinedAt));
 
-  return rows.map(({ group, doctorName, status, joinedAt }) => ({
+  // Only members read the chat; a request waiting for approval has nothing unread.
+  const unread = await unreadCounts(
+    db,
+    student.id,
+    rows.filter((row) => row.status === 'active').map((row) => row.group.id),
+  );
+  return rows.map(({ group, doctorName, doctor, status, joinedAt }) => ({
     id: group.id,
     name: group.name,
     description: group.description,
     language: group.language,
+    photoUrl: group.photoFileId ? fileUrl(group.photoFileId) : null,
     doctorName,
+    doctorAvatarUrl: avatarUrlOf(doctor),
     status: status === 'pending' ? 'pending' : 'active',
     joinedAt: joinedAt.toISOString(),
+    unread: unread.get(group.id) ?? 0,
   }));
 }
 

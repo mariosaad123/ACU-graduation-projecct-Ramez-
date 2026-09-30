@@ -29,7 +29,10 @@ export const sessionUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string(),
+  /** The uploaded photo if there is one, otherwise the Google account picture. */
   avatarUrl: z.nullable(z.string()),
+  /** True when the photo was uploaded here and can be removed. */
+  customAvatar: z.boolean(),
   role: z.nullable(z.enum(USER_ROLES)),
   student: z.nullable(
     z.object({
@@ -148,6 +151,11 @@ export const API_ERROR_CODES = [
   'NOT_SUSPENDER',
   'ALREADY_SUSPENDED',
   'MEMBER_STATE_CHANGED',
+  'UNSUPPORTED_FILE',
+  'FILE_TOO_LARGE',
+  'CHAT_CLOSED',
+  'CHAT_MUTED',
+  'MESSAGE_NOT_EDITABLE',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

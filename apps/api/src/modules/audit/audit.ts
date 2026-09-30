@@ -31,6 +31,11 @@ export const AUDIT_ACTIONS = [
   'group.member_moved',
   'student.suspended',
   'student.unsuspended',
+  'profile.photo_changed',
+  'group.photo_changed',
+  'group.chat_message_deleted',
+  'group.chat_member_muted',
+  'group.chat_member_unmuted',
   'admin.role_granted',
   'admin.doctor_code_rotated',
 ] as const;

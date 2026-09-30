@@ -1,5 +1,7 @@
 import {
+  PHOTO_MAX_BYTES,
   addMemberSchema,
+  chatMuteSchema,
   doctorLanguagesRequestSchema,
   groupCreateSchema,
   groupUpdateSchema,
@@ -13,6 +15,7 @@ import { users } from '../../db/schema';
 import type { AppDependencies } from '../../http/dependencies';
 import { HttpError } from '../../http/http-error';
 import { authOf, requireRole } from '../../http/middleware/require-auth';
+import { acceptOneFile, uploadedFile } from '../../http/middleware/upload';
 import { withBody } from '../../http/middleware/validate';
 import { updateDoctorLanguages } from '../doctors/doctor-languages.service';
 import { toSessionUser } from '../users/session-user';
@@ -26,7 +29,9 @@ import {
   moveMember,
   parseId,
   regenerateJoinCode,
+  setChatMuted,
   setGroupArchived,
+  setGroupPhoto,
   updateGroup,
   type GroupsContext,
   type MemberAction,
@@ -39,7 +44,7 @@ function isMemberAction(value: string | undefined): value is MemberAction {
 
 /** Everything a doctor does with languages, groups and the students in them. */
 export function createDoctorRouter(deps: AppDependencies): Router {
-  const { db, now } = deps;
+  const { db, now, storage } = deps;
   const router = Router();
   router.use(requireRole('doctor'));
 
@@ -96,6 +101,46 @@ export function createDoctorRouter(deps: AppDependencies): Router {
     const groupId = parseId(req.params.groupId);
     res.json({ group: await setGroupArchived(contextFor(req), doctorOf(req), groupId, false) });
   });
+
+  router.put('/groups/:groupId/photo', acceptOneFile('file', PHOTO_MAX_BYTES), async (req, res) => {
+    const upload = uploadedFile(req);
+    if (!upload) {
+      throw new HttpError(400, 'VALIDATION_FAILED', 'Choose a photo', {
+        fields: { file: 'required' },
+      });
+    }
+    const group = await setGroupPhoto(
+      { ...contextFor(req), storage },
+      doctorOf(req),
+      parseId(req.params.groupId),
+      upload,
+    );
+    res.json({ group });
+  });
+
+  router.delete('/groups/:groupId/photo', async (req, res) => {
+    const group = await setGroupPhoto(
+      { ...contextFor(req), storage },
+      doctorOf(req),
+      parseId(req.params.groupId),
+      null,
+    );
+    res.json({ group });
+  });
+
+  router.post(
+    '/groups/:groupId/members/:studentId/chat-mute',
+    withBody(chatMuteSchema, async (req, res, body) => {
+      const member = await setChatMuted(
+        contextFor(req),
+        doctorOf(req),
+        parseId(req.params.groupId),
+        parseId(req.params.studentId, 'Student'),
+        body.muted,
+      );
+      res.json({ member });
+    }),
+  );
 
   router.get('/groups/:groupId/members', async (req, res) => {
     const groupId = parseId(req.params.groupId);

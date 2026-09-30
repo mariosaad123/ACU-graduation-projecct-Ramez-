@@ -4,6 +4,7 @@ import type { Database } from '../../db/client';
 import { doctorProfiles, studentProfiles, type User } from '../../db/schema';
 import { listDoctorLanguages } from '../doctors/doctor-languages.service';
 import { listStudentLanguages } from '../students/student-languages.service';
+import { avatarUrlOf } from './avatar';
 
 export async function toSessionUser(db: Database, user: User): Promise<SessionUser> {
   const [[student], [doctor], studentLanguages, doctorLanguages] = await Promise.all([
@@ -17,7 +18,8 @@ export async function toSessionUser(db: Database, user: User): Promise<SessionUs
     id: user.id,
     name: user.name,
     email: user.email,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: avatarUrlOf(user),
+    customAvatar: user.avatarFileId !== null,
     role: user.role,
     student: student
       ? {

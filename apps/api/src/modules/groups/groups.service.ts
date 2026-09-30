@@ -23,6 +23,15 @@ import { HttpError } from '../../http/http-error';
 import { recordAudit, type AuditAction } from '../audit/audit';
 import { listDoctorLanguages } from '../doctors/doctor-languages.service';
 import { ensureStudentLanguage } from '../students/student-languages.service';
+import { unreadCounts } from '../chat/chat.service';
+import {
+  fileUrl,
+  removeFile,
+  saveUpload,
+  type FilesContext,
+  type Upload,
+} from '../files/files.service';
+import { avatarUrlOf } from '../users/avatar';
 import { generateJoinCode } from './join-code';
 
 export interface GroupsContext {
@@ -99,7 +108,7 @@ async function countMembers(db: Database | Transaction, groupIds: string[]) {
   return counts;
 }
 
-function toGroup(row: GroupRow, counts: Group['counts'] | undefined): Group {
+function toGroup(row: GroupRow, counts: Group['counts'] | undefined, unread = 0): Group {
   return {
     id: row.id,
     name: row.name,
@@ -108,15 +117,21 @@ function toGroup(row: GroupRow, counts: Group['counts'] | undefined): Group {
     joinCode: row.joinCode,
     joinOpen: row.joinOpen,
     requiresApproval: row.requiresApproval,
+    chatOpen: row.chatOpen,
+    photoUrl: row.photoFileId ? fileUrl(row.photoFileId) : null,
     archived: row.archivedAt !== null,
     createdAt: row.createdAt.toISOString(),
     counts: counts ?? { active: 0, pending: 0, out: 0 },
+    unread,
   };
 }
 
 async function groupDto(db: Database, row: GroupRow): Promise<Group> {
-  const counts = await countMembers(db, [row.id]);
-  return toGroup(row, counts.get(row.id));
+  const [counts, unread] = await Promise.all([
+    countMembers(db, [row.id]),
+    unreadCounts(db, row.doctorId, [row.id]),
+  ]);
+  return toGroup(row, counts.get(row.id), unread.get(row.id));
 }
 
 async function audit(
@@ -141,11 +156,12 @@ export async function listGroups(db: Database, doctorId: string): Promise<Group[
     .from(groups)
     .where(eq(groups.doctorId, doctorId))
     .orderBy(sql`${groups.archivedAt} is not null`, desc(groups.createdAt));
-  const counts = await countMembers(
-    db,
-    rows.map((row) => row.id),
-  );
-  return rows.map((row) => toGroup(row, counts.get(row.id)));
+  const ids = rows.map((row) => row.id);
+  const [counts, unread] = await Promise.all([
+    countMembers(db, ids),
+    unreadCounts(db, doctorId, ids),
+  ]);
+  return rows.map((row) => toGroup(row, counts.get(row.id), unread.get(row.id)));
 }
 
 const CODE_ATTEMPTS = 5;
@@ -299,6 +315,7 @@ async function loadMembers(
         name: users.name,
         email: users.email,
         avatarUrl: users.avatarUrl,
+        avatarFileId: users.avatarFileId,
         disabledAt: users.disabledAt,
         suspendedByUserId: users.suspendedByUserId,
         suspensionReason: users.suspensionReason,
@@ -332,7 +349,7 @@ async function loadMembers(
       id: student.id,
       name: student.name,
       email: student.email,
-      avatarUrl: student.avatarUrl,
+      avatarUrl: avatarUrlOf(student),
       languages: languageRows.filter((row) => row.userId === student.id).map((row) => row.language),
       activeLanguage,
       suspension: student.disabledAt
@@ -345,6 +362,7 @@ async function loadMembers(
         : null,
     },
     status: member.status,
+    chatMuted: member.chatMuted,
     joinedAt: member.joinedAt.toISOString(),
     decidedAt: member.decidedAt?.toISOString() ?? null,
     removedAt: member.removedAt?.toISOString() ?? null,
@@ -589,4 +607,51 @@ export async function teachesStudent(
     .where(and(eq(groups.doctorId, doctorId), eq(groupMembers.studentId, studentId)))
     .limit(1);
   return row !== undefined;
+}
+
+/** Sets or clears the group's photo; the previous one is deleted. */
+export async function setGroupPhoto(
+  context: GroupsContext & FilesContext,
+  doctor: User,
+  groupId: string,
+  upload: Upload | null,
+): Promise<Group> {
+  const { db, now } = context;
+  const group = await findOwnedGroup(db, doctor.id, groupId);
+  assertActive(group);
+  const saved = upload ? await saveUpload(context, doctor, upload, 'group_photo', group.id) : null;
+  const [row] = await db
+    .update(groups)
+    .set({ photoFileId: saved?.id ?? null, updatedAt: now() })
+    .where(eq(groups.id, group.id))
+    .returning();
+  await removeFile(context, group.photoFileId);
+  await audit(context, doctor, 'group.photo_changed', { groupId, removed: saved === null });
+  return groupDto(db, row ?? group);
+}
+
+/** A muted student keeps reading the group chat but cannot write in it. */
+export async function setChatMuted(
+  context: GroupsContext,
+  doctor: User,
+  groupId: string,
+  studentId: string,
+  muted: boolean,
+): Promise<GroupMember> {
+  const { db } = context;
+  const group = await findOwnedGroup(db, doctor.id, groupId);
+  assertActive(group);
+  const [updated] = await db
+    .update(groupMembers)
+    .set({ chatMuted: muted })
+    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.studentId, studentId)))
+    .returning({ studentId: groupMembers.studentId });
+  if (!updated) {
+    throw new HttpError(404, 'NOT_FOUND', 'Student not found in this group');
+  }
+  await audit(context, doctor, muted ? 'group.chat_member_muted' : 'group.chat_member_unmuted', {
+    groupId,
+    studentId,
+  });
+  return loadMember(db, group.id, doctor.id, studentId);
 }

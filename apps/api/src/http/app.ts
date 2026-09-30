@@ -5,6 +5,8 @@ import { APP_VERSION } from '../config/app-info';
 import { createAuthRouter } from '../modules/auth/auth.routes';
 import { loadSession } from '../modules/auth/sessions';
 import { createHealthRouter } from '../modules/health/health.routes';
+import { createGroupChatRouter } from '../modules/chat/chat.routes';
+import { createFilesRouter } from '../modules/files/files.routes';
 import { createDoctorRouter } from '../modules/groups/doctor.routes';
 import { createStudentGroupsRouter } from '../modules/groups/student-groups.routes';
 import { createOnboardingRouter } from '../modules/onboarding/onboarding.routes';
@@ -42,6 +44,8 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api/student', createStudentLanguagesRouter(deps));
   app.use('/api/student', createStudentGroupsRouter(deps));
   app.use('/api/doctor', createDoctorRouter(deps));
+  app.use('/api/files', createFilesRouter(deps));
+  app.use('/api/groups/:groupId', createGroupChatRouter(deps));
 
   app.use(notFound);
   app.use(errorHandler);

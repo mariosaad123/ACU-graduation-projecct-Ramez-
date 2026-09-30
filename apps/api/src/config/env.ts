@@ -32,6 +32,9 @@ const envSchema = z
     MAIL_TRANSPORT: z.enum(['console', 'smtp']).default('console'),
     SMTP_URL: optionalText,
     MAIL_FROM: z.string().default('ACU Languages <no-reply@localhost>'),
+
+    /** Folder for uploaded photos and chat attachments. */
+    UPLOADS_DIR: z.string().default('.data/uploads'),
   })
   .superRefine((env, context) => {
     const fail = (key: string, message: string) => {

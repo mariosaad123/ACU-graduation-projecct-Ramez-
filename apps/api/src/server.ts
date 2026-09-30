@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { lt } from 'drizzle-orm';
 import { loadEnv } from './config/env';
 import { createDatabase } from './db/client';
@@ -6,6 +7,7 @@ import { createApp } from './http/app';
 import { createLogger } from './lib/logger';
 import { createGoogleIdentityProvider } from './modules/auth/identity-provider';
 import { deleteExpiredSessions } from './modules/auth/sessions';
+import { DiskStorage } from './modules/files/storage';
 import { createMailer } from './modules/mail/mailer';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -35,6 +37,7 @@ const app = createApp({
   db: database.db,
   identityProvider,
   mailer: createMailer(env, logger),
+  storage: new DiskStorage(path.resolve(env.UPLOADS_DIR)),
   now: () => new Date(),
 });
 

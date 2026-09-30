@@ -1,18 +1,21 @@
 import {
   DOCTOR_STATUSES,
   GROUP_MEMBER_STATUSES,
+  FILE_PURPOSES,
   LEARNING_GOALS,
   LEARNING_LANGUAGES,
   USER_ROLES,
 } from '@acu/shared';
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   foreignKey,
   index,
   integer,
   jsonb,
   pgEnum,
+  pgSequence,
   pgTable,
   primaryKey,
   text,
@@ -27,6 +30,7 @@ export const doctorStatus = pgEnum('doctor_status', DOCTOR_STATUSES);
 export const learningLanguage = pgEnum('learning_language', LEARNING_LANGUAGES);
 export const learningGoal = pgEnum('learning_goal', LEARNING_GOALS);
 export const groupMemberStatus = pgEnum('group_member_status', GROUP_MEMBER_STATUSES);
+export const filePurpose = pgEnum('file_purpose', FILE_PURPOSES);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -51,6 +55,10 @@ export const users = pgTable('users', {
     onDelete: 'set null',
   }),
   suspensionReason: text('suspension_reason'),
+  /** A photo uploaded here; when null the Google picture in avatar_url is shown. */
+  avatarFileId: uuid('avatar_file_id').references((): AnyPgColumn => files.id, {
+    onDelete: 'set null',
+  }),
   ...timestamps,
 });
 
@@ -126,6 +134,11 @@ export const groups = pgTable(
     joinCode: text('join_code').notNull().unique(),
     joinOpen: boolean('join_open').notNull().default(true),
     requiresApproval: boolean('requires_approval').notNull().default(false),
+    /** When false only the doctor writes in the chat. */
+    chatOpen: boolean('chat_open').notNull().default(true),
+    photoFileId: uuid('photo_file_id').references((): AnyPgColumn => files.id, {
+      onDelete: 'set null',
+    }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     ...timestamps,
   },
@@ -157,11 +170,88 @@ export const groupMembers = pgTable(
     removedByUserId: uuid('removed_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    /** Muted by the doctor in the group chat. */
+    chatMuted: boolean('chat_muted').notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.groupId, table.studentId] }),
     index('group_members_student_idx').on(table.studentId),
   ],
+);
+
+/** Uploaded files. The bytes live in the file storage under storage_key; this row decides access. */
+export const files = pgTable(
+  'files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references((): AnyPgColumn => users.id, { onDelete: 'cascade' }),
+    purpose: filePurpose('purpose').notNull(),
+    /** The group a chat attachment or group photo belongs to. */
+    groupId: uuid('group_id').references((): AnyPgColumn => groups.id, { onDelete: 'cascade' }),
+    contentType: text('content_type').notNull(),
+    byteSize: integer('byte_size').notNull(),
+    originalName: text('original_name'),
+    storageKey: text('storage_key').notNull().unique(),
+    width: integer('width'),
+    height: integer('height'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('files_group_idx').on(table.groupId)],
+);
+
+/** Every change to a chat message takes the next value, so clients can ask for changes only. */
+export const chatVersion = pgSequence('chat_version_seq');
+
+export const groupMessages = pgTable(
+  'group_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    seq: bigint('seq', { mode: 'number' }).notNull().generatedAlwaysAsIdentity(),
+    version: bigint('version', { mode: 'number' })
+      .notNull()
+      .default(sql`nextval('chat_version_seq')`),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body'),
+    attachmentFileId: uuid('attachment_file_id').references(() => files.id, {
+      onDelete: 'set null',
+    }),
+    replyToId: uuid('reply_to_id').references((): AnyPgColumn => groupMessages.id, {
+      onDelete: 'set null',
+    }),
+    pinnedAt: timestamp('pinned_at', { withTimezone: true }),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedByUserId: uuid('deleted_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('group_messages_group_seq_idx').on(table.groupId, table.seq),
+    index('group_messages_group_version_idx').on(table.groupId, table.version),
+  ],
+);
+
+/** How far each person has read a group's chat, for unread counts. */
+export const chatReads = pgTable(
+  'chat_reads',
+  {
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    lastReadSeq: bigint('last_read_seq', { mode: 'number' }).notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.groupId, table.userId] })],
 );
 
 /** The shared code that proves someone is faculty staff. Only an Argon2 hash is stored. */
@@ -254,3 +344,5 @@ export type StudentLanguage = typeof studentLanguages.$inferSelect;
 export type DoctorLanguage = typeof doctorLanguages.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
+export type FileRow = typeof files.$inferSelect;
+export type GroupMessage = typeof groupMessages.$inferSelect;

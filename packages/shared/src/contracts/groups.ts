@@ -54,6 +54,7 @@ export const groupUpdateSchema = z.object({
   description: z.optional(description),
   joinOpen: z.optional(z.boolean()),
   requiresApproval: z.optional(z.boolean()),
+  chatOpen: z.optional(z.boolean()),
 });
 export type GroupUpdateRequest = z.infer<typeof groupUpdateSchema>;
 
@@ -65,9 +66,13 @@ export const groupSchema = z.object({
   joinCode: z.string(),
   joinOpen: z.boolean(),
   requiresApproval: z.boolean(),
+  chatOpen: z.boolean(),
+  photoUrl: z.nullable(z.string()),
   archived: z.boolean(),
   createdAt: z.string(),
   counts: z.object({ active: z.number(), pending: z.number(), out: z.number() }),
+  /** Chat messages the doctor has not read yet. */
+  unread: z.number(),
 });
 export type Group = z.infer<typeof groupSchema>;
 
@@ -94,6 +99,8 @@ export const groupMemberSchema = z.object({
     ),
   }),
   status: z.enum(GROUP_MEMBER_STATUSES),
+  /** Muted in the group chat: reads, does not write. */
+  chatMuted: z.boolean(),
   joinedAt: z.string(),
   decidedAt: z.nullable(z.string()),
   removedAt: z.nullable(z.string()),
@@ -122,9 +129,12 @@ export const studentGroupSchema = z.object({
   name: z.string(),
   description: z.nullable(z.string()),
   language: learningLanguage,
+  photoUrl: z.nullable(z.string()),
   doctorName: z.string(),
+  doctorAvatarUrl: z.nullable(z.string()),
   status: z.enum(['pending', 'active']),
   joinedAt: z.string(),
+  unread: z.number(),
 });
 export type StudentGroup = z.infer<typeof studentGroupSchema>;
 
@@ -139,7 +149,9 @@ export const joinPreviewSchema = z.object({
     name: z.string(),
     description: z.nullable(z.string()),
     language: learningLanguage,
+    photoUrl: z.nullable(z.string()),
     doctorName: z.string(),
+    doctorAvatarUrl: z.nullable(z.string()),
     requiresApproval: z.boolean(),
   }),
   /** The student's membership if they already have one. */

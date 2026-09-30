@@ -8,8 +8,6 @@ import {
   meResponseSchema,
   normalizeJoinCode,
   studentGroupsResponseSchema,
-  type Group,
-  type LearningLanguage,
 } from '@acu/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -20,13 +18,21 @@ import {
   post,
   setDoctorCode,
   signIn,
-  type Agent,
   type TestContext,
 } from '../../test/harness';
+import {
+  createGroup,
+  errorOf,
+  idOf,
+  me,
+  send,
+  signInAsDoctor,
+  signInAsStudent,
+  type Person,
+} from '../../test/people';
 import { JOIN_CODE_FAILURE_LIMIT } from './membership.service';
 
 let context: TestContext;
-let staffCounter = 0;
 
 beforeAll(async () => {
   context = await createTestContext();
@@ -36,66 +42,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await context.close();
 });
-
-interface Person {
-  agent: Agent;
-  id: string;
-  email: string;
-}
-
-/** A doctor who signed in with their university Google account, so they are active at once. */
-async function signInAsDoctor(languages: LearningLanguage[] = ['fr']): Promise<Person> {
-  staffCounter += 1;
-  const email = `doctor${staffCounter}@acu.edu.eg`;
-  const { agent } = await signIn(context, identity({ email }));
-  await post(agent, '/api/onboarding/doctor', {
-    accessCode: DOCTOR_CODE,
-    staffId: `ACU-G${staffCounter}`,
-    displayName: `Dr. Group ${staffCounter}`,
-    languages,
-    universityEmail: email,
-  }).expect(200);
-  return { agent, id: await idOf(agent), email };
-}
-
-async function signInAsStudent(languages: LearningLanguage[] = ['en']): Promise<Person> {
-  const person = identity();
-  const { agent } = await signIn(context, person);
-  await post(agent, '/api/onboarding/student', {
-    languages,
-    activeLanguage: languages[0],
-    goal: 'study',
-  }).expect(200);
-  return { agent, id: await idOf(agent), email: person.email };
-}
-
-async function idOf(agent: Agent): Promise<string> {
-  return meResponseSchema.parse((await agent.get('/api/me').expect(200)).body).user.id;
-}
-
-async function me(agent: Agent) {
-  return meResponseSchema.parse((await agent.get('/api/me').expect(200)).body).user;
-}
-
-function errorOf(response: { body: unknown }) {
-  return (response.body as { error: { code: string; details?: Record<string, unknown> } }).error;
-}
-
-function send(agent: Agent, method: 'put' | 'patch', path: string, body: object) {
-  return agent[method](path).set('Origin', WEB_ORIGIN).send(body);
-}
-
-async function createGroup(
-  doctor: Person,
-  overrides: Record<string, unknown> = {},
-): Promise<Group> {
-  const response = await post(doctor.agent, '/api/doctor/groups', {
-    name: 'Conversation 2',
-    language: 'fr',
-    ...overrides,
-  }).expect(201);
-  return groupResponseSchema.parse(response.body).group;
-}
 
 /** Each step happens a minute after the previous one, as it would for real people. */
 function later(): void {
@@ -119,13 +65,13 @@ function memberAction(doctor: Person, groupId: string, studentId: string, action
 
 describe('languages a doctor teaches', () => {
   it('are chosen at sign-up and shown on the account', async () => {
-    const doctor = await signInAsDoctor(['fr', 'de']);
+    const doctor = await signInAsDoctor(context, ['fr', 'de']);
 
     expect((await me(doctor.agent)).doctor?.languages).toEqual(['fr', 'de']);
   });
 
   it('can change, but not drop a language that still has groups', async () => {
-    const doctor = await signInAsDoctor(['fr']);
+    const doctor = await signInAsDoctor(context, ['fr']);
     await createGroup(doctor);
 
     const added = await send(doctor.agent, 'put', '/api/doctor/languages', {
@@ -161,8 +107,8 @@ describe('languages a doctor teaches', () => {
 
 describe('who may use the group endpoints', () => {
   it('keeps students out of the doctor endpoints, and doctors out of the student ones', async () => {
-    const student = await signInAsStudent();
-    const doctor = await signInAsDoctor();
+    const student = await signInAsStudent(context);
+    const doctor = await signInAsDoctor(context);
 
     expect(errorOf(await student.agent.get('/api/doctor/groups')).code).toBe('FORBIDDEN');
     expect(errorOf(await doctor.agent.get('/api/student/groups')).code).toBe('FORBIDDEN');
@@ -170,8 +116,8 @@ describe('who may use the group endpoints', () => {
   });
 
   it('hides one doctor’s groups from another entirely', async () => {
-    const owner = await signInAsDoctor();
-    const other = await signInAsDoctor();
+    const owner = await signInAsDoctor(context);
+    const other = await signInAsDoctor(context);
     const group = await createGroup(owner);
 
     const listed = groupsResponseSchema.parse((await other.agent.get('/api/doctor/groups')).body);
@@ -187,7 +133,7 @@ describe('who may use the group endpoints', () => {
   });
 
   it('treats malformed ids and unknown actions as missing', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const group = await createGroup(doctor);
 
     await doctor.agent.get('/api/doctor/groups/not-a-uuid/members').expect(404);
@@ -197,7 +143,7 @@ describe('who may use the group endpoints', () => {
 
 describe('creating and managing groups', () => {
   it('creates a group with a readable code and no members', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const group = await createGroup(doctor, { name: '  Grammar 1  ', description: '' });
 
     expect(group).toMatchObject({
@@ -213,14 +159,14 @@ describe('creating and managing groups', () => {
   });
 
   it('can require approval from the start', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const group = await createGroup(doctor, { requiresApproval: true });
 
     expect(group.requiresApproval).toBe(true);
   });
 
   it('only in a language the doctor teaches', async () => {
-    const doctor = await signInAsDoctor(['fr']);
+    const doctor = await signInAsDoctor(context, ['fr']);
     const response = await post(doctor.agent, '/api/doctor/groups', {
       name: 'Deutsch 1',
       language: 'de',
@@ -230,7 +176,7 @@ describe('creating and managing groups', () => {
   });
 
   it('updates the settings, but never the language', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const group = await createGroup(doctor);
 
     const response = await send(doctor.agent, 'patch', `/api/doctor/groups/${group.id}`, {
@@ -249,8 +195,8 @@ describe('creating and managing groups', () => {
   });
 
   it('replaces the code, and the old one stops working', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const group = await createGroup(doctor);
 
     const response = await post(doctor.agent, `/api/doctor/groups/${group.id}/code`).expect(200);
@@ -262,7 +208,7 @@ describe('creating and managing groups', () => {
   });
 
   it('archives a group read-only, and restores it', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const group = await createGroup(doctor);
 
     const archived = await post(doctor.agent, `/api/doctor/groups/${group.id}/archive`).expect(200);
@@ -277,8 +223,8 @@ describe('creating and managing groups', () => {
   });
 
   it('lists groups in use before archived ones, with their counts', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const old = await createGroup(doctor, { name: 'Last term' });
     const current = await createGroup(doctor, { name: 'This term' });
     await join(student, current.joinCode).expect(201);
@@ -294,8 +240,8 @@ describe('creating and managing groups', () => {
 
 describe('joining a group', () => {
   it('shows the group before joining, then joins and adds its language', async () => {
-    const doctor = await signInAsDoctor(['fr']);
-    const student = await signInAsStudent(['en']);
+    const doctor = await signInAsDoctor(context, ['fr']);
+    const student = await signInAsStudent(context, ['en']);
     const group = await createGroup(doctor, { description: 'Mondays 10:00' });
 
     const preview = joinPreviewSchema.parse(
@@ -310,7 +256,9 @@ describe('joining a group', () => {
         name: 'Conversation 2',
         description: 'Mondays 10:00',
         language: 'fr',
+        photoUrl: null,
         doctorName: expect.stringMatching(/^Dr\. Group/) as string,
+        doctorAvatarUrl: null,
         requiresApproval: false,
       },
       membership: null,
@@ -328,8 +276,8 @@ describe('joining a group', () => {
   });
 
   it('does not add a language the student already has', async () => {
-    const doctor = await signInAsDoctor(['fr']);
-    const student = await signInAsStudent(['fr']);
+    const doctor = await signInAsDoctor(context, ['fr']);
+    const student = await signInAsStudent(context, ['fr']);
     const group = await createGroup(doctor);
 
     const result = joinResultSchema.parse((await join(student, group.joinCode).expect(201)).body);
@@ -337,8 +285,8 @@ describe('joining a group', () => {
   });
 
   it('refuses to join twice', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const group = await createGroup(doctor);
     await join(student, group.joinCode).expect(201);
 
@@ -346,8 +294,8 @@ describe('joining a group', () => {
   });
 
   it('waits for the doctor when the group requires approval', async () => {
-    const doctor = await signInAsDoctor(['de']);
-    const student = await signInAsStudent(['en']);
+    const doctor = await signInAsDoctor(context, ['de']);
+    const student = await signInAsStudent(context, ['en']);
     const group = await createGroup(doctor, { language: 'de' });
     await send(doctor.agent, 'patch', `/api/doctor/groups/${group.id}`, {
       requiresApproval: true,
@@ -362,8 +310,8 @@ describe('joining a group', () => {
   });
 
   it('refuses closed and archived groups', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const closed = await createGroup(doctor);
     const archived = await createGroup(doctor);
     await send(doctor.agent, 'patch', `/api/doctor/groups/${closed.id}`, {
@@ -376,7 +324,7 @@ describe('joining a group', () => {
   });
 
   it('counts wrong codes and stops guessing after the limit', async () => {
-    const student = await signInAsStudent();
+    const student = await signInAsStudent(context);
 
     const first = await join(student, 'ZZZZ-ZZZZ').expect(404);
     expect(errorOf(first).details?.attemptsLeft).toBe(JOIN_CODE_FAILURE_LIMIT - 1);
@@ -388,8 +336,8 @@ describe('joining a group', () => {
   });
 
   it('lets a student leave, and come back with the code', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const group = await createGroup(doctor);
     await join(student, group.joinCode).expect(201);
 
@@ -402,8 +350,8 @@ describe('joining a group', () => {
   });
 
   it('keeps the group’s language while the student is in the group', async () => {
-    const doctor = await signInAsDoctor(['fr']);
-    const student = await signInAsStudent(['en']);
+    const doctor = await signInAsDoctor(context, ['fr']);
+    const student = await signInAsStudent(context, ['en']);
     const group = await createGroup(doctor);
     await join(student, group.joinCode).expect(201);
 
@@ -420,8 +368,8 @@ describe('joining a group', () => {
 
 describe('a doctor managing students', () => {
   it('sees each student with their languages', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent(['ja']);
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context, ['ja']);
     const group = await createGroup(doctor);
     await join(student, group.joinCode).expect(201);
 
@@ -440,8 +388,8 @@ describe('a doctor managing students', () => {
   });
 
   it('removes a student, who cannot rejoin alone, and restores them', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const group = await createGroup(doctor);
     await join(student, group.joinCode).expect(201);
 
@@ -462,8 +410,8 @@ describe('a doctor managing students', () => {
   });
 
   it('rejects a request to join, which the student cannot repeat', async () => {
-    const doctor = await signInAsDoctor();
-    const student = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const student = await signInAsStudent(context);
     const group = await createGroup(doctor);
     await send(doctor.agent, 'patch', `/api/doctor/groups/${group.id}`, {
       requiresApproval: true,
@@ -479,8 +427,8 @@ describe('a doctor managing students', () => {
   });
 
   it('adds a student by email, without a code', async () => {
-    const doctor = await signInAsDoctor(['fr']);
-    const student = await signInAsStudent(['en']);
+    const doctor = await signInAsDoctor(context, ['fr']);
+    const student = await signInAsStudent(context, ['en']);
     const group = await createGroup(doctor);
 
     later();
@@ -497,8 +445,8 @@ describe('a doctor managing students', () => {
   });
 
   it('answers alike for an unknown email and for someone who is not a student', async () => {
-    const doctor = await signInAsDoctor();
-    const colleague = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
+    const colleague = await signInAsDoctor(context);
     const group = await createGroup(doctor);
 
     for (const email of ['nobody@gmail.com', colleague.email]) {
@@ -510,9 +458,9 @@ describe('a doctor managing students', () => {
   });
 
   it('moves a student to another of the doctor’s groups', async () => {
-    const doctor = await signInAsDoctor(['fr', 'de']);
-    const other = await signInAsDoctor(['fr']);
-    const student = await signInAsStudent(['en']);
+    const doctor = await signInAsDoctor(context, ['fr', 'de']);
+    const other = await signInAsDoctor(context, ['fr']);
+    const student = await signInAsStudent(context, ['en']);
     const from = await createGroup(doctor);
     const to = await createGroup(doctor, { language: 'de', name: 'Deutsch 1' });
     const foreign = await createGroup(other);
@@ -539,7 +487,7 @@ describe('a doctor managing students', () => {
 
 describe('suspending a student’s account', () => {
   async function studentInGroupOf(...doctors: Person[]) {
-    const student = await signInAsStudent();
+    const student = await signInAsStudent(context);
     for (const doctor of doctors) {
       const group = await createGroup(doctor);
       await join(student, group.joinCode).expect(201);
@@ -548,7 +496,7 @@ describe('suspending a student’s account', () => {
   }
 
   it('signs the student out everywhere and keeps them out', async () => {
-    const doctor = await signInAsDoctor();
+    const doctor = await signInAsDoctor(context);
     const person = identity();
     const { agent } = await signIn(context, person);
     await post(agent, '/api/onboarding/student', {
@@ -573,8 +521,8 @@ describe('suspending a student’s account', () => {
   });
 
   it('can be lifted only by the doctor who suspended', async () => {
-    const suspender = await signInAsDoctor();
-    const colleague = await signInAsDoctor();
+    const suspender = await signInAsDoctor(context);
+    const colleague = await signInAsDoctor(context);
     const student = await studentInGroupOf(suspender, colleague);
 
     await post(suspender.agent, `/api/doctor/students/${student.id}/suspend`, {
@@ -594,8 +542,8 @@ describe('suspending a student’s account', () => {
   });
 
   it('is only for students in the doctor’s groups, and needs a reason', async () => {
-    const doctor = await signInAsDoctor();
-    const stranger = await signInAsStudent();
+    const doctor = await signInAsDoctor(context);
+    const stranger = await signInAsStudent(context);
     const student = await studentInGroupOf(doctor);
 
     const refused = await post(doctor.agent, `/api/doctor/students/${stranger.id}/suspend`, {
