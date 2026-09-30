@@ -231,8 +231,12 @@
   inset-inline-end: 0.25rem;
 }
 
+/*
+ * The code is typed left to right even on Arabic pages, so the input and the page can disagree on
+ * which side is the end. Room on both sides keeps the reveal button clear of the text either way.
+ */
 .secretField input {
-  padding-inline-end: var(--space-12);
+  padding-inline: var(--space-12);
 }
 
 .verify {
