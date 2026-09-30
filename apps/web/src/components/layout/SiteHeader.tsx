@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
+import { AccountMenu } from '../../features/auth/AccountMenu';
+import { useSession } from '../../features/auth/session';
 import { BrandLockup } from '../brand/BrandLockup';
 import { ButtonLink } from '../ui/ButtonLink';
 import { IconButton } from '../ui/IconButton';
@@ -13,6 +15,8 @@ import styles from './SiteHeader.module.css';
 
 export function SiteHeader() {
   const { t } = useTranslation();
+  const session = useSession();
+  const user = session.data ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -53,14 +57,20 @@ export function SiteHeader() {
 
         <div className={styles.actions}>
           <LocaleSwitch className={styles.wideOnly} />
-          <ButtonLink
-            to="/sign-in"
-            size="sm"
-            className={styles.wideOnly}
-            iconStart={<SignInIcon className="mirror-in-rtl" aria-hidden="true" />}
-          >
-            {t('nav.signIn')}
-          </ButtonLink>
+          {session.isPending ? (
+            <span className={styles.accountPlaceholder} aria-hidden="true" />
+          ) : user ? (
+            <AccountMenu user={user} />
+          ) : (
+            <ButtonLink
+              to="/sign-in"
+              size="sm"
+              className={styles.wideOnly}
+              iconStart={<SignInIcon className="mirror-in-rtl" aria-hidden="true" />}
+            >
+              {t('nav.signIn')}
+            </ButtonLink>
+          )}
           <IconButton
             ref={toggleRef}
             className={styles.menuToggle}
@@ -81,9 +91,11 @@ export function SiteHeader() {
             <ul className={styles.mobileList}>{navLinks(closeMenu)}</ul>
           </nav>
           <div className={styles.mobileActions}>
-            <ButtonLink to="/sign-in" fullWidth onClick={closeMenu}>
-              {t('nav.signIn')}
-            </ButtonLink>
+            {!user && !session.isPending && (
+              <ButtonLink to="/sign-in" fullWidth onClick={closeMenu}>
+                {t('nav.signIn')}
+              </ButtonLink>
+            )}
             <LocaleSwitch />
           </div>
         </Container>

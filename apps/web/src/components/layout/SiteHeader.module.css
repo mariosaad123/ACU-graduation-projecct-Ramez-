@@ -75,6 +75,12 @@
   display: none;
 }
 
+/* Keeps the header from shifting while the session loads. */
+.accountPlaceholder {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+}
+
 .mobilePanel {
   border-block-start: var(--border-width) solid var(--color-border);
   padding-block: var(--space-2) var(--space-6);

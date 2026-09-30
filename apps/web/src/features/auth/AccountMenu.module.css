@@ -1,0 +1,125 @@
+.menu {
+  position: relative;
+}
+
+.trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-full);
+  background: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+}
+
+.caret {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  margin-inline-end: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.dot {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border: 2px solid var(--color-bg);
+  border-radius: var(--radius-full);
+  background: var(--amber-500);
+}
+
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  inline-size: min(20rem, calc(100vw - 2 * var(--container-gutter)));
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+}
+
+.identityText {
+  min-inline-size: 0;
+}
+
+.name {
+  font-weight: var(--weight-semibold);
+}
+
+.email {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-warning);
+}
+
+.items {
+  display: grid;
+  inline-size: 100%;
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  border-block-start: var(--border-width) solid var(--color-border);
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  text-align: start;
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--color-surface-muted);
+}
+
+.item svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  color: var(--color-text-secondary);
+}
