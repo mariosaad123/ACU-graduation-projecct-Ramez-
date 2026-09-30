@@ -1,5 +1,5 @@
 import { CheckCircleIcon } from '@phosphor-icons/react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { Emblem } from '../../components/brand/Emblem';
 import { Container } from '../../components/layout/Container';
@@ -60,9 +60,10 @@ export function SignInPage() {
           <GoogleButton href={googleSignInUrl(returnTo)} />
           <p className={styles.hint}>{t('auth.googleHint')}</p>
           <p className={styles.legal}>
-            {t('auth.privacy')} <Link to="/terms">{t('footer.terms')}</Link>
-            {' · '}
-            <Link to="/privacy">{t('footer.privacy')}</Link>
+            <Trans
+              i18nKey="auth.privacy"
+              components={{ terms: <Link to="/terms" />, privacy: <Link to="/privacy" /> }}
+            />
           </p>
         </section>
       </Container>

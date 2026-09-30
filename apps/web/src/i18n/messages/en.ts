@@ -128,7 +128,8 @@ export const en: Messages = {
     google: 'Continue with Google',
     googleHint:
       'Use your university or personal Google account. We never ask for or keep a password.',
-    privacy: 'By continuing you agree to the terms of use and the privacy policy.',
+    privacy:
+      'By continuing you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy>.',
     highlights: {
       placement: 'A placement test across all four skills',
       practice: 'Daily practice in six languages',
