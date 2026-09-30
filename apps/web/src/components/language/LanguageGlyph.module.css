@@ -1,0 +1,45 @@
+.glyph {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.sm {
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-size: var(--text-md);
+}
+
+.md {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  font-size: var(--text-xl);
+}
+
+.lg {
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-3xl);
+}
+
+/* White on the emblem orange needs large text: bold 20px and up (md, lg). */
+.md[data-active='true'],
+.lg[data-active='true'] {
+  background: var(--color-emblem);
+  color: var(--color-text-on-emblem);
+}
+
+.sm[data-active='true'] {
+  background: var(--color-emblem-subtle-hover);
+  color: var(--color-emblem-on-subtle);
+}

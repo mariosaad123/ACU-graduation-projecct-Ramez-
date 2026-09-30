@@ -78,6 +78,7 @@ const ar = {
       warning: 'قيد المراجعة',
       danger: 'فائت',
       achievement: 'شهادة',
+      emblem: 'تتعلّمها الآن',
     },
   },
   feedback: {
@@ -202,6 +203,7 @@ const en: Copy = {
       warning: 'In review',
       danger: 'Missed',
       achievement: 'Certificate',
+      emblem: 'Studying now',
     },
   },
   feedback: {

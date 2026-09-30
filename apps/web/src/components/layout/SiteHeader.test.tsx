@@ -68,7 +68,7 @@ describe('SiteHeader account', () => {
     renderWithProviders(<SiteHeader />, {
       session: sessionUser({
         role: 'student',
-        student: { learningLanguage: 'fr', goal: 'travel' },
+        student: { activeLanguage: 'fr', languages: ['fr'], goal: 'travel' },
       }),
     });
 
@@ -135,6 +135,22 @@ describe('SiteHeader account', () => {
     });
     expect(calls[0]).toMatchObject({ url: '/api/auth/sign-out', init: { method: 'POST' } });
     expect(screen.queryByText('sign-in page')).not.toBeInTheDocument();
+  });
+
+  it('shows a student their current language, and no one else', () => {
+    const { unmount } = renderWithProviders(<SiteHeader />, {
+      session: sessionUser({
+        role: 'student',
+        student: { activeLanguage: 'de', languages: ['en', 'de'], goal: 'study' },
+      }),
+    });
+    expect(
+      screen.getByRole('button', { name: 'Change language, current: German' }),
+    ).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<SiteHeader />, { session: sessionUser() });
+    expect(screen.queryByRole('button', { name: /Change language/ })).not.toBeInTheDocument();
   });
 
   it('closes the account menu with Escape', async () => {

@@ -5,7 +5,7 @@ import {
   type LearningLanguage,
 } from '@acu/shared';
 import { useMutation } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
+import { useRef, useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { LanguagePicker } from '../../components/language/LanguagePicker';
@@ -13,6 +13,7 @@ import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { RadioGroup } from '../../components/ui/RadioGroup';
+import { useLanguageName } from '../../i18n/use-language-name';
 import { apiRequest } from '../../lib/api';
 import { PageTitle } from '../../pages/PageTitle';
 import { describeApiError } from '../auth/api-errors';
@@ -24,14 +25,23 @@ export function StudentSetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const setSession = useSetSession();
-  const [language, setLanguage] = useState<LearningLanguage>('en');
+  const languageName = useLanguageName();
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [languages, setLanguages] = useState<LearningLanguage[]>([]);
+  const [chosenStart, setChosenStart] = useState<LearningLanguage | null>(null);
   const [goal, setGoal] = useState<LearningGoal>('study');
+  const [showLanguageError, setShowLanguageError] = useState(false);
+
+  // The first language picked leads until the student chooses another, and a deselected
+  // choice falls back to it.
+  const startWith =
+    chosenStart && languages.includes(chosenStart) ? chosenStart : (languages[0] ?? null);
 
   const submit = useMutation({
-    mutationFn: () =>
+    mutationFn: (activeLanguage: LearningLanguage) =>
       apiRequest('/api/onboarding/student', {
         method: 'POST',
-        body: { learningLanguage: language, goal },
+        body: { languages, activeLanguage, goal },
         schema: meResponseSchema,
       }),
     onSuccess: ({ user }) => {
@@ -42,7 +52,12 @@ export function StudentSetupPage() {
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    submit.mutate();
+    if (!startWith) {
+      setShowLanguageError(true);
+      pickerRef.current?.querySelector<HTMLInputElement>('input')?.focus();
+      return;
+    }
+    submit.mutate(startWith);
   }
 
   return (
@@ -58,7 +73,36 @@ export function StudentSetupPage() {
         />
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <LanguagePicker value={language} onChange={setLanguage} name="learning-language" />
+          <div ref={pickerRef}>
+            <LanguagePicker
+              multiple
+              value={languages}
+              onChange={(next) => {
+                setLanguages(next);
+                if (next.length > 0) {
+                  setShowLanguageError(false);
+                }
+              }}
+              name="learning-languages"
+              legend={t('languagePicker.labelMultiple')}
+              error={showLanguageError ? t('studentSetup.noLanguage') : undefined}
+            />
+          </div>
+
+          {languages.length > 1 && startWith && (
+            <RadioGroup<LearningLanguage>
+              legend={t('studentSetup.startLegend')}
+              description={t('studentSetup.startHint')}
+              name="start-language"
+              value={startWith}
+              onChange={setChosenStart}
+              className={styles.goals}
+              options={languages.map((language) => ({
+                value: language,
+                label: languageName(language),
+              }))}
+            />
+          )}
 
           <RadioGroup<LearningGoal>
             legend={t('studentSetup.goalLegend')}

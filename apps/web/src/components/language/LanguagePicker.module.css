@@ -32,6 +32,13 @@
   font-weight: var(--weight-semibold);
 }
 
+.error {
+  margin-block-end: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
 .aperture {
   inline-size: min(100%, 14rem);
   margin-inline: auto;
@@ -75,6 +82,18 @@
   fill: var(--color-text-on-emblem);
 }
 
+.blade[data-unavailable='true'] {
+  cursor: not-allowed;
+}
+
+.blade[data-unavailable='true'] .bladeShape {
+  fill: var(--color-surface-muted);
+}
+
+.blade[data-unavailable='true'] .glyph {
+  fill: var(--color-border-strong);
+}
+
 .options {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
@@ -102,6 +121,10 @@
     background-color var(--duration-fast) var(--ease-standard);
 }
 
+.picker[aria-invalid='true'] .optionLabel {
+  border-color: var(--color-danger);
+}
+
 .option[data-highlighted='true'] .optionLabel {
   border-color: var(--color-emblem-border);
   background: var(--color-emblem-subtle);
@@ -111,6 +134,13 @@
   border-color: var(--color-emblem);
   background: var(--color-emblem-subtle);
   box-shadow: inset 0 0 0 1px var(--color-emblem);
+}
+
+.option input:disabled + .optionLabel {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 
 .option input:focus-visible + .optionLabel {
@@ -139,6 +169,11 @@
   color: var(--color-text-on-emblem);
 }
 
+.option input:disabled + .optionLabel .optionGlyph {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
 .optionText {
   display: grid;
   min-inline-size: 0;
@@ -148,6 +183,19 @@
 .optionText > :first-child {
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+}
+
+.check {
+  flex-shrink: 0;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-inline-start: auto;
+  color: var(--color-emblem-on-subtle);
+  visibility: hidden;
+}
+
+.option input:checked + .optionLabel .check {
+  visibility: visible;
 }
 
 .optionTranslation {

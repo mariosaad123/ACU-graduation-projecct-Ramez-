@@ -33,44 +33,13 @@
 
 @media (width >= 56rem) {
   .summary {
-    grid-template-columns: 1fr 1.3fr;
+    grid-template-columns: 1.3fr 1fr;
   }
-}
-
-.languageCard {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-}
-
-.glyph {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  inline-size: 4.5rem;
-  block-size: 4.5rem;
-  border-radius: var(--radius-md);
-  background: var(--color-action);
-  color: var(--color-text-on-action);
-  font-family: var(--font-display);
-  font-size: var(--text-3xl);
-  font-weight: var(--weight-bold);
-  line-height: 1;
-}
-
-.value {
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-}
-
-.native {
-  font-size: var(--text-lg);
-  color: var(--color-text-secondary);
 }
 
 .primaryCard {
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   justify-items: start;
   border-block-start: 4px solid var(--color-action);

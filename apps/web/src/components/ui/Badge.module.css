@@ -45,3 +45,8 @@
   background: var(--color-achievement-bg);
   color: var(--color-achievement);
 }
+
+.emblem {
+  background: var(--color-emblem-subtle-hover);
+  color: var(--color-emblem-on-subtle);
+}

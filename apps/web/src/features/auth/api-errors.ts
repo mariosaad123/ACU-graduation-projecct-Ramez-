@@ -13,6 +13,12 @@ export function describeApiError(t: TFunction, error: unknown): string {
       return t('errors.rateLimited');
     case 'ALREADY_ONBOARDED':
       return t('errors.alreadyOnboarded');
+    case 'LANGUAGE_ALREADY_ADDED':
+      return t('errors.languageAlreadyAdded');
+    case 'LANGUAGE_NOT_ADDED':
+      return t('errors.languageNotAdded');
+    case 'LAST_LANGUAGE':
+      return t('errors.lastLanguage');
     default:
       return t('errors.generic');
   }

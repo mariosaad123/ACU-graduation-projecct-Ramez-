@@ -16,6 +16,7 @@ const BADGE_TONES: readonly BadgeTone[] = [
   'warning',
   'danger',
   'achievement',
+  'emblem',
 ];
 
 const CARD_PROGRESS = { listening: 4, speaking: 1, reading: 6, writing: 2 } as const;

@@ -35,6 +35,7 @@
   color: var(--color-text-secondary);
   font-weight: var(--weight-medium);
   text-decoration: none;
+  white-space: nowrap;
   transition: color var(--duration-fast) var(--ease-standard);
 }
 
@@ -107,6 +108,15 @@
   block-size: auto;
 }
 
+/* Phones switch language from the menu: the bar has no room for the header button. */
+.mobileLanguages {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
 .mobileActions {
   display: flex;
   flex-wrap: wrap;
@@ -121,12 +131,14 @@
     display: inline-flex;
   }
 
+  .mobileLanguages,
   .mobileActions {
     display: none;
   }
 }
 
-@media (width >= 64rem) {
+/* Wide enough for the brand, all six links and the account controls without wrapping. */
+@media (width >= 72rem) {
   .desktopNav {
     display: block;
   }

@@ -30,7 +30,7 @@ export function renderWithProviders(
   if (session !== undefined) {
     queryClient.setQueryData(SESSION_QUERY_KEY, session);
   }
-  const path = route.split('?')[0] ?? '/';
+  const path = route.split(/[?#]/)[0] ?? '/';
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (

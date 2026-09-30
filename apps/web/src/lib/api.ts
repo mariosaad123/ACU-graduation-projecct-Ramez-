@@ -22,7 +22,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions<Schema extends z.ZodMiniType> {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   /** Validates the response; the caller then receives typed data. */
   schema?: Schema;
@@ -40,7 +40,8 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /**
  * Calls our API on the same origin. The session cookie travels automatically, and browsers add
- * the Origin header to POST requests, which the API checks against cross-site requests.
+ * the Origin header to every request that changes data, which the API checks against cross-site
+ * requests.
  */
 export async function apiRequest<Schema extends z.ZodMiniType = z.ZodMiniUnknown>(
   path: string,

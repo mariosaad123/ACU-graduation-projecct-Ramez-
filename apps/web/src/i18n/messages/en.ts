@@ -85,6 +85,7 @@ export const en: Messages = {
   },
   languagePicker: {
     label: 'Choose a language to learn',
+    labelMultiple: 'Choose one language or more',
     selected: 'Selected language: {{language}}',
   },
   audio: {
@@ -164,7 +165,11 @@ export const en: Messages = {
   },
   studentSetup: {
     title: 'Set up your student account',
-    lead: 'Choose the language you want to learn and why. You can change this later.',
+    lead: 'Choose the languages you want to learn and why. You can add or remove languages later.',
+    startLegend: 'Which language do you start with?',
+    startHint:
+      'You study one language at a time and can switch between yours at any moment from the top of the page.',
+    noLanguage: 'Choose at least one language.',
     goalLegend: 'What is your main goal?',
     goals: {
       study: { label: 'Study', hint: 'Coursework, research and references' },
@@ -223,6 +228,36 @@ export const en: Messages = {
     emailDeliveryFailed: 'We could not send the email right now. Please try again shortly.',
     noPendingVerification: 'There is no email waiting to be confirmed. Enter your details again.',
     alreadyOnboarded: 'Your account is already set up.',
+    languageAlreadyAdded: 'This language is already one of yours.',
+    languageNotAdded: 'This language is not one of yours. Refresh the page and try again.',
+    lastLanguage: 'Your only language cannot be removed. Add another one first.',
+  },
+  languages: {
+    switcher: 'Your current language',
+    switcherLabel: 'Change language, current: {{language}}',
+    current: 'Studying now',
+    manage: 'Manage your languages',
+    title: 'Your languages',
+    lead: 'You study one language at a time. Choose the one you want to work on now.',
+    startThis: 'Study it now',
+    startThisLabel: 'Study {{language}} now',
+    remove: 'Remove {{language}}',
+    add: 'Add a language',
+    allAdded: 'You have added every language the platform offers.',
+    addTitle: 'Add a language',
+    addLead: 'The new language becomes your current one, starting with its placement test.',
+    addLegend: 'Which language do you want to add?',
+    addConfirm: 'Add it and start',
+    alreadyAdded: 'added',
+    pickOne: 'Choose a language to add.',
+    added: '{{language}} added. It is your current language now.',
+    switched: 'Your current language: {{language}}',
+    removeTitle: 'Remove {{language}} from your languages?',
+    removeBody: 'It leaves your list of languages. You can add it again at any time.',
+    removeActiveBody:
+      'It is your current language, so {{next}} becomes your current one. You can add it again at any time.',
+    removeConfirm: 'Remove',
+    removed: '{{language}} removed from your languages.',
   },
   account: {
     menu: 'Account menu',
@@ -242,11 +277,11 @@ export const en: Messages = {
     soon: 'Coming soon',
     student: {
       lead: 'This is your learning space. Start by finding your level so we can suggest the right next step.',
-      language: 'Language you are learning',
       goal: 'Your goal',
       nextSteps: 'Your next steps',
       placementTitle: 'Placement test',
-      placementBody: 'Reading, listening, writing and speaking, with a result for each skill.',
+      placementBody:
+        'Reading, listening, writing and speaking in {{language}}, with a result for each skill.',
       placementCta: 'Start the test',
       skillsTitle: 'Skills practice',
       skillsBody: 'Lessons and exercises that match your level in every skill.',

@@ -1,4 +1,4 @@
-import { LANGUAGES, type SessionUser } from '@acu/shared';
+import type { SessionUser } from '@acu/shared';
 import {
   ArrowRightIcon,
   ChartLineUpIcon,
@@ -12,10 +12,10 @@ import { Container } from '../../components/layout/Container';
 import { Badge } from '../../components/ui/Badge';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { Card } from '../../components/ui/Card';
-import { useLocale } from '../../i18n/use-locale';
+import { useLanguageName } from '../../i18n/use-language-name';
 import { PageTitle } from '../../pages/PageTitle';
-import { LANGUAGE_GLYPHS } from '../../components/brand/aperture';
 import { firstName } from '../auth/session';
+import { LanguagesCard } from '../languages/LanguagesCard';
 import styles from './DashboardPage.module.css';
 
 function UpcomingTool({
@@ -44,41 +44,26 @@ function UpcomingTool({
 
 function StudentDashboard({ user }: { user: SessionUser }) {
   const { t } = useTranslation();
-  const { intlLocale } = useLocale();
+  const languageName = useLanguageName();
   const student = user.student;
   if (!student) {
     return null;
   }
-  const languageName =
-    new Intl.DisplayNames([intlLocale], { type: 'language' }).of(student.learningLanguage) ??
-    student.learningLanguage;
 
   return (
     <>
       <p className={styles.lead}>{t('dashboard.student.lead')}</p>
 
       <div className={styles.summary}>
-        <Card className={styles.languageCard}>
-          <span className={styles.glyph} lang={student.learningLanguage} aria-hidden="true">
-            {LANGUAGE_GLYPHS[student.learningLanguage]}
-          </span>
-          <div>
-            <p className={styles.muted}>{t('dashboard.student.language')}</p>
-            <p className={styles.value}>
-              {languageName}{' '}
-              <span lang={student.learningLanguage} className={styles.native}>
-                ({LANGUAGES[student.learningLanguage].nativeName})
-              </span>
-            </p>
-            <p className={styles.muted}>
-              {t('dashboard.student.goal')}: {t(`studentSetup.goals.${student.goal}.label`)}
-            </p>
-          </div>
-        </Card>
+        <LanguagesCard student={student} />
 
         <Card className={styles.primaryCard}>
           <h2 className={styles.cardTitle}>{t('dashboard.student.placementTitle')}</h2>
-          <p className={styles.muted}>{t('dashboard.student.placementBody')}</p>
+          <p className={styles.muted}>
+            {t('dashboard.student.placementBody', {
+              language: languageName(student.activeLanguage),
+            })}
+          </p>
           <ButtonLink
             to="/placement"
             iconEnd={<ArrowRightIcon className="mirror-in-rtl" aria-hidden="true" />}
