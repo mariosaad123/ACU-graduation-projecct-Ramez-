@@ -15,6 +15,13 @@
       "when": 1790773550470,
       "tag": "0001_student_languages",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790788616229,
+      "tag": "0002_groups",
+      "breakpoints": true
     }
   ]
 }

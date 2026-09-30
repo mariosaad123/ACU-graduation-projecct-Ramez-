@@ -1,4 +1,10 @@
-import { DOCTOR_STATUSES, LEARNING_GOALS, LEARNING_LANGUAGES, USER_ROLES } from '@acu/shared';
+import {
+  DOCTOR_STATUSES,
+  GROUP_MEMBER_STATUSES,
+  LEARNING_GOALS,
+  LEARNING_LANGUAGES,
+  USER_ROLES,
+} from '@acu/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -13,12 +19,14 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 export const userRole = pgEnum('user_role', USER_ROLES);
 export const doctorStatus = pgEnum('doctor_status', DOCTOR_STATUSES);
 export const learningLanguage = pgEnum('learning_language', LEARNING_LANGUAGES);
 export const learningGoal = pgEnum('learning_goal', LEARNING_GOALS);
+export const groupMemberStatus = pgEnum('group_member_status', GROUP_MEMBER_STATUSES);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -36,7 +44,13 @@ export const users = pgTable('users', {
   /** Null until the person chooses how they use the platform. */
   role: userRole('role'),
   lastSignInAt: timestamp('last_sign_in_at', { withTimezone: true }),
+  /** Set when the account is suspended; the person cannot sign in until it is cleared. */
   disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  /** The doctor who suspended the account; null when the faculty administration did. */
+  suspendedByUserId: uuid('suspended_by_user_id').references((): AnyPgColumn => users.id, {
+    onDelete: 'set null',
+  }),
+  suspensionReason: text('suspension_reason'),
   ...timestamps,
 });
 
@@ -84,6 +98,71 @@ export const doctorProfiles = pgTable('doctor_profiles', {
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
   ...timestamps,
 });
+
+/** The languages a doctor teaches. Every group is in one of them. */
+export const doctorLanguages = pgTable(
+  'doctor_languages',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    language: learningLanguage('language').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.language] })],
+);
+
+/** A doctor's class or section. Students join it with its code. */
+export const groups = pgTable(
+  'groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    doctorId: uuid('doctor_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    language: learningLanguage('language').notNull(),
+    joinCode: text('join_code').notNull().unique(),
+    joinOpen: boolean('join_open').notNull().default(true),
+    requiresApproval: boolean('requires_approval').notNull().default(false),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index('groups_doctor_idx').on(table.doctorId),
+    // A group is always in a language its doctor teaches.
+    foreignKey({
+      name: 'groups_doctor_language_fk',
+      columns: [table.doctorId, table.language],
+      foreignColumns: [doctorLanguages.userId, doctorLanguages.language],
+    }),
+  ],
+);
+
+/** A student's place in a group. Rows are kept after removal, so a doctor can restore them. */
+export const groupMembers = pgTable(
+  'group_members',
+  {
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: groupMemberStatus('status').notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removedByUserId: uuid('removed_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.groupId, table.studentId] }),
+    index('group_members_student_idx').on(table.studentId),
+  ],
+);
 
 /** The shared code that proves someone is faculty staff. Only an Argon2 hash is stored. */
 export const doctorAccessCodes = pgTable('doctor_access_codes', {
@@ -172,3 +251,6 @@ export type Session = typeof sessions.$inferSelect;
 export type DoctorProfile = typeof doctorProfiles.$inferSelect;
 export type StudentProfile = typeof studentProfiles.$inferSelect;
 export type StudentLanguage = typeof studentLanguages.$inferSelect;
+export type DoctorLanguage = typeof doctorLanguages.$inferSelect;
+export type Group = typeof groups.$inferSelect;
+export type GroupMember = typeof groupMembers.$inferSelect;

@@ -25,7 +25,9 @@ erDiagram
         text avatar_url
         user_role role "null until setup is finished"
         timestamptz last_sign_in_at
-        timestamptz disabled_at
+        timestamptz disabled_at "suspended when set"
+        uuid suspended_by_user_id FK "the doctor; null for the faculty"
+        text suspension_reason
     }
     student_profiles {
         uuid user_id PK, FK
@@ -100,7 +102,7 @@ any account is known.
 | A person is a student or a doctor, never both | Setting up either role removes the other profile in the same transaction |
 | A student studies one of their own languages  | Composite key `(user_id, active_language)` to `student_languages`        |
 | A language is added once per student          | Primary key `(user_id, language)` on `student_languages`                 |
-| Deleting a user removes their data            | `ON DELETE CASCADE` on profiles, languages, sessions and email codes     |
+| Deleting a user removes their data            | `ON DELETE CASCADE` on profiles, languages, groups and sessions          |
 | Audit history survives account deletion       | `ON DELETE SET NULL` on `audit_events.actor_user_id`                     |
 
 ## What is never stored in clear
@@ -113,6 +115,97 @@ any account is known.
 
 A copy of the database therefore gives no usable sessions or codes.
 
+## Groups
+
+```mermaid
+erDiagram
+    users ||--o{ doctor_languages : "teaches"
+    doctor_languages ||--o{ groups : "is the language of"
+    users ||--o{ groups : "runs"
+    groups ||--o{ group_members : "has"
+    users ||--o{ group_members : "belongs to"
+
+    doctor_languages {
+        uuid user_id PK, FK
+        learning_language language PK
+    }
+    groups {
+        uuid id PK
+        uuid doctor_id FK
+        text name
+        text description
+        learning_language language FK "with doctor_id, to doctor_languages"
+        text join_code UK "8 symbols, no 0 1 I L O U"
+        boolean join_open
+        boolean requires_approval
+        timestamptz archived_at
+    }
+    group_members {
+        uuid group_id PK, FK
+        uuid student_id PK, FK
+        group_member_status status "pending | active | removed | left"
+        timestamptz joined_at
+        timestamptz decided_at
+        timestamptz removed_at
+        uuid removed_by_user_id FK
+    }
+```
+
+A doctor teaches one or more languages, and each group is in one of them. Students join a group
+with its code, or the doctor adds them by the email they sign in with. Membership rows are never
+deleted: a removed student stays visible to the doctor, who can bring them back.
+
+| Rule                                            | How                                                               |
+| ----------------------------------------------- | ----------------------------------------------------------------- |
+| A group is in a language its doctor teaches     | Composite key `(doctor_id, language)` to `doctor_languages`       |
+| A taught language with groups cannot be dropped | The same key; the API answers `LANGUAGE_IN_USE`                   |
+| A student keeps the languages of their groups   | Removing one answers `LANGUAGE_IN_USE` while the membership lasts |
+| A removed student cannot rejoin with the code   | Joining is refused with `REMOVED_FROM_GROUP`                      |
+| A doctor sees and acts on their own groups only | Every query filters on `doctor_id`; anything else is a 404        |
+| Join codes cannot be guessed                    | 30^8 codes, 10 wrong codes per student and hour, all audited      |
+
+### Membership
+
+```mermaid
+stateDiagram-v2
+    [*] --> active: joins, or is added by the doctor
+    [*] --> pending: joins a group that requires approval
+    pending --> active: doctor approves
+    pending --> removed: doctor rejects
+    pending --> left: student withdraws
+    active --> removed: doctor removes, or moves them to another group
+    active --> left: student leaves
+    removed --> active: doctor restores
+    left --> active: joins again, or doctor restores
+```
+
+Joining adds the group's language to the student's languages without changing the active one.
+
+### Suspension
+
+A doctor may suspend the account of a student who is, or was, in one of their groups, with a
+reason. The student is signed out everywhere and cannot sign in. Only that doctor, or the faculty
+administration, lifts it; the student's other doctors see who suspended the account and why.
+
+### Endpoints
+
+| Request                                                    | Who     | Effect                                       |
+| ---------------------------------------------------------- | ------- | -------------------------------------------- |
+| `PUT /api/doctor/languages`                                | doctor  | Replaces the languages taught                |
+| `GET, POST /api/doctor/groups`                             | doctor  | Lists or creates groups                      |
+| `PATCH /api/doctor/groups/:id`                             | doctor  | Name, description, joining open, approval    |
+| `POST /api/doctor/groups/:id/code`                         | doctor  | A new join code; the old one stops at once   |
+| `POST /api/doctor/groups/:id/archive`, `/restore`          | doctor  | Read-only while archived                     |
+| `GET, POST /api/doctor/groups/:id/members`                 | doctor  | Lists members, or adds a student by email    |
+| `POST /api/doctor/groups/:id/members/:student/:action`     | doctor  | `approve`, `reject`, `remove` or `restore`   |
+| `POST /api/doctor/groups/:id/members/:student/move`        | doctor  | To another of the doctor's groups            |
+| `POST /api/doctor/students/:student/suspend`, `/unsuspend` | doctor  | Suspends the account, or lifts it            |
+| `POST /api/student/join/preview`, `/join`                  | student | Shows the group behind a code, then joins it |
+| `GET /api/student/groups`                                  | student | The student's groups and pending requests    |
+| `POST /api/student/groups/:id/leave`                       | student | Leaves, or withdraws a request               |
+
+Join codes travel in request bodies, not in API URLs, so they stay out of server logs.
+
 ## Account states
 
 ```mermaid
@@ -123,6 +216,8 @@ stateDiagram-v2
     SignedIn --> Doctor: valid faculty code, signed in with the university account
     DoctorPending --> Doctor: correct email code
     DoctorPending --> Student: changes their mind
+    Student --> Suspended: a doctor of theirs suspends the account
+    Suspended --> Student: the same doctor lifts it
     Student --> [*]
     Doctor --> [*]
 ```

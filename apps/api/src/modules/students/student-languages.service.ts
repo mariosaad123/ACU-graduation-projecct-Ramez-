@@ -1,7 +1,13 @@
 import type { LearningLanguage } from '@acu/shared';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database, Transaction } from '../../db/client';
-import { studentLanguages, studentProfiles, type User } from '../../db/schema';
+import {
+  groupMembers,
+  groups,
+  studentLanguages,
+  studentProfiles,
+  type User,
+} from '../../db/schema';
 import { HttpError } from '../../http/http-error';
 import { recordAudit } from '../audit/audit';
 
@@ -22,6 +28,21 @@ export async function listStudentLanguages(
     .where(eq(studentLanguages.userId, userId))
     .orderBy(asc(studentLanguages.enrolledAt), asc(studentLanguages.language));
   return rows.map((row) => row.language);
+}
+
+/** Adds a language the student does not have yet, e.g. a group's; true when it was added. */
+export async function ensureStudentLanguage(
+  tx: Transaction,
+  userId: string,
+  language: LearningLanguage,
+  at: Date,
+): Promise<boolean> {
+  const added = await tx
+    .insert(studentLanguages)
+    .values({ userId, language, enrolledAt: at })
+    .onConflictDoNothing()
+    .returning({ language: studentLanguages.language });
+  return added.length > 0;
 }
 
 /**
@@ -125,6 +146,26 @@ export async function removeStudentLanguage(
     const [fallback] = remaining;
     if (!fallback) {
       throw new HttpError(409, 'LAST_LANGUAGE', 'A student keeps at least one language');
+    }
+
+    // A class the student belongs to is taught in this language: leave the group first.
+    const [inUse] = await tx
+      .select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+      .where(
+        and(
+          eq(groupMembers.studentId, user.id),
+          inArray(groupMembers.status, ['pending', 'active']),
+          eq(groups.language, language),
+          isNull(groups.archivedAt),
+        ),
+      )
+      .limit(1);
+    if (inUse) {
+      throw new HttpError(409, 'LANGUAGE_IN_USE', 'One of your groups is in this language', {
+        details: { language },
+      });
     }
 
     // The profile must point elsewhere first: the active language cannot be deleted under it.

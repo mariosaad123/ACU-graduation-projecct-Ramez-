@@ -10,6 +10,7 @@ const validDoctor = {
   accessCode: 'faculty-code',
   staffId: 'ACU-1042',
   displayName: 'Dr. Mona Adel',
+  languages: ['fr'],
   universityEmail: 'mona.adel@acu.edu.eg',
 };
 
@@ -34,6 +35,16 @@ describe('doctorOnboardingSchema', () => {
       );
     },
   );
+
+  it('requires at least one language taught, each once', () => {
+    expect(doctorOnboardingSchema.safeParse({ ...validDoctor, languages: [] }).success).toBe(false);
+    expect(
+      doctorOnboardingSchema.safeParse({ ...validDoctor, languages: ['fr', 'fr'] }).success,
+    ).toBe(false);
+    expect(
+      doctorOnboardingSchema.safeParse({ ...validDoctor, languages: ['fr', 'en'] }).success,
+    ).toBe(true);
+  });
 
   it('requires the access code', () => {
     expect(doctorOnboardingSchema.safeParse({ ...validDoctor, accessCode: '   ' }).success).toBe(

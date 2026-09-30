@@ -13,8 +13,10 @@ const trimmed = (min: number, max: number) =>
 
 const learningLanguage = z.enum(LEARNING_LANGUAGES);
 
-/** The languages a student learns, in the order they were added. Never empty, never repeated. */
-export const studentLanguagesSchema = z.array(learningLanguage).check(
+/**
+ * Languages someone learns or teaches, in the order they were added. Never empty, never repeated.
+ */
+export const languageListSchema = z.array(learningLanguage).check(
   z.minLength(1),
   z.maxLength(LEARNING_LANGUAGES.length),
   z.refine((languages) => new Set(languages).size === languages.length, {
@@ -33,7 +35,7 @@ export const sessionUserSchema = z.object({
     z.object({
       /** The language the student is studying right now; always one of `languages`. */
       activeLanguage: learningLanguage,
-      languages: studentLanguagesSchema,
+      languages: languageListSchema,
       goal: z.enum(LEARNING_GOALS),
     }),
   ),
@@ -43,6 +45,8 @@ export const sessionUserSchema = z.object({
       displayName: z.string(),
       staffId: z.string(),
       universityEmail: z.string(),
+      /** The languages the doctor teaches; every group is in one of them. */
+      languages: z.array(learningLanguage),
     }),
   ),
 });
@@ -53,7 +57,7 @@ export type MeResponse = z.infer<typeof meResponseSchema>;
 
 export const studentOnboardingSchema = z
   .object({
-    languages: studentLanguagesSchema,
+    languages: languageListSchema,
     activeLanguage: learningLanguage,
     goal: z.enum(LEARNING_GOALS),
   })
@@ -79,6 +83,7 @@ export const doctorOnboardingSchema = z.object({
   accessCode: trimmed(1, 100),
   staffId: z.string().check(z.trim(), z.regex(staffIdPattern)),
   displayName: trimmed(3, 80),
+  languages: languageListSchema,
   universityEmail: z
     .string()
     .check(
@@ -90,6 +95,10 @@ export const doctorOnboardingSchema = z.object({
     ),
 });
 export type DoctorOnboardingRequest = z.infer<typeof doctorOnboardingSchema>;
+
+/** Replaces the set of languages a doctor teaches. */
+export const doctorLanguagesRequestSchema = z.object({ languages: languageListSchema });
+export type DoctorLanguagesRequest = z.infer<typeof doctorLanguagesRequestSchema>;
 
 export const doctorOnboardingResponseSchema = z.object({
   status: z.enum(['active', 'verification_sent']),
@@ -129,6 +138,16 @@ export const API_ERROR_CODES = [
   'LANGUAGE_ALREADY_ADDED',
   'LANGUAGE_NOT_ADDED',
   'LAST_LANGUAGE',
+  'LANGUAGE_IN_USE',
+  'INVALID_JOIN_CODE',
+  'JOIN_CLOSED',
+  'ALREADY_MEMBER',
+  'REMOVED_FROM_GROUP',
+  'GROUP_ARCHIVED',
+  'STUDENT_NOT_FOUND',
+  'NOT_SUSPENDER',
+  'ALREADY_SUSPENDED',
+  'MEMBER_STATE_CHANGED',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

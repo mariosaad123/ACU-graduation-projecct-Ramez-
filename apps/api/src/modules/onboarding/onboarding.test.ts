@@ -36,12 +36,13 @@ beforeEach(() => {
   context.mailer.sent.length = 0;
 });
 
-function doctorRequest(overrides: Record<string, string> = {}) {
+function doctorRequest(overrides: Record<string, unknown> = {}) {
   staffCounter += 1;
   return {
     accessCode: DOCTOR_CODE,
     staffId: `ACU-${1000 + staffCounter}`,
     displayName: `Dr. Staff ${staffCounter}`,
+    languages: ['fr'],
     universityEmail: `staff${staffCounter}@acu.edu.eg`,
     ...overrides,
   };

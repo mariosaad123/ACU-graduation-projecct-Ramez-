@@ -19,3 +19,16 @@ export function uniqueViolation(error: unknown): string | null {
   }
   return null;
 }
+
+/** Returns the constraint name when an error is a PostgreSQL foreign key violation (23503). */
+export function foreignKeyViolation(error: unknown): string | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth += 1) {
+    const candidate = current as DriverError;
+    if (candidate.code === '23503') {
+      return typeof candidate.constraint === 'string' ? candidate.constraint : '';
+    }
+    current = candidate.cause;
+  }
+  return null;
+}

@@ -9,6 +9,7 @@ import type { Database, Transaction } from '../../db/client';
 import { uniqueViolation } from '../../db/errors';
 import {
   doctorAccessCodes,
+  doctorLanguages,
   doctorProfiles,
   emailVerifications,
   studentLanguages,
@@ -19,6 +20,7 @@ import {
 import { HttpError } from '../../http/http-error';
 import { hashSecret, randomNumericCode, verifySecret } from '../../lib/crypto';
 import { countRecentAudit, recordAudit } from '../audit/audit';
+import { replaceDoctorLanguages } from '../doctors/doctor-languages.service';
 import type { Mailer } from '../mail/mailer';
 import { doctorVerificationEmail } from '../mail/templates';
 
@@ -71,6 +73,7 @@ export async function completeStudentOnboarding(
     // Someone who started the doctor steps and changed their mind leaves nothing behind.
     await tx.delete(emailVerifications).where(eq(emailVerifications.userId, user.id));
     await tx.delete(doctorProfiles).where(eq(doctorProfiles.userId, user.id));
+    await tx.delete(doctorLanguages).where(eq(doctorLanguages.userId, user.id));
     await deleteStudentProfile(tx, user.id);
 
     await tx
@@ -323,13 +326,16 @@ export async function startDoctorOnboarding(
     universityEmail: request.universityEmail,
   };
   try {
-    await db
-      .insert(doctorProfiles)
-      .values({ userId: user.id, ...details, status: 'pending_verification' })
-      .onConflictDoUpdate({
-        target: doctorProfiles.userId,
-        set: { ...details, status: 'pending_verification', verifiedAt: null, updatedAt: now() },
-      });
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(doctorProfiles)
+        .values({ userId: user.id, ...details, status: 'pending_verification' })
+        .onConflictDoUpdate({
+          target: doctorProfiles.userId,
+          set: { ...details, status: 'pending_verification', verifiedAt: null, updatedAt: now() },
+        });
+      await replaceDoctorLanguages(tx, user.id, request.languages, now());
+    });
   } catch (error) {
     const constraint = uniqueViolation(error);
     if (constraint?.includes('staff_id')) {
