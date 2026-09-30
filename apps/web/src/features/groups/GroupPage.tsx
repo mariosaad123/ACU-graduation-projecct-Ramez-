@@ -8,8 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
-import { LanguageGlyph } from '../../components/language/LanguageGlyph';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
@@ -18,7 +17,9 @@ import { Card } from '../../components/ui/Card';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Dialog } from '../../components/ui/Dialog';
+import { PhotoField } from '../../components/ui/PhotoField';
 import { Spinner } from '../../components/ui/Spinner';
+import { Tabs } from '../../components/ui/Tabs';
 import { TextArea } from '../../components/ui/TextArea';
 import { TextField } from '../../components/ui/TextField';
 import { useToast } from '../../components/ui/toast/toast-context';
@@ -27,8 +28,17 @@ import { ApiError } from '../../lib/api';
 import { NotFoundPage } from '../../pages/NotFoundPage';
 import { PageTitle } from '../../pages/PageTitle';
 import { describeApiError } from '../auth/api-errors';
-import { useAddMember, useDoctorGroups, useGroupCommand, useUpdateGroup } from './api';
+import { GroupChat } from '../chat/GroupChat';
+import { useGroupView } from '../chat/use-chat';
+import {
+  useAddMember,
+  useDoctorGroups,
+  useGroupCommand,
+  useGroupPhoto,
+  useUpdateGroup,
+} from './api';
 import { CopyButton } from './CopyButton';
+import { GroupPhoto } from './GroupPhoto';
 import { MembersPanel } from './MembersPanel';
 import { joinLink } from './pending-join';
 import styles from './Groups.module.css';
@@ -169,7 +179,12 @@ function SettingsPanel({ group }: { group: Group }) {
   const [editing, setEditing] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
-  const toggle = (change: { joinOpen: boolean } | { requiresApproval: boolean }) => {
+  const photo = useGroupPhoto(group.id);
+  const photoError = photo.upload.error ?? photo.remove.error;
+
+  const toggle = (
+    change: { joinOpen: boolean } | { requiresApproval: boolean } | { chatOpen: boolean },
+  ) => {
     update.mutate(change, {
       onSuccess: () => {
         toast({ tone: 'success', title: t('groups.saved') });
@@ -183,6 +198,41 @@ function SettingsPanel({ group }: { group: Group }) {
   return (
     <Card className={styles.settings}>
       <h2 className={styles.cardTitle}>{t('groups.settings')}</h2>
+      <PhotoField
+        label={t('groups.photo')}
+        preview={
+          <GroupPhoto photoUrl={group.photoUrl} language={group.language} size="lg" active />
+        }
+        hasPhoto={group.photoUrl !== null}
+        removeLabel={t('photo.remove')}
+        busy={photo.upload.isPending || photo.remove.isPending}
+        error={photoError ? describeApiError(t, photoError) : null}
+        onUpload={(file) => {
+          photo.remove.reset();
+          photo.upload.mutate(file, {
+            onSuccess: () => {
+              toast({ tone: 'success', title: t('groups.photoSaved') });
+            },
+          });
+        }}
+        onRemove={() => {
+          photo.upload.reset();
+          photo.remove.mutate(undefined, {
+            onSuccess: () => {
+              toast({ tone: 'success', title: t('groups.photoRemoved') });
+            },
+          });
+        }}
+      />
+      <Checkbox
+        label={t('groups.chatOpen')}
+        hint={t('groups.chatOpenHint')}
+        checked={group.chatOpen}
+        disabled={update.isPending}
+        onChange={(event) => {
+          toggle({ chatOpen: event.target.checked });
+        }}
+      />
       <Checkbox
         label={t('groups.joinOpen')}
         hint={t('groups.joinOpenHint')}
@@ -305,6 +355,23 @@ function AddMemberForm({ group }: { group: Group }) {
   );
 }
 
+/** The group's chat as its doctor sees it. */
+function DoctorChat({ groupId }: { groupId: string }) {
+  const { t } = useTranslation();
+  const view = useGroupView(groupId);
+  if (view.isPending) {
+    return <Spinner size="2rem" />;
+  }
+  if (view.isError) {
+    return (
+      <Alert tone="danger" live>
+        {describeApiError(t, view.error)}
+      </Alert>
+    );
+  }
+  return <GroupChat view={view.data} />;
+}
+
 /** One group of the signed-in doctor: share it, change it, and look after its students. */
 export function GroupPage() {
   const { t } = useTranslation();
@@ -313,6 +380,9 @@ export function GroupPage() {
   const { groupId = '' } = useParams();
   const groups = useDoctorGroups();
   const restore = useGroupCommand(groupId, 'restore');
+  // The open tab lives in the address, so a reload or a shared link lands on the same one.
+  const [search, setSearch] = useSearchParams();
+  const tab = search.get('tab');
 
   if (groups.isPending) {
     return (
@@ -345,7 +415,12 @@ export function GroupPage() {
         </Link>
 
         <header className={styles.pageHead}>
-          <LanguageGlyph language={group.language} size="lg" active={!group.archived} />
+          <GroupPhoto
+            photoUrl={group.photoUrl}
+            language={group.language}
+            size="lg"
+            active={!group.archived}
+          />
           <div className={styles.pageTitleBlock}>
             <h1 className={styles.pageTitle}>{group.name}</h1>
             <p className={styles.muted}>{languageName(group.language)}</p>
@@ -392,18 +467,47 @@ export function GroupPage() {
           </div>
         )}
 
-        <section className={styles.section} aria-labelledby="group-members">
-          <h2 id="group-members" className={styles.sectionTitle}>
-            {t('groups.membersLabel')}
-          </h2>
-          {!group.archived && (
-            <Card>
-              <h3 className={styles.cardTitle}>{t('groups.addTitle')}</h3>
-              <AddMemberForm group={group} />
-            </Card>
-          )}
-          <MembersPanel group={group} />
-        </section>
+        <Tabs
+          label={group.name}
+          selectedTabId={
+            tab === 'chat' || tab === 'students'
+              ? tab
+              : group.counts.pending > 0
+                ? 'students'
+                : 'chat'
+          }
+          onSelect={(id) => {
+            setSearch({ tab: id }, { replace: true });
+          }}
+          tabs={[
+            {
+              id: 'chat',
+              label:
+                group.unread > 0
+                  ? `${t('groups.tabChat')} (${String(group.unread)})`
+                  : t('groups.tabChat'),
+              content: <DoctorChat groupId={group.id} />,
+            },
+            {
+              id: 'students',
+              label: t('groups.tabStudents'),
+              content: (
+                <section className={styles.section} aria-labelledby="group-members">
+                  <h2 id="group-members" className="visually-hidden">
+                    {t('groups.membersLabel')}
+                  </h2>
+                  {!group.archived && (
+                    <Card>
+                      <h3 className={styles.cardTitle}>{t('groups.addTitle')}</h3>
+                      <AddMemberForm group={group} />
+                    </Card>
+                  )}
+                  <MembersPanel group={group} />
+                </section>
+              ),
+            },
+          ]}
+        />
       </Container>
     </>
   );

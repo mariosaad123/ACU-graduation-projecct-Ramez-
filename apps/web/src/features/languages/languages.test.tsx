@@ -67,9 +67,12 @@ describe('LanguagesCard', () => {
         name: 'Conversation 2',
         description: null,
         language: 'fr',
+        photoUrl: null,
         doctorName: 'Dr. Mona',
+        doctorAvatarUrl: null,
         status: 'active',
         joinedAt: '2026-09-30T10:00:00.000Z',
+        unread: 0,
       },
     ]);
 

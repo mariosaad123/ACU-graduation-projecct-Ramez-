@@ -6,6 +6,8 @@ import { SignInPage } from '../features/auth/SignInPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { GroupPage } from '../features/groups/GroupPage';
 import { JoinPage } from '../features/groups/JoinPage';
+import { StudentGroupPage } from '../features/groups/StudentGroupPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
 import { DoctorSetupPage } from '../features/onboarding/DoctorSetupPage';
 import { StudentSetupPage } from '../features/onboarding/StudentSetupPage';
 import { WelcomePage } from '../features/onboarding/WelcomePage';
@@ -63,9 +65,19 @@ export const routes: RouteObject[] = [
             ),
           },
           {
+            path: 'app/profile',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['student', 'doctor', 'admin'] }}>
+                {(user) => user && <ProfilePage user={user} />}
+              </AuthGate>
+            ),
+          },
+          {
             path: 'app/groups/:groupId',
             element: (
-              <AuthGate rule={{ kind: 'role', roles: ['doctor'] }}>{() => <GroupPage />}</AuthGate>
+              <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
+                {(user) => (user?.role === 'doctor' ? <GroupPage /> : <StudentGroupPage />)}
+              </AuthGate>
             ),
           },
           // Open to everyone: the page itself explains what a visitor must do before joining.

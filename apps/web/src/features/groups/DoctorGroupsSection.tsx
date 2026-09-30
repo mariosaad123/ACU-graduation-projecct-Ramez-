@@ -3,7 +3,6 @@ import { ArrowRightIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
-import { LanguageGlyph } from '../../components/language/LanguageGlyph';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -15,6 +14,7 @@ import { describeApiError } from '../auth/api-errors';
 import { useDoctorGroups } from './api';
 import { CopyButton } from './CopyButton';
 import { CreateGroupDialog } from './CreateGroupDialog';
+import { GroupPhoto } from './GroupPhoto';
 import styles from './Groups.module.css';
 
 function GroupCard({ group }: { group: Group }) {
@@ -24,7 +24,7 @@ function GroupCard({ group }: { group: Group }) {
   return (
     <Card className={styles.groupCard} data-archived={group.archived}>
       <div className={styles.groupHead}>
-        <LanguageGlyph language={group.language} active={!group.archived} />
+        <GroupPhoto photoUrl={group.photoUrl} language={group.language} active={!group.archived} />
         <div className={styles.groupTitle}>
           <h3 className={styles.groupName}>{group.name}</h3>
           <p className={styles.muted}>{languageName(group.language)}</p>
@@ -43,6 +43,9 @@ function GroupCard({ group }: { group: Group }) {
 
       <p className={styles.stats}>
         <span>{t('groups.students', { count: group.counts.active })}</span>
+        {group.unread > 0 && (
+          <Badge tone="emblem">{t('groups.unread', { count: group.unread })}</Badge>
+        )}
         {group.counts.pending > 0 && (
           <span className={styles.pendingStat}>
             {t('groups.requests', { count: group.counts.pending })}

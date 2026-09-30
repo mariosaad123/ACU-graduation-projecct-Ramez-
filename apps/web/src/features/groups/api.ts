@@ -42,10 +42,14 @@ export function useGroupMembers(groupId: string) {
   });
 }
 
-/** Anything that changes a group or its members refreshes both lists. */
+/** Anything that changes a group or its members refreshes the lists and the open group. */
 function useRefreshGroups() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: DOCTOR_GROUPS_KEY });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: DOCTOR_GROUPS_KEY }),
+      queryClient.invalidateQueries({ queryKey: ['group'] }),
+    ]);
 }
 
 export function useSetTeachingLanguages() {
@@ -103,6 +107,50 @@ export function useGroupCommand(groupId: string, command: 'code' | 'archive' | '
           schema: groupResponseSchema,
         })
       ).group,
+    onSuccess: refresh,
+  });
+}
+
+export function useGroupPhoto(groupId: string) {
+  const refresh = useRefreshGroups();
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return (
+        await apiRequest(`/api/doctor/groups/${groupId}/photo`, {
+          method: 'PUT',
+          body: form,
+          schema: groupResponseSchema,
+        })
+      ).group;
+    },
+    onSuccess: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: async () =>
+      (
+        await apiRequest(`/api/doctor/groups/${groupId}/photo`, {
+          method: 'DELETE',
+          schema: groupResponseSchema,
+        })
+      ).group,
+    onSuccess: refresh,
+  });
+  return { upload, remove };
+}
+
+export function useChatMute(groupId: string) {
+  const refresh = useRefreshGroups();
+  return useMutation({
+    mutationFn: async ({ studentId, muted }: { studentId: string; muted: boolean }) =>
+      (
+        await apiRequest(`/api/doctor/groups/${groupId}/members/${studentId}/chat-mute`, {
+          method: 'POST',
+          body: { muted },
+          schema: groupMemberResponseSchema,
+        })
+      ).member,
     onSuccess: refresh,
   });
 }

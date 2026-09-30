@@ -6,6 +6,7 @@ import { apiError, nth, queueResponses, renderWithProviders, sessionUser } from 
 import { DOCTOR_GROUPS_KEY, STUDENT_GROUPS_KEY } from './api';
 import { DoctorGroupsSection } from './DoctorGroupsSection';
 import { GroupPage } from './GroupPage';
+import { StudentGroupPage } from './StudentGroupPage';
 import { JoinPage } from './JoinPage';
 import { StudentGroupsCard } from './StudentGroupsCard';
 import { TeachingLanguagesCard } from './TeachingLanguagesCard';
@@ -23,9 +24,12 @@ function group(overrides: Partial<Group> = {}): Group {
     joinCode: 'K7QM9XRT',
     joinOpen: true,
     requiresApproval: false,
+    chatOpen: true,
+    photoUrl: null,
     archived: false,
     createdAt: '2026-09-30T10:00:00.000Z',
     counts: { active: 0, pending: 0, out: 0 },
+    unread: 0,
     ...overrides,
   };
 }
@@ -42,6 +46,7 @@ function member(overrides: Partial<GroupMember> = {}): GroupMember {
       suspension: null,
     },
     status: 'active',
+    chatMuted: false,
     joinedAt: '2026-09-30T10:00:00.000Z',
     decidedAt: '2026-09-30T10:00:00.000Z',
     removedAt: null,
@@ -198,9 +203,9 @@ describe('the languages a doctor teaches', () => {
 });
 
 describe('a group’s page', () => {
-  function renderGroup(members: GroupMember[], overrides: Partial<Group> = {}) {
+  function renderGroup(members: GroupMember[], overrides: Partial<Group> = {}, tab = 'students') {
     return renderWithProviders(<GroupPage />, {
-      route: `/app/groups/${GROUP_ID}`,
+      route: `/app/groups/${GROUP_ID}?tab=${tab}`,
       path: '/app/groups/:groupId',
       session: doctorUser,
       cache: [
@@ -318,6 +323,47 @@ describe('a group’s page', () => {
     expect(screen.queryByRole('button', { name: 'Suspend account' })).not.toBeInTheDocument();
   });
 
+  it('mutes a student in the chat and shows it on the student', async () => {
+    const user = userEvent.setup();
+    const { fetchMock, calls } = queueResponses([200, { member: member({ chatMuted: true }) }]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderGroup([member()]);
+
+    await user.click(screen.getByRole('button', { name: 'Mute in chat' }));
+
+    expect(await screen.findByText('Omar Khaled muted in the chat.')).toBeInTheDocument();
+    expect(nth(calls, 0)).toMatchObject({
+      url: `/api/doctor/groups/${GROUP_ID}/members/${STUDENT_ID}/chat-mute`,
+      init: { method: 'POST', body: JSON.stringify({ muted: true }) },
+    });
+  });
+
+  it('offers to unmute a muted student', () => {
+    renderGroup([member({ chatMuted: true })]);
+
+    expect(screen.getByText('Muted in chat')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unmute' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('opens on the chat unless students are waiting, and keeps the tab in the address', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = queueResponses();
+    vi.stubGlobal('fetch', fetchMock);
+    renderGroup([member()], { unread: 3 }, '');
+
+    expect(screen.getByRole('tab', { name: 'Chat (3)' })).toHaveAttribute('aria-selected', 'true');
+
+    await user.click(screen.getByRole('tab', { name: 'Students' }));
+    expect(screen.getByRole('tab', { name: 'Students' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Omar Khaled')).toBeInTheDocument();
+  });
+
+  it('opens on the students when some are waiting for approval', () => {
+    renderGroup([member({ status: 'pending' })], { counts: { active: 0, pending: 1, out: 0 } }, '');
+
+    expect(screen.getByRole('tab', { name: 'Students' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('is read-only while archived', () => {
     renderGroup([member()], { archived: true });
 
@@ -334,7 +380,9 @@ describe('a student’s groups', () => {
       name: 'Conversation 2',
       description: null,
       language: 'fr',
+      photoUrl: null,
       doctorName: 'Dr. Mona',
+      doctorAvatarUrl: null,
       requiresApproval: false,
     },
     membership: null,
@@ -362,9 +410,12 @@ describe('a student’s groups', () => {
       name: 'Conversation 2',
       description: null,
       language: 'fr',
+      photoUrl: null,
       doctorName: 'Dr. Mona',
+      doctorAvatarUrl: null,
       status: 'active',
       joinedAt: '2026-09-30T10:00:00.000Z',
+      unread: 0,
     };
     const { fetchMock, calls } = queueResponses(
       [200, preview],
@@ -485,3 +536,54 @@ describe('the join link', () => {
 function never(): never {
   throw new Error('Expected a student');
 }
+
+describe('a group as its student sees it', () => {
+  const view = {
+    id: GROUP_ID,
+    name: 'Conversation 2',
+    description: 'Mondays 10:00',
+    language: 'fr' as const,
+    photoUrl: null,
+    archived: false,
+    doctor: { name: 'Dr. Mona', avatarUrl: null },
+    isDoctor: false,
+    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0 },
+  };
+
+  it('shows who teaches the group and opens its chat', async () => {
+    const { fetchMock } = queueResponses([
+      200,
+      { messages: [], pinned: [], version: 0, hasOlder: false },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<StudentGroupPage />, {
+      route: `/app/groups/${GROUP_ID}`,
+      path: '/app/groups/:groupId',
+      session: studentUser(['fr']),
+      cache: [[['group', GROUP_ID], view]],
+    });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Conversation 2' })).toBeInTheDocument();
+    expect(screen.getByText('Dr. Mona')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'My groups' })).toHaveAttribute(
+      'href',
+      '/app#my-groups',
+    );
+    expect(await screen.findByText('No messages yet. Start the conversation.')).toBeInTheDocument();
+  });
+
+  it('shows the missing page to someone outside the group', async () => {
+    const { fetchMock } = queueResponses([404, apiError('NOT_FOUND')]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<StudentGroupPage />, {
+      route: `/app/groups/${GROUP_ID}`,
+      path: '/app/groups/:groupId',
+      session: studentUser(['fr']),
+    });
+
+    expect(await screen.findByRole('heading', { level: 1 })).not.toHaveTextContent(
+      'Conversation 2',
+    );
+    expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument();
+  });
+});

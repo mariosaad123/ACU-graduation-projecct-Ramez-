@@ -2,6 +2,7 @@ import { suspendStudentSchema, type Group, type GroupMember } from '@acu/shared'
 import {
   ArrowsLeftRightIcon,
   ArrowUUpLeftIcon,
+  ChatCircleSlashIcon,
   CheckIcon,
   ProhibitIcon,
   UserMinusIcon,
@@ -25,6 +26,7 @@ import { useLanguageName } from '../../i18n/use-language-name';
 import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import {
+  useChatMute,
   useDoctorGroups,
   useGroupMembers,
   useMemberAction,
@@ -57,6 +59,7 @@ function MemberRow({
   onAction,
   onDialog,
   onUnsuspend,
+  onMute,
 }: {
   member: GroupMember;
   readOnly: boolean;
@@ -64,6 +67,7 @@ function MemberRow({
   onAction: (action: MemberAction) => void;
   onDialog: (dialog: NonNullable<Dialogs>['kind']) => void;
   onUnsuspend: () => void;
+  onMute: (muted: boolean) => void;
 }) {
   const { t } = useTranslation();
   const languageName = useLanguageName();
@@ -108,6 +112,13 @@ function MemberRow({
               </li>
             ))}
           </ul>
+        )}
+        {status === 'active' && member.chatMuted && (
+          <p className={styles.suspension}>
+            <Badge tone="warning" icon={<ChatCircleSlashIcon aria-hidden="true" />}>
+              {t('groups.muted')}
+            </Badge>
+          </p>
         )}
         {suspension && (
           <p className={styles.suspension}>
@@ -177,6 +188,18 @@ function MemberRow({
             >
               {t('groups.remove')}
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              iconStart={<ChatCircleSlashIcon aria-hidden="true" />}
+              aria-pressed={member.chatMuted}
+              disabled={busy}
+              onClick={() => {
+                onMute(!member.chatMuted);
+              }}
+            >
+              {member.chatMuted ? t('groups.unmute') : t('groups.mute')}
+            </Button>
           </>
         )}
         {!readOnly && (status === 'removed' || status === 'left') && (
@@ -227,6 +250,7 @@ function MemberList({
   onAction: (member: GroupMember, action: MemberAction) => void;
   onDialog: (dialog: NonNullable<Dialogs>) => void;
   onUnsuspend: (member: GroupMember) => void;
+  onMute: (member: GroupMember, muted: boolean) => void;
 }) {
   if (members.length === 0) {
     return <p className={styles.emptyList}>{empty}</p>;
@@ -247,6 +271,9 @@ function MemberList({
           }}
           onUnsuspend={() => {
             rowProps.onUnsuspend(member);
+          }}
+          onMute={(muted) => {
+            rowProps.onMute(member, muted);
           }}
         />
       ))}
@@ -395,11 +422,13 @@ export function MembersPanel({ group }: { group: Group }) {
   const members = useGroupMembers(group.id);
   const action = useMemberAction(group.id);
   const suspension = useSuspension();
+  const chatMute = useChatMute(group.id);
   const [dialog, setDialog] = useState<Dialogs>(null);
 
   const busyId =
     (action.isPending && action.variables.studentId) ||
     (suspension.isPending && suspension.variables.studentId) ||
+    (chatMute.isPending && chatMute.variables.studentId) ||
     null;
 
   const run = (member: GroupMember, memberAction: MemberAction, onDone?: () => void) => {
@@ -428,6 +457,25 @@ export function MembersPanel({ group }: { group: Group }) {
           toast({
             tone: 'success',
             title: t('groups.unsuspended', { name: member.student.name }),
+          });
+        },
+        onError: (error) => {
+          toast({ tone: 'danger', title: describeApiError(t, error) });
+        },
+      },
+    );
+  };
+
+  const mute = (member: GroupMember, muted: boolean) => {
+    chatMute.mutate(
+      { studentId: member.student.id, muted },
+      {
+        onSuccess: () => {
+          toast({
+            tone: 'success',
+            title: t(muted ? 'groups.mutedDone' : 'groups.unmutedDone', {
+              name: member.student.name,
+            }),
           });
         },
         onError: (error) => {
@@ -466,6 +514,7 @@ export function MembersPanel({ group }: { group: Group }) {
     },
     onDialog: setDialog,
     onUnsuspend: unsuspend,
+    onMute: mute,
   };
 
   return (

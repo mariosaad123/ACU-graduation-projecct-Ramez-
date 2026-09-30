@@ -1,7 +1,6 @@
 import { LANGUAGES, type SessionUser } from '@acu/shared';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LanguageGlyph } from '../../components/language/LanguageGlyph';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
@@ -9,7 +8,9 @@ import { useToast } from '../../components/ui/toast/toast-context';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { ApiError } from '../../lib/api';
 import { describeApiError } from '../auth/api-errors';
+import { Avatar } from '../auth/Avatar';
 import { useJoinGroup, useJoinPreview } from './api';
+import { GroupPhoto } from './GroupPhoto';
 import styles from './Groups.module.css';
 
 function joinErrorMessage(t: ReturnType<typeof useTranslation>['t'], error: unknown): string {
@@ -82,7 +83,7 @@ export function JoinGroupPanel({
   return (
     <div className={styles.joinPanel}>
       <div className={styles.groupHead}>
-        <LanguageGlyph language={group.language} active />
+        <GroupPhoto photoUrl={group.photoUrl} language={group.language} active />
         <div className={styles.groupTitle}>
           <p className={styles.groupName}>{group.name}</p>
           {group.description && <p className={styles.muted}>{group.description}</p>}
@@ -91,7 +92,13 @@ export function JoinGroupPanel({
       <dl className={styles.facts}>
         <div>
           <dt>{t('myGroups.doctor')}</dt>
-          <dd>{group.doctorName}</dd>
+          <dd className={styles.person}>
+            <Avatar
+              user={{ name: group.doctorName, avatarUrl: group.doctorAvatarUrl }}
+              size="1.75rem"
+            />
+            {group.doctorName}
+          </dd>
         </div>
         <div>
           <dt>{t('myGroups.language')}</dt>

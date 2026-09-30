@@ -2,7 +2,7 @@ import { normalizeJoinCode, type SessionUser, type StudentGroup } from '@acu/sha
 import { SignOutIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LanguageGlyph } from '../../components/language/LanguageGlyph';
+import { Link } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -14,7 +14,9 @@ import { TextField } from '../../components/ui/TextField';
 import { useToast } from '../../components/ui/toast/toast-context';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { describeApiError } from '../auth/api-errors';
+import { Avatar } from '../auth/Avatar';
 import { useLeaveGroup, useStudentGroups } from './api';
+import { GroupPhoto } from './GroupPhoto';
 import { JoinGroupPanel } from './JoinGroupPanel';
 import { clearPendingJoinCode, peekPendingJoinCode } from './pending-join';
 import styles from './Groups.module.css';
@@ -97,13 +99,32 @@ export function StudentGroupsCard({ student }: { student: Student }) {
         <ul className={styles.studentGroups}>
           {groups.data.map((group) => (
             <li key={group.id} className={styles.studentGroup}>
-              <LanguageGlyph language={group.language} size="sm" />
+              <GroupPhoto photoUrl={group.photoUrl} language={group.language} />
               <div className={styles.groupTitle}>
-                <p className={styles.groupName}>{group.name}</p>
-                <p className={styles.muted}>
-                  {group.doctorName} · {languageName(group.language)}
+                {group.status === 'active' ? (
+                  <Link
+                    to={`/app/groups/${group.id}`}
+                    className={styles.groupLink}
+                    aria-label={t('myGroups.openGroup', { name: group.name })}
+                  >
+                    {group.name}
+                  </Link>
+                ) : (
+                  <p className={styles.groupName}>{group.name}</p>
+                )}
+                <p className={styles.person}>
+                  <Avatar
+                    user={{ name: group.doctorName, avatarUrl: group.doctorAvatarUrl }}
+                    size="1.5rem"
+                  />
+                  <span className={styles.muted}>
+                    {group.doctorName} · {languageName(group.language)}
+                  </span>
                 </p>
                 {group.status === 'pending' && <Badge tone="info">{t('myGroups.pending')}</Badge>}
+                {group.unread > 0 && (
+                  <Badge tone="emblem">{t('groups.unread', { count: group.unread })}</Badge>
+                )}
               </div>
               <Button
                 size="sm"
