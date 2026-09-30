@@ -1,0 +1,10 @@
+.loading {
+  display: grid;
+  place-items: center;
+  min-block-size: 50vh;
+}
+
+.error {
+  padding-block: var(--space-16);
+  max-inline-size: 40rem;
+}

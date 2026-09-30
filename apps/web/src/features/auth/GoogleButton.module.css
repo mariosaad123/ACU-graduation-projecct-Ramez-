@@ -1,0 +1,28 @@
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: 3rem;
+  padding-inline: var(--space-5);
+  border: 1px solid #747775;
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: #1f1f1f;
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover {
+  background: #f8f9fa;
+  box-shadow: 0 1px 3px rgb(22 26 34 / 12%);
+}
+
+.logo {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}
