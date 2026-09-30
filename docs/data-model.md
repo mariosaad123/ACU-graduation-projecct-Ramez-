@@ -138,6 +138,8 @@ erDiagram
         text join_code UK "8 symbols, no 0 1 I L O U"
         boolean join_open
         boolean requires_approval
+        boolean chat_open
+        uuid photo_file_id FK
         timestamptz archived_at
     }
     group_members {
@@ -148,6 +150,7 @@ erDiagram
         timestamptz decided_at
         timestamptz removed_at
         uuid removed_by_user_id FK
+        boolean chat_muted
     }
 ```
 
@@ -193,18 +196,129 @@ administration, lifts it; the student's other doctors see who suspended the acco
 | ---------------------------------------------------------- | ------- | -------------------------------------------- |
 | `PUT /api/doctor/languages`                                | doctor  | Replaces the languages taught                |
 | `GET, POST /api/doctor/groups`                             | doctor  | Lists or creates groups                      |
-| `PATCH /api/doctor/groups/:id`                             | doctor  | Name, description, joining open, approval    |
+| `PATCH /api/doctor/groups/:id`                             | doctor  | Name, description, joining, approval, chat   |
+| `PUT, DELETE /api/doctor/groups/:id/photo`                 | doctor  | Sets or removes the group's photo            |
 | `POST /api/doctor/groups/:id/code`                         | doctor  | A new join code; the old one stops at once   |
 | `POST /api/doctor/groups/:id/archive`, `/restore`          | doctor  | Read-only while archived                     |
 | `GET, POST /api/doctor/groups/:id/members`                 | doctor  | Lists members, or adds a student by email    |
 | `POST /api/doctor/groups/:id/members/:student/:action`     | doctor  | `approve`, `reject`, `remove` or `restore`   |
 | `POST /api/doctor/groups/:id/members/:student/move`        | doctor  | To another of the doctor's groups            |
+| `POST /api/doctor/groups/:id/members/:student/chat-mute`   | doctor  | Mutes or unmutes a student in the chat       |
 | `POST /api/doctor/students/:student/suspend`, `/unsuspend` | doctor  | Suspends the account, or lifts it            |
 | `POST /api/student/join/preview`, `/join`                  | student | Shows the group behind a code, then joins it |
 | `GET /api/student/groups`                                  | student | The student's groups and pending requests    |
 | `POST /api/student/groups/:id/leave`                       | student | Leaves, or withdraws a request               |
 
 Join codes travel in request bodies, not in API URLs, so they stay out of server logs.
+
+## Files
+
+```mermaid
+erDiagram
+    users ||--o{ files : "uploads"
+    groups ||--o{ files : "holds"
+
+    files {
+        uuid id PK
+        uuid owner_id FK
+        file_purpose purpose "avatar | group_photo | chat"
+        uuid group_id FK "chat files only"
+        text content_type
+        integer byte_size
+        text original_name
+        text storage_key UK
+        integer width
+        integer height
+    }
+```
+
+Uploads go through one path, whatever they are for:
+
+1. The type is read from the file's first bytes; the name and the type the browser claims are
+   not trusted.
+2. Images are decoded and written again as WebP, turned upright, resized and stripped of their
+   metadata (camera, location). Profile photos become 256 px squares, group photos 512 px
+   squares, chat images at most 1600 px on their long side.
+3. Documents (PDF, Word, PowerPoint, Excel) and audio are kept as sent.
+
+| Purpose       | Largest | Who can read it                           |
+| ------------- | ------- | ----------------------------------------- |
+| `avatar`      | 5 MB    | Anyone signed in                          |
+| `group_photo` | 5 MB    | Anyone signed in                          |
+| `chat`        | 10 MB   | The group's doctor and its active members |
+
+`GET /api/files/:id` serves a file with `X-Content-Type-Options: nosniff`, a sandboxing
+`Content-Security-Policy`, and `Content-Disposition: attachment` for everything but images and
+audio, so an uploaded file never runs as a page of the platform. A file that is replaced or whose
+message is deleted is removed from storage.
+
+Files live on disk under `UPLOADS_DIR` (`.data/uploads` by default) behind a small storage
+interface; production swaps in an object store driver without touching the services.
+
+`PUT /api/me/avatar` sets a person's own photo and `DELETE` goes back to the Google picture.
+
+## Group chat
+
+```mermaid
+erDiagram
+    groups ||--o{ group_messages : "has"
+    users ||--o{ group_messages : "writes"
+    files |o--o| group_messages : "is attached to"
+    group_messages |o--o{ group_messages : "is replied to by"
+    groups ||--o{ chat_reads : "is read by"
+
+    group_messages {
+        uuid id PK
+        bigint seq UK "identity, the order of the chat"
+        bigint version "chat_version_seq, bumped by every change"
+        uuid group_id FK
+        uuid author_id FK
+        text body
+        uuid attachment_file_id FK
+        uuid reply_to_id FK
+        timestamptz pinned_at
+        timestamptz edited_at
+        timestamptz deleted_at
+        uuid deleted_by_user_id FK
+    }
+    chat_reads {
+        uuid group_id PK, FK
+        uuid user_id PK, FK
+        bigint last_read_seq
+    }
+```
+
+Every group has one chat, shared by its doctor and its active members.
+
+| Rule                                      | How                                                         |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| The doctor can close the chat to students | `groups.chat_open`; students then read only (`CHAT_CLOSED`) |
+| The doctor can mute one student           | `group_members.chat_muted` (`CHAT_MUTED`)                   |
+| An archived group's chat is read-only     | Writing answers `GROUP_ARCHIVED`                            |
+| Only the author edits a message           | Text messages only (`MESSAGE_NOT_EDITABLE`)                 |
+| The author or the doctor deletes it       | The row stays as a placeholder; the attachment is removed   |
+| Only the doctor pins                      | `pinned_at`; a deleted message is unpinned                  |
+| No flooding                               | 20 messages a minute per person and group                   |
+
+Deleting someone else's message, muting and unmuting are written to the audit log.
+
+Clients load the latest 50 messages, older pages with `?before=<seq>`, then ask every few
+seconds for what changed with `?since=<version>`. Every insert, edit, deletion or pin takes a new
+value from `chat_version_seq`, so a single query returns new and changed messages alike, and a
+client never misses an edit made to an old message. Unread counts compare `seq` with
+`chat_reads.last_read_seq`.
+
+| Request                                            | Effect                                            |
+| -------------------------------------------------- | ------------------------------------------------- |
+| `GET /api/groups/:id`                              | The group as this person sees it, with chat state |
+| `GET /api/groups/:id/chat`                         | The latest page, or `?before=<seq>`               |
+| `GET /api/groups/:id/chat/changes?since=<n>`       | Messages created or changed since a version       |
+| `POST /api/groups/:id/chat`                        | Sends text, a file, or both (multipart)           |
+| `PATCH, DELETE /api/groups/:id/chat/:message`      | Edits or deletes a message                        |
+| `POST /api/groups/:id/chat/:message/pin`, `/unpin` | Pins or unpins (doctor)                           |
+| `POST /api/groups/:id/chat/read`                   | Marks the chat read up to a message               |
+
+Anyone outside the group gets a 404 for all of these, as for the doctor routes.
 
 ## Account states
 
