@@ -1,6 +1,5 @@
 import { meResponseSchema } from '@acu/shared';
 import { eq } from 'drizzle-orm';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { auditEvents, sessions, users } from '../../db/schema';
 import {
@@ -27,7 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe('starting Google sign-in', () => {
   it('redirects to Google with our callback and remembers the attempt in a cookie', async () => {
-    const response = await request(context.app).get('/api/auth/google/start').expect(303);
+    const response = await context.client().get('/api/auth/google/start').expect(303);
 
     const location = new URL(response.headers.location ?? '');
     expect(location.origin).toBe('https://accounts.google.test');
@@ -46,7 +45,7 @@ describe('starting Google sign-in', () => {
       googleConfigured: false,
       shareDatabaseWith: context,
     });
-    const response = await request(unconfigured.app).get('/api/auth/google/start').expect(303);
+    const response = await unconfigured.client().get('/api/auth/google/start').expect(303);
 
     expect(response.headers.location).toBe(`${WEB_ORIGIN}/sign-in?error=google_unavailable`);
     await unconfigured.close();
@@ -110,7 +109,7 @@ describe('completing Google sign-in', () => {
   });
 
   it('refuses Google accounts whose email is not verified', async () => {
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start').expect(303);
     context.provider.willReturn('unverified', identity({ emailVerified: false }));
 
@@ -122,7 +121,7 @@ describe('completing Google sign-in', () => {
   });
 
   it('rejects a callback whose state does not match', async () => {
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start').expect(303);
     context.provider.willReturn('forged', identity());
 
@@ -134,12 +133,13 @@ describe('completing Google sign-in', () => {
   });
 
   it('rejects a callback without the sign-in cookie, or used twice', async () => {
-    const withoutCookie = await request(context.app)
+    const withoutCookie = await context
+      .client()
       .get('/api/auth/google/callback?code=x&state=y')
       .expect(303);
     expect(withoutCookie.headers.location).toBe(`${WEB_ORIGIN}/sign-in?error=expired`);
 
-    const agent = request.agent(context.app);
+    const agent = context.client();
     const start = await agent.get('/api/auth/google/start').expect(303);
     const flowCookie = String(start.headers['set-cookie']).split(';')[0] ?? '';
     const person = identity();
@@ -147,12 +147,12 @@ describe('completing Google sign-in', () => {
     const callback = `/api/auth/google/callback?code=once&state=${context.provider.lastState ?? ''}`;
 
     await agent.get(callback).expect(303);
-    const replay = await request(context.app).get(callback).set('Cookie', flowCookie).expect(303);
+    const replay = await context.client().get(callback).set('Cookie', flowCookie).expect(303);
     expect(replay.headers.location).toBe(`${WEB_ORIGIN}/sign-in?error=expired`);
   });
 
   it('treats a sign-in cancelled on Google as cancelled', async () => {
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start').expect(303);
 
     const response = await agent.get('/api/auth/google/callback?error=access_denied').expect(303);
@@ -160,7 +160,7 @@ describe('completing Google sign-in', () => {
   });
 
   it('expires sign-in attempts after ten minutes', async () => {
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start').expect(303);
     context.provider.willReturn('slow', identity());
     context.advance(11 * 60 * 1000);
@@ -179,7 +179,7 @@ describe('completing Google sign-in', () => {
       .set({ disabledAt: new Date() })
       .where(eq(users.googleSubject, person.subject));
 
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start').expect(303);
     context.provider.willReturn('disabled', person);
     const response = await agent
@@ -203,12 +203,12 @@ describe('completing Google sign-in', () => {
 
 describe('sessions', () => {
   it('answers 401 without a session', async () => {
-    const response = await request(context.app).get('/api/me').expect(401);
+    const response = await context.client().get('/api/me').expect(401);
     expect((response.body as { error: { code: string } }).error.code).toBe('UNAUTHENTICATED');
   });
 
   it('ignores a forged session cookie', async () => {
-    await request(context.app).get('/api/me').set('Cookie', 'acu_session=forged-token').expect(401);
+    await context.client().get('/api/me').set('Cookie', 'acu_session=forged-token').expect(401);
   });
 
   it('ends after 14 days without use', async () => {
@@ -254,7 +254,7 @@ describe('sessions', () => {
   });
 
   it('makes the cookie unreadable to scripts', async () => {
-    const agent = request.agent(context.app);
+    const agent = context.client();
     await agent.get('/api/auth/google/start');
     context.provider.willReturn('cookie-check', identity());
     const response = await agent.get(

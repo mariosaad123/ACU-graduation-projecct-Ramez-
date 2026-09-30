@@ -278,7 +278,7 @@ describe('doctor onboarding: university email', () => {
     const wrong = context.mailer.lastCode() === '000000' ? '111111' : '000000';
 
     const responses = await Promise.all(
-      Array.from({ length: 12 }, () =>
+      Array.from({ length: 2 * EMAIL_CODE_MAX_ATTEMPTS }, () =>
         post(agent, '/api/onboarding/doctor/verify', { code: wrong }),
       ),
     );

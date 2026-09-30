@@ -1,5 +1,6 @@
+import { Agent as HttpAgent, createServer, type Server } from 'node:http';
 import { pino } from 'pino';
-import request from 'supertest';
+import request, { type Test } from 'supertest';
 import { loadEnv } from '../config/env';
 import { createDatabase, type DatabaseConnection } from '../db/client';
 import { doctorAccessCodes } from '../db/schema';
@@ -72,6 +73,13 @@ export class MemoryMailer implements Mailer {
 
 export interface TestContext {
   app: ReturnType<typeof createApp>;
+  server: Server;
+  /**
+   * A cookie-keeping client for the app. Every client of a context shares one pool of keep-alive
+   * connections: opening a fresh loopback connection for each request, in the same process as the
+   * server, intermittently crashes Node on Windows (exit code 0xC0000409).
+   */
+  client: () => Agent;
   database: DatabaseConnection;
   provider: FakeIdentityProvider;
   mailer: MemoryMailer;
@@ -126,16 +134,41 @@ export async function createTestContext(
     rateLimits: options.rateLimits ?? GENEROUS_LIMITS,
   });
 
+  const server = createServer(app);
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const connections = new HttpAgent({ keepAlive: true });
+
   return {
     app,
+    server,
+    client: () =>
+      request.agent(server).use((pending: Test) => {
+        pending.agent(connections);
+      }),
     database,
     provider,
     mailer,
     advance: (ms) => {
       current = new Date(current.getTime() + ms);
     },
-    // A shared database belongs to the context that created it.
-    close: () => (shared ? Promise.resolve() : database.close()),
+    close: async () => {
+      connections.destroy();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+      // A shared database belongs to the context that created it.
+      if (!shared) {
+        await database.close();
+      }
+    },
   };
 }
 
@@ -165,7 +198,7 @@ export async function signIn(
   who: VerifiedIdentity = identity(),
   returnTo?: string,
 ): Promise<{ agent: Agent; landing: string }> {
-  const agent = request.agent(context.app);
+  const agent = context.client();
   const startPath = returnTo
     ? `/api/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`
     : '/api/auth/google/start';

@@ -1,5 +1,4 @@
 import { healthResponseSchema } from '@acu/shared';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WEB_ORIGIN, createTestContext, type TestContext } from '../test/harness';
 import type { ErrorResponseBody } from './http-error';
@@ -20,7 +19,7 @@ function errorOf(response: { body: unknown }): ErrorResponseBody['error'] {
 
 describe('GET /api/health', () => {
   it('responds with a body that matches the shared contract', async () => {
-    const response = await request(context.app).get('/api/health').expect(200);
+    const response = await context.client().get('/api/health').expect(200);
 
     expect(healthResponseSchema.safeParse(response.body).success).toBe(true);
   });
@@ -28,14 +27,15 @@ describe('GET /api/health', () => {
 
 describe('error handling', () => {
   it('returns a structured 404 for unknown routes', async () => {
-    const response = await request(context.app).get('/api/does-not-exist').expect(404);
+    const response = await context.client().get('/api/does-not-exist').expect(404);
 
     expect(errorOf(response).code).toBe('NOT_FOUND');
     expect(errorOf(response).requestId).toBe(response.headers['x-request-id']);
   });
 
   it('rejects malformed JSON with a 400', async () => {
-    const response = await request(context.app)
+    const response = await context
+      .client()
       .post('/api/health')
       .set('Origin', WEB_ORIGIN)
       .set('content-type', 'application/json')
@@ -46,7 +46,8 @@ describe('error handling', () => {
   });
 
   it('rejects bodies above the size limit', async () => {
-    const response = await request(context.app)
+    const response = await context
+      .client()
       .post('/api/health')
       .set('Origin', WEB_ORIGIN)
       .send({ text: 'x'.repeat(200_000) })
@@ -62,21 +63,22 @@ describe('CSRF protection', () => {
     ['another site', 'https://evil.example'],
     ['a look-alike host', 'http://localhost:5173.evil.example'],
   ])('refuses state-changing requests from %s', async (_label, origin) => {
-    const pending = request(context.app).post('/api/auth/sign-out');
+    const pending = context.client().post('/api/auth/sign-out');
     const response = await (origin ? pending.set('Origin', origin) : pending).expect(403);
 
     expect(errorOf(response).code).toBe('CSRF_REJECTED');
   });
 
   it('accepts the Referer header when Origin is missing', async () => {
-    await request(context.app)
+    await context
+      .client()
       .post('/api/auth/sign-out')
       .set('Referer', `${WEB_ORIGIN}/app`)
       .expect(204);
   });
 
   it('lets safe reads through without an origin', async () => {
-    await request(context.app).get('/api/health').expect(200);
+    await context.client().get('/api/health').expect(200);
   });
 });
 
@@ -92,9 +94,9 @@ describe('rate limiting', () => {
     });
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      await request(limited.app).get('/api/auth/google/start').expect(303);
+      await limited.client().get('/api/auth/google/start').expect(303);
     }
-    const blocked = await request(limited.app).get('/api/auth/google/start').expect(429);
+    const blocked = await limited.client().get('/api/auth/google/start').expect(429);
 
     expect(errorOf(blocked).code).toBe('RATE_LIMITED');
     expect(blocked.headers.ratelimit).toBeDefined();
@@ -104,7 +106,7 @@ describe('rate limiting', () => {
 
 describe('security headers', () => {
   it('sets hardened defaults and hides the framework', async () => {
-    const response = await request(context.app).get('/api/health');
+    const response = await context.client().get('/api/health');
 
     expect(response.headers['x-powered-by']).toBeUndefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');
@@ -112,10 +114,8 @@ describe('security headers', () => {
   });
 
   it('allows the configured origin only', async () => {
-    const allowed = await request(context.app).get('/api/health').set('origin', WEB_ORIGIN);
-    const other = await request(context.app)
-      .get('/api/health')
-      .set('origin', 'https://evil.example');
+    const allowed = await context.client().get('/api/health').set('origin', WEB_ORIGIN);
+    const other = await context.client().get('/api/health').set('origin', 'https://evil.example');
 
     expect(allowed.headers['access-control-allow-origin']).toBe(WEB_ORIGIN);
     expect(other.headers['access-control-allow-origin']).not.toBe('https://evil.example');
@@ -124,7 +124,7 @@ describe('security headers', () => {
 
 describe('request ids', () => {
   it('keeps a well-formed incoming id', async () => {
-    const response = await request(context.app).get('/api/health').set('x-request-id', 'trace-123');
+    const response = await context.client().get('/api/health').set('x-request-id', 'trace-123');
 
     expect(response.headers['x-request-id']).toBe('trace-123');
   });
@@ -132,7 +132,7 @@ describe('request ids', () => {
   it.each(['<script>alert(1)</script>', 'x'.repeat(65)])(
     'replaces an unsafe incoming id: %s',
     async (unsafeId) => {
-      const response = await request(context.app).get('/api/health').set('x-request-id', unsafeId);
+      const response = await context.client().get('/api/health').set('x-request-id', unsafeId);
 
       expect(response.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
     },
