@@ -1,6 +1,7 @@
 import { meResponseSchema, type SessionUser } from '@acu/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '../../lib/api';
+import { reloadTo } from '../../lib/browser';
 
 export const SESSION_QUERY_KEY = ['session'] as const;
 
@@ -34,16 +35,15 @@ export function useSetSession() {
   };
 }
 
+/**
+ * Ends the session on the server, then reloads the home page. The reload drops everything held
+ * in memory for the account, and avoids protected pages reacting to the change before leaving.
+ */
 export function useSignOut() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => apiRequest('/api/auth/sign-out', { method: 'POST' }),
     onSuccess: () => {
-      // The session becomes "visitor" at once; everything cached for the account is dropped.
-      queryClient.setQueryData(SESSION_QUERY_KEY, null);
-      queryClient.removeQueries({
-        predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0],
-      });
+      reloadTo('/');
     },
   });
 }

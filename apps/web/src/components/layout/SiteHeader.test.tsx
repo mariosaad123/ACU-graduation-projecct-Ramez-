@@ -1,8 +1,12 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { AuthGate } from '../../features/auth/AuthGate';
+import { reloadTo } from '../../lib/browser';
 import { queueResponses, renderWithProviders, sessionUser } from '../../test/render';
 import { SiteHeader } from './SiteHeader';
+
+vi.mock('../../lib/browser', () => ({ reloadTo: vi.fn() }));
 
 describe('interface language', () => {
   it('sets the document language and direction for Arabic', () => {
@@ -107,17 +111,30 @@ describe('SiteHeader account', () => {
     );
   });
 
-  it('signs out and returns to the visitor header', async () => {
+  it('signs out on the server, then reloads the home page without detouring to sign-in', async () => {
     const user = userEvent.setup();
     const { fetchMock, calls } = queueResponses([204]);
     vi.stubGlobal('fetch', fetchMock);
-    renderWithProviders(<SiteHeader />, { session: sessionUser({ role: 'doctor' }) });
+    renderWithProviders(
+      <>
+        <SiteHeader />
+        <AuthGate rule={{ kind: 'role', roles: ['student'] }}>{() => <p>dashboard</p>}</AuthGate>
+      </>,
+      {
+        route: '/app',
+        session: sessionUser({ role: 'student' }),
+        extraRoutes: { '/sign-in': <p>sign-in page</p> },
+      },
+    );
 
     await user.click(screen.getByRole('button', { name: /Account menu/ }));
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
+    await waitFor(() => {
+      expect(reloadTo).toHaveBeenCalledWith('/');
+    });
     expect(calls[0]).toMatchObject({ url: '/api/auth/sign-out', init: { method: 'POST' } });
-    expect(await screen.findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByText('sign-in page')).not.toBeInTheDocument();
   });
 
   it('closes the account menu with Escape', async () => {

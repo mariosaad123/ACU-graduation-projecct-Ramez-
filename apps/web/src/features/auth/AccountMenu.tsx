@@ -8,7 +8,7 @@ import {
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from './Avatar';
 import { landingPathFor, useSignOut } from './session';
@@ -16,7 +16,6 @@ import styles from './AccountMenu.module.css';
 
 export function AccountMenu({ user, className }: { user: SessionUser; className?: string }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const signOut = useSignOut();
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -105,12 +104,7 @@ export function AccountMenu({ user, className }: { user: SessionUser; className?
               className={styles.item}
               disabled={signOut.isPending}
               onClick={() => {
-                signOut.mutate(undefined, {
-                  onSuccess: () => {
-                    close();
-                    void navigate('/', { replace: true });
-                  },
-                });
+                signOut.mutate(undefined, { onSuccess: close });
               }}
             >
               <SignOutIcon className="mirror-in-rtl" aria-hidden="true" />
