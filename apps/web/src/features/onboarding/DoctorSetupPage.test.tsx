@@ -102,7 +102,8 @@ describe('DoctorSetupPage email step', () => {
 
     const user = await fillDetails();
     expect(
-      await screen.findByText(/We sent a 6-digit code to m•••••@acu.edu.eg/),
+      // The address is wrapped in Unicode isolate marks so Arabic text cannot reorder it.
+      await screen.findByText(/We sent a 6-digit code to ⁦m•••••@acu\.edu\.eg⁩/),
     ).toBeInTheDocument();
     expect(screen.getByText(/You can ask for a new code in 60 seconds/)).toBeInTheDocument();
 

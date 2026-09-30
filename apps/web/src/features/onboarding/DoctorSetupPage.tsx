@@ -38,6 +38,14 @@ function maskEmail(email: string): string {
   return `${local.slice(0, 1)}${'•'.repeat(Math.min(Math.max(local.length - 1, 1), 6))}@${domain}`;
 }
 
+/**
+ * Wraps left-to-right text (an email) in Unicode isolate marks so an Arabic sentence around it
+ * cannot reorder its characters.
+ */
+function isolateLtr(text: string): string {
+  return `⁦${text}⁩`;
+}
+
 function initialDetails(user: SessionUser): Record<DoctorField, string> {
   const googleIsUniversity = user.email.endsWith(`@${UNIVERSITY_EMAIL_DOMAIN}`);
   return {
@@ -273,7 +281,7 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
               step={3}
               total={3}
               title={t('doctorSetup.verifyTitle')}
-              lead={t('doctorSetup.verifyLead', { email: sentTo })}
+              lead={t('doctorSetup.verifyLead', { email: isolateLtr(sentTo) })}
             />
             <form
               className={`${styles.form} ${styles.verify}`}
