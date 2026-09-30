@@ -98,6 +98,7 @@ describe('SiteHeader account', () => {
           displayName: 'Dr. Mona',
           staffId: 'ACU-1',
           universityEmail: 'mona@acu.edu.eg',
+          languages: ['fr'],
         },
       }),
     });

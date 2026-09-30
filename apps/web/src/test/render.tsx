@@ -1,5 +1,5 @@
 import type { SessionUser } from '@acu/shared';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, type QueryKey } from '@tanstack/react-query';
 import { render, type RenderOptions } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -12,25 +12,43 @@ import { initI18n } from '../i18n/i18n';
 interface ProviderOptions extends Omit<RenderOptions, 'wrapper'> {
   locale?: InterfaceLocale;
   route?: string;
+  /** The route pattern, when the page reads parameters from it, e.g. "/join/:code". */
+  path?: string;
   /** The signed-in account; null for a visitor. Leave undefined to let the app ask the API. */
   session?: SessionUser | null;
   /** Other paths to render, so redirects can be observed. */
   extraRoutes?: Record<string, ReactNode>;
+  /** Server data already loaded, e.g. [STUDENT_GROUPS_KEY, []]; it is not fetched again. */
+  cache?: readonly (readonly [QueryKey, unknown])[];
 }
 
 /** Renders with the same providers as the app: translations, server state, toasts and a router. */
 export function renderWithProviders(
   ui: ReactElement,
-  { locale = 'en', route = '/', session, extraRoutes = {}, ...options }: ProviderOptions = {},
+  {
+    locale = 'en',
+    route = '/',
+    path: pattern,
+    session,
+    extraRoutes = {},
+    cache = [],
+    ...options
+  }: ProviderOptions = {},
 ) {
   const i18n = initI18n(locale);
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      mutations: { retry: false },
+    },
   });
+  for (const [key, data] of cache) {
+    queryClient.setQueryData(key, data);
+  }
   if (session !== undefined) {
     queryClient.setQueryData(SESSION_QUERY_KEY, session);
   }
-  const path = route.split(/[?#]/)[0] ?? '/';
+  const path = pattern ?? route.split(/[?#]/)[0] ?? '/';
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (

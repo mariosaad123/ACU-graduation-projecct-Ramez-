@@ -4,6 +4,8 @@ import { FOOTER_NAV, PRIMARY_NAV } from '../components/layout/nav-items';
 import { AuthGate } from '../features/auth/AuthGate';
 import { SignInPage } from '../features/auth/SignInPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { GroupPage } from '../features/groups/GroupPage';
+import { JoinPage } from '../features/groups/JoinPage';
 import { DoctorSetupPage } from '../features/onboarding/DoctorSetupPage';
 import { StudentSetupPage } from '../features/onboarding/StudentSetupPage';
 import { WelcomePage } from '../features/onboarding/WelcomePage';
@@ -60,6 +62,14 @@ export const routes: RouteObject[] = [
               </AuthGate>
             ),
           },
+          {
+            path: 'app/groups/:groupId',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['doctor'] }}>{() => <GroupPage />}</AuthGate>
+            ),
+          },
+          // Open to everyone: the page itself explains what a visitor must do before joining.
+          { path: 'join/:code', element: <JoinPage /> },
           {
             path: 'design-system',
             lazy: async () => {

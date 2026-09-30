@@ -17,6 +17,7 @@ import { useToast } from '../../components/ui/toast/toast-context';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { describeApiError } from '../auth/api-errors';
 import { AddLanguageDialog } from './AddLanguageDialog';
+import { useStudentGroups } from '../groups/api';
 import { RemoveLanguageDialog } from './RemoveLanguageDialog';
 import { useSwitchLanguage } from './student-languages';
 import styles from './LanguagesCard.module.css';
@@ -45,6 +46,9 @@ export function LanguagesCard({ student }: { student: Student }) {
 
   const canAdd = student.languages.length < LEARNING_LANGUAGES.length;
   const canRemove = student.languages.length > 1;
+  // A class the student is in, or waiting for, is taught in these; they stay while it lasts.
+  const groups = useStudentGroups();
+  const inGroups = new Set(groups.data?.map((group) => group.language));
 
   const studyNow = (language: LearningLanguage) => {
     switchLanguage.mutate(language, {
@@ -99,7 +103,10 @@ export function LanguagesCard({ student }: { student: Student }) {
                     {t('languages.startThis')}
                   </Button>
                 )}
-                {canRemove && (
+                {canRemove && inGroups.has(language) && (
+                  <span className={styles.inGroup}>{t('languages.inGroup')}</span>
+                )}
+                {canRemove && !inGroups.has(language) && (
                   <IconButton
                     size="sm"
                     label={t('languages.remove', { language: name })}

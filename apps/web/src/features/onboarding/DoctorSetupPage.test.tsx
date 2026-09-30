@@ -11,12 +11,49 @@ async function fillDetails(accessCode = 'faculty-code') {
   await user.type(screen.getByLabelText(/Doctor verification code/), accessCode);
   await user.type(screen.getByLabelText(/Staff ID/), 'ACU-1042');
   await user.type(screen.getByLabelText(/Name shown to your students/), 'Dr. Mona Adel');
+  await user.click(screen.getByRole('checkbox', { name: /Français/ }));
   await user.type(screen.getByLabelText(/University email/), 'mona.adel@acu.edu.eg');
   await user.click(screen.getByRole('button', { name: 'Continue' }));
   return user;
 }
 
 describe('DoctorSetupPage details step', () => {
+  it('asks which languages the doctor teaches, and sends them', async () => {
+    const user = userEvent.setup();
+    const { fetchMock, calls } = queueResponses([
+      200,
+      { status: 'verification_sent', sentTo: 'm•••••@acu.edu.eg', resendAvailableInSeconds: 60 },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<DoctorSetupPage user={sessionUser()} />, { route: '/welcome/doctor' });
+
+    const fields: [RegExp, string][] = [
+      [/Doctor verification code/, 'faculty-code'],
+      [/Staff ID/, 'ACU-1042'],
+      [/Name shown to your students/, 'Dr. Mona Adel'],
+      [/University email/, 'mona.adel@acu.edu.eg'],
+    ];
+    for (const [label, value] of fields) {
+      await user.click(screen.getByLabelText(label));
+      await user.paste(value);
+    }
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(calls).toHaveLength(0);
+    expect(
+      screen.getByRole('group', { name: 'Which languages do you teach?' }),
+    ).toHaveAccessibleDescription('Choose at least one language you teach.');
+
+    await user.click(screen.getByRole('checkbox', { name: /Deutsch/ }));
+    await user.click(screen.getByRole('checkbox', { name: /English/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    const body = nth(calls, 0).init?.body;
+    expect(JSON.parse(typeof body === 'string' ? body : '{}')).toMatchObject({
+      languages: ['de', 'en'],
+    });
+  });
+
   it('checks the fields before sending anything', async () => {
     const user = userEvent.setup();
     const { fetchMock, calls } = queueResponses();
@@ -89,6 +126,7 @@ describe('DoctorSetupPage email step', () => {
               displayName: 'Dr. Mona Adel',
               staffId: 'ACU-1042',
               universityEmail: 'mona.adel@acu.edu.eg',
+              languages: ['fr'],
             },
           }),
         },
@@ -125,6 +163,7 @@ describe('DoctorSetupPage email step', () => {
             displayName: 'Dr. Mona',
             staffId: 'ACU-1',
             universityEmail: 'mona@acu.edu.eg',
+            languages: ['fr'],
           },
         })}
       />,
@@ -152,6 +191,7 @@ describe('DoctorSetupPage email step', () => {
             displayName: 'Dr. Mona',
             staffId: 'ACU-1',
             universityEmail: 'mona@acu.edu.eg',
+            languages: ['fr'],
           },
         })}
       />,

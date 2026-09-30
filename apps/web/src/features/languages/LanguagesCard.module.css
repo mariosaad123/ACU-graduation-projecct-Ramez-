@@ -64,6 +64,11 @@
   margin-inline-start: auto;
 }
 
+.inGroup {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
 .footer {
   display: flex;
   flex-wrap: wrap;

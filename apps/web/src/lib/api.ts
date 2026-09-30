@@ -22,7 +22,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions<Schema extends z.ZodMiniType> {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** Validates the response; the caller then receives typed data. */
   schema?: Schema;

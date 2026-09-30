@@ -44,7 +44,9 @@
   margin-block-start: var(--space-3);
 }
 
-.picker {
+.languages {
+  display: grid;
+  gap: var(--space-5);
   padding: var(--space-6);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-lg);

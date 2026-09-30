@@ -1,8 +1,9 @@
-import type { LearningLanguage, SessionUser } from '@acu/shared';
+import type { LearningLanguage, SessionUser, StudentGroup } from '@acu/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SESSION_QUERY_KEY } from '../auth/session';
+import { STUDENT_GROUPS_KEY } from '../groups/api';
 import { apiError, nth, queueResponses, renderWithProviders, sessionUser } from '../../test/render';
 import { ActiveLanguageSwitch } from './ActiveLanguageSwitch';
 import { LanguagesCard } from './LanguagesCard';
@@ -18,10 +19,11 @@ function account(student: Student) {
 }
 
 /** Renders like the app: the component follows the cached session, as the header does. */
-function renderCard(student: Student) {
+function renderCard(student: Student, groups: StudentGroup[] = []) {
   const view = renderWithProviders(<LanguagesCard student={student} />, {
     route: '/app',
     session: sessionUser({ role: 'student', student }),
+    cache: [[STUDENT_GROUPS_KEY, groups]],
   });
   const cachedStudent = () =>
     view.queryClient.getQueryData<SessionUser>(SESSION_QUERY_KEY)?.student ?? null;
@@ -56,6 +58,24 @@ describe('LanguagesCard', () => {
       init: { method: 'PUT', body: JSON.stringify({ language: 'en' }) },
     });
     expect(cachedStudent()?.activeLanguage).toBe('en');
+  });
+
+  it('keeps a language one of the student’s groups is taught in', () => {
+    renderCard(studentWith('en', ['en', 'fr']), [
+      {
+        id: '00000000-0000-4000-8000-000000000009',
+        name: 'Conversation 2',
+        description: null,
+        language: 'fr',
+        doctorName: 'Dr. Mona',
+        status: 'active',
+        joinedAt: '2026-09-30T10:00:00.000Z',
+      },
+    ]);
+
+    expect(screen.queryByRole('button', { name: 'Remove French' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove English' })).toBeInTheDocument();
+    expect(screen.getByText('Used by one of your groups')).toBeInTheDocument();
   });
 
   it('cannot remove the only language', () => {

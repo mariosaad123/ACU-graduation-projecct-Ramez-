@@ -3,6 +3,7 @@ import { ArrowRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguagePicker } from '../components/language/LanguagePicker';
+import { LanguageSpotlight } from '../components/language/LanguageSpotlight';
 import { Container } from '../components/layout/Container';
 import { ButtonLink } from '../components/ui/ButtonLink';
 import { PageTitle } from './PageTitle';
@@ -33,7 +34,10 @@ export function HomePage() {
             </ButtonLink>
           </div>
         </div>
-        <LanguagePicker value={language} onChange={setLanguage} className={styles.picker} />
+        <div className={styles.languages}>
+          <LanguagePicker value={language} onChange={setLanguage} />
+          <LanguageSpotlight language={language} />
+        </div>
       </Container>
     </>
   );

@@ -3,6 +3,8 @@ import {
   doctorOnboardingResponseSchema,
   doctorOnboardingSchema,
   meResponseSchema,
+  type DoctorOnboardingRequest,
+  type LearningLanguage,
   type SessionUser,
 } from '@acu/shared';
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react';
@@ -10,6 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { LanguagePicker } from '../../components/language/LanguagePicker';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -67,6 +70,8 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
   const pending = user.doctor?.status === 'pending_verification';
   const [step, setStep] = useState<'details' | 'verify'>(pending ? 'verify' : 'details');
   const [details, setDetails] = useState(() => initialDetails(user));
+  const [languages, setLanguages] = useState<LearningLanguage[]>(user.doctor?.languages ?? []);
+  const [languagesMissing, setLanguagesMissing] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [problems, setProblems] = useState<FormProblems>({ fields: {}, form: null });
   const [sentTo, setSentTo] = useState(
@@ -81,7 +86,7 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
   };
 
   const register = useMutation({
-    mutationFn: (body: Record<DoctorField, string>) =>
+    mutationFn: (body: DoctorOnboardingRequest) =>
       apiRequest('/api/onboarding/doctor', {
         method: 'POST',
         body,
@@ -105,6 +110,9 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
         cooldown.start(error.detail('retryAfterSeconds') ?? 60);
         setStep('verify');
         return;
+      }
+      if (error instanceof ApiError && 'languages' in error.fields) {
+        setLanguagesMissing(true);
       }
       setProblems(doctorDetailsProblems(t, error));
     },
@@ -162,12 +170,16 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
 
   function handleDetailsSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = doctorOnboardingSchema.safeParse(details);
+    const parsed = doctorOnboardingSchema.safeParse({ ...details, languages });
     if (!parsed.success) {
       const fields: FormProblems['fields'] = {};
       for (const issue of parsed.error.issues) {
-        const field = String(issue.path[0]) as DoctorField;
-        fields[field] ??= fieldMessage(t, field);
+        const field = String(issue.path[0]);
+        if (field === 'languages') {
+          setLanguagesMissing(true);
+        } else {
+          fields[field as DoctorField] ??= fieldMessage(t, field);
+        }
       }
       setProblems({ fields, form: null });
       return;
@@ -253,6 +265,21 @@ export function DoctorSetupPage({ user }: { user: SessionUser }) {
                     updateField('displayName', event.target.value);
                   }}
                 />
+                <div className={styles.fullRow}>
+                  <LanguagePicker
+                    multiple
+                    value={languages}
+                    onChange={(next) => {
+                      setLanguages(next);
+                      if (next.length > 0) {
+                        setLanguagesMissing(false);
+                      }
+                    }}
+                    name="taught-languages"
+                    legend={t('doctorSetup.languagesLegend')}
+                    error={languagesMissing ? t('doctorSetup.noLanguage') : undefined}
+                  />
+                </div>
                 <TextField
                   className={styles.fullRow}
                   label={t('doctorSetup.universityEmail')}

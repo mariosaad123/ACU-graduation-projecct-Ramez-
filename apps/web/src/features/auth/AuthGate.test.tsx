@@ -23,6 +23,7 @@ const doctor = sessionUser({
     displayName: 'Dr. Mona',
     staffId: 'ACU-1',
     universityEmail: 'mona@acu.edu.eg',
+    languages: ['fr'],
   },
 });
 
@@ -104,6 +105,7 @@ describe('AuthGate for the sign-in page', () => {
           displayName: 'Dr. Mona',
           staffId: 'ACU-1',
           universityEmail: 'mona@acu.edu.eg',
+          languages: ['fr'],
         },
       }),
       extraRoutes: redirects,

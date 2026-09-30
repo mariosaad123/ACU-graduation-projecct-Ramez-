@@ -4,10 +4,11 @@ import {
   ChartLineUpIcon,
   ClipboardTextIcon,
   SealCheckIcon,
-  UsersThreeIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 import { Container } from '../../components/layout/Container';
 import { Badge } from '../../components/ui/Badge';
 import { ButtonLink } from '../../components/ui/ButtonLink';
@@ -15,6 +16,9 @@ import { Card } from '../../components/ui/Card';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { PageTitle } from '../../pages/PageTitle';
 import { firstName } from '../auth/session';
+import { DoctorGroupsSection } from '../groups/DoctorGroupsSection';
+import { StudentGroupsCard } from '../groups/StudentGroupsCard';
+import { TeachingLanguagesCard } from '../groups/TeachingLanguagesCard';
 import { LanguagesCard } from '../languages/LanguagesCard';
 import styles from './DashboardPage.module.css';
 
@@ -73,6 +77,8 @@ function StudentDashboard({ user }: { user: SessionUser }) {
         </Card>
       </div>
 
+      <StudentGroupsCard student={student} />
+
       <section className={styles.section} aria-labelledby="next-steps">
         <h2 id="next-steps" className={styles.sectionTitle}>
           {t('dashboard.student.nextSteps')}
@@ -82,11 +88,6 @@ function StudentDashboard({ user }: { user: SessionUser }) {
             icon={ChartLineUpIcon}
             title={t('dashboard.student.skillsTitle')}
             body={t('dashboard.student.skillsBody')}
-          />
-          <UpcomingTool
-            icon={UsersThreeIcon}
-            title={t('dashboard.student.classTitle')}
-            body={t('dashboard.student.classBody')}
           />
         </div>
       </section>
@@ -105,39 +106,39 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
     <>
       <p className={styles.lead}>{t('dashboard.doctor.lead')}</p>
 
-      <Card className={styles.profileCard}>
-        <div className={styles.profileHead}>
-          <h2 className={styles.cardTitle}>{t('dashboard.doctor.profile')}</h2>
-          <Badge tone="success" icon={<SealCheckIcon weight="fill" aria-hidden="true" />}>
-            {t('dashboard.doctor.verified')}
-          </Badge>
-        </div>
-        <dl className={styles.facts}>
-          <div>
-            <dt>{t('dashboard.doctor.staffId')}</dt>
-            <dd>
-              <span dir="ltr">{doctor.staffId}</span>
-            </dd>
+      <div className={styles.summary}>
+        <Card className={styles.profileCard}>
+          <div className={styles.profileHead}>
+            <h2 className={styles.cardTitle}>{t('dashboard.doctor.profile')}</h2>
+            <Badge tone="success" icon={<SealCheckIcon weight="fill" aria-hidden="true" />}>
+              {t('dashboard.doctor.verified')}
+            </Badge>
           </div>
-          <div>
-            <dt>{t('dashboard.doctor.universityEmail')}</dt>
-            <dd>
-              <span dir="ltr">{doctor.universityEmail}</span>
-            </dd>
-          </div>
-        </dl>
-      </Card>
+          <dl className={styles.facts}>
+            <div>
+              <dt>{t('dashboard.doctor.staffId')}</dt>
+              <dd>
+                <span dir="ltr">{doctor.staffId}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>{t('dashboard.doctor.universityEmail')}</dt>
+              <dd>
+                <span dir="ltr">{doctor.universityEmail}</span>
+              </dd>
+            </div>
+          </dl>
+        </Card>
+        <TeachingLanguagesCard languages={doctor.languages} />
+      </div>
+
+      <DoctorGroupsSection languages={doctor.languages} />
 
       <section className={styles.section} aria-labelledby="doctor-tools">
         <h2 id="doctor-tools" className={styles.sectionTitle}>
           {t('dashboard.doctor.nextTitle')}
         </h2>
         <div className={styles.tools}>
-          <UpcomingTool
-            icon={UsersThreeIcon}
-            title={t('dashboard.doctor.groupsTitle')}
-            body={t('dashboard.doctor.groupsBody')}
-          />
           <UpcomingTool
             icon={ClipboardTextIcon}
             title={t('dashboard.doctor.examsTitle')}
@@ -156,6 +157,14 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
 
 export function DashboardPage({ user }: { user: SessionUser }) {
   const { t } = useTranslation();
+  const { hash } = useLocation();
+
+  // Links such as /app#groups land on their section; #languages focuses its own card.
+  useEffect(() => {
+    if (hash && hash !== '#languages') {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+    }
+  }, [hash]);
   const displayName =
     user.role === 'doctor' && user.doctor ? user.doctor.displayName : firstName(user.name);
 
