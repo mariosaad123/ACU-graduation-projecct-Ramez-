@@ -3,6 +3,7 @@ import {
   CaretDownIcon,
   SignOutIcon,
   SquaresFourIcon,
+  UserCircleIcon,
   WarningCircleIcon,
 } from '@phosphor-icons/react';
 import clsx from 'clsx';
@@ -63,6 +64,14 @@ export function AccountMenu({ user, className }: { user: SessionUser; className?
               {setupPending ? t('account.completeSetup') : t('account.dashboard')}
             </Link>
           </li>
+          {!setupPending && (
+            <li>
+              <Link to="/app/profile" className={styles.item} onClick={close}>
+                <UserCircleIcon aria-hidden="true" />
+                {t('account.profile')}
+              </Link>
+            </li>
+          )}
           <li>
             <button
               type="button"

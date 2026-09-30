@@ -19,10 +19,11 @@ export function Avatar({
   user: Pick<SessionUser, 'name' | 'avatarUrl'>;
   size: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  // Remembered per address, so a new photo gets its chance after an old one failed to load.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const style = { '--avatar-size': size } as CSSProperties;
 
-  if (user.avatarUrl && !failed) {
+  if (user.avatarUrl && user.avatarUrl !== failedUrl) {
     return (
       <img
         className={styles.avatar}
@@ -31,7 +32,7 @@ export function Avatar({
         alt=""
         referrerPolicy="no-referrer"
         onError={() => {
-          setFailed(true);
+          setFailedUrl(user.avatarUrl);
         }}
       />
     );

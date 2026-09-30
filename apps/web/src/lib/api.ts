@@ -47,13 +47,15 @@ export async function apiRequest<Schema extends z.ZodMiniType = z.ZodMiniUnknown
   path: string,
   { method = 'GET', body, schema }: RequestOptions<Schema> = {},
 ): Promise<z.infer<Schema>> {
+  // A form with a file goes as multipart; the browser writes its Content-Type with the boundary.
+  const isForm = body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(path, {
       method,
       credentials: 'same-origin',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || isForm ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', 'The server could not be reached');

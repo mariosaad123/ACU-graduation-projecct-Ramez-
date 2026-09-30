@@ -78,6 +78,7 @@ export function sessionUser(overrides: Partial<SessionUser> = {}): SessionUser {
     name: 'Salma Hassan',
     email: 'salma@gmail.com',
     avatarUrl: null,
+    customAvatar: false,
     role: null,
     student: null,
     doctor: null,

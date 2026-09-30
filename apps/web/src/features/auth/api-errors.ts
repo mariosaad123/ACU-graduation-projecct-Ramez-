@@ -41,6 +41,16 @@ export function describeApiError(t: TFunction, error: unknown): string {
       return t('errors.memberStateChanged');
     case 'NOT_FOUND':
       return t('errors.notFound');
+    case 'UNSUPPORTED_FILE':
+      return t('errors.unsupportedFile');
+    case 'FILE_TOO_LARGE':
+      return t('errors.fileTooLarge');
+    case 'CHAT_CLOSED':
+      return t('errors.chatClosed');
+    case 'CHAT_MUTED':
+      return t('errors.chatMuted');
+    case 'MESSAGE_NOT_EDITABLE':
+      return t('errors.messageNotEditable');
     default:
       return t('errors.generic');
   }
