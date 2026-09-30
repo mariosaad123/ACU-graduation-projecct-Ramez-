@@ -6,6 +6,7 @@ import { createAuthRouter } from '../modules/auth/auth.routes';
 import { loadSession } from '../modules/auth/sessions';
 import { createHealthRouter } from '../modules/health/health.routes';
 import { createOnboardingRouter } from '../modules/onboarding/onboarding.routes';
+import { createStudentLanguagesRouter } from '../modules/students/student-languages.routes';
 import { createMeRouter } from '../modules/users/me.routes';
 import { DEFAULT_RATE_LIMITS, type AppDependencies } from './dependencies';
 import { errorHandler } from './middleware/error-handler';
@@ -36,6 +37,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api/auth', limitRequests(limits.auth), createAuthRouter(deps));
   app.use('/api/me', createMeRouter(deps));
   app.use('/api/onboarding', limitRequests(limits.onboarding), createOnboardingRouter(deps));
+  app.use('/api/student', createStudentLanguagesRouter(deps));
 
   app.use(notFound);
   app.use(errorHandler);

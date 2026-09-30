@@ -8,6 +8,8 @@ every change ships as a reviewed SQL migration in `apps/api/drizzle/`.
 ```mermaid
 erDiagram
     users ||--o| student_profiles : "has"
+    users ||--o{ student_languages : "learns"
+    student_languages ||--o| student_profiles : "is active in"
     users ||--o| doctor_profiles : "has"
     users ||--o{ sessions : "signs in with"
     users ||--o{ email_verifications : "confirms"
@@ -27,8 +29,13 @@ erDiagram
     }
     student_profiles {
         uuid user_id PK, FK
-        learning_language learning_language
+        learning_language active_language FK "with user_id, to student_languages"
         learning_goal goal
+    }
+    student_languages {
+        uuid user_id PK, FK
+        learning_language language PK
+        timestamptz enrolled_at
     }
     doctor_profiles {
         uuid user_id PK, FK
@@ -91,7 +98,9 @@ any account is known.
 | One account per Google identity               | Unique `users.google_subject`                                            |
 | One account per doctor                        | Unique `doctor_profiles.staff_id` and `university_email`                 |
 | A person is a student or a doctor, never both | Setting up either role removes the other profile in the same transaction |
-| Deleting a user removes their data            | `ON DELETE CASCADE` on profiles, sessions and email codes                |
+| A student studies one of their own languages  | Composite key `(user_id, active_language)` to `student_languages`        |
+| A language is added once per student          | Primary key `(user_id, language)` on `student_languages`                 |
+| Deleting a user removes their data            | `ON DELETE CASCADE` on profiles, languages, sessions and email codes     |
 | Audit history survives account deletion       | `ON DELETE SET NULL` on `audit_events.actor_user_id`                     |
 
 ## What is never stored in clear
@@ -109,7 +118,7 @@ A copy of the database therefore gives no usable sessions or codes.
 ```mermaid
 stateDiagram-v2
     [*] --> SignedIn: first Google sign-in
-    SignedIn --> Student: chooses a language and goal
+    SignedIn --> Student: chooses languages and a goal
     SignedIn --> DoctorPending: valid faculty code, email code sent
     SignedIn --> Doctor: valid faculty code, signed in with the university account
     DoctorPending --> Doctor: correct email code
@@ -117,6 +126,24 @@ stateDiagram-v2
     Student --> [*]
     Doctor --> [*]
 ```
+
+## Student languages
+
+A student learns one or more of the six languages and studies one at a time. The active
+language lives on `student_profiles`; everything that belongs to one language (level, placement
+results, progress) will hang off `student_languages`.
+
+| Request                               | Effect                                                     |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `POST /api/student/languages`         | Adds a language and makes it active                        |
+| `PUT /api/student/active-language`    | Switches to a language the student already has             |
+| `DELETE /api/student/languages/:code` | Removes a language; the first remaining one becomes active |
+
+Each answers with the updated account. The last language cannot be removed
+(`LAST_LANGUAGE`), and a language that is active cannot be deleted from under the profile: the
+foreign key refuses it, so the service moves the profile first. Every change locks the
+student's profile row (`SELECT ... FOR UPDATE`), so two requests from the same student, from two
+tabs or a double click, cannot both pass a check such as "not the last language".
 
 ## Working with migrations
 
@@ -128,3 +155,10 @@ pnpm --filter @acu/api db:migrate
 The first command writes a new SQL file from the schema; review it before committing. In
 development the API applies pending migrations at start-up; in production run the second command
 as a deploy step.
+
+A change that moves existing data (a rename, a column that becomes a table) is written by hand,
+because the generator cannot know where the rows should go. Keep the snapshot in
+`drizzle/meta/` in step with the schema: `drizzle-kit generate` must then report no changes and
+`drizzle-kit check` must pass. `src/db/migrations.test.ts` upgrades a database that already holds
+rows, one migration at a time, the way a deployed database is upgraded; add a case there for
+every migration that moves data.

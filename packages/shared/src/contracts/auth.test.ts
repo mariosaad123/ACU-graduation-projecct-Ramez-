@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { doctorOnboardingSchema, emailCodeSchema, studentOnboardingSchema } from './auth';
+import {
+  doctorOnboardingSchema,
+  emailCodeSchema,
+  studentLanguageRequestSchema,
+  studentOnboardingSchema,
+} from './auth';
 
 const validDoctor = {
   accessCode: 'faculty-code',
@@ -42,16 +47,43 @@ describe('doctorOnboardingSchema', () => {
 });
 
 describe('studentOnboardingSchema', () => {
-  it('accepts a supported language and goal only', () => {
-    expect(
-      studentOnboardingSchema.safeParse({ learningLanguage: 'ja', goal: 'travel' }).success,
-    ).toBe(true);
-    expect(
-      studentOnboardingSchema.safeParse({ learningLanguage: 'es', goal: 'travel' }).success,
-    ).toBe(false);
-    expect(studentOnboardingSchema.safeParse({ learningLanguage: 'ja', goal: 'fun' }).success).toBe(
-      false,
-    );
+  const validStudent = { languages: ['ja'], activeLanguage: 'ja', goal: 'travel' };
+
+  it('accepts one language', () => {
+    expect(studentOnboardingSchema.safeParse(validStudent).success).toBe(true);
+  });
+
+  it('accepts all six languages, starting with any of them', () => {
+    const result = studentOnboardingSchema.safeParse({
+      languages: ['en', 'fr', 'de', 'zh', 'ja', 'ar'],
+      activeLanguage: 'zh',
+      goal: 'study',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    ['no language', { languages: [] }],
+    ['an unsupported language', { languages: ['ja', 'es'] }],
+    ['the same language twice', { languages: ['ja', 'ja'] }],
+    ['an unsupported goal', { goal: 'fun' }],
+  ])('rejects %s', (_label, change) => {
+    expect(studentOnboardingSchema.safeParse({ ...validStudent, ...change }).success).toBe(false);
+  });
+
+  it('requires the starting language to be one of the chosen ones', () => {
+    const result = studentOnboardingSchema.safeParse({ ...validStudent, activeLanguage: 'fr' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['activeLanguage']);
+  });
+});
+
+describe('studentLanguageRequestSchema', () => {
+  it('accepts a supported language only', () => {
+    expect(studentLanguageRequestSchema.safeParse({ language: 'de' }).success).toBe(true);
+    expect(studentLanguageRequestSchema.safeParse({ language: 'es' }).success).toBe(false);
+    expect(studentLanguageRequestSchema.safeParse({}).success).toBe(false);
   });
 });
 

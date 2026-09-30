@@ -1,5 +1,5 @@
 import { doctorOnboardingResponseSchema, meResponseSchema } from '@acu/shared';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { auditEvents, doctorAccessCodes } from '../../db/schema';
 import {
@@ -59,27 +59,71 @@ function errorCode(response: { body: unknown }): string {
   return (response.body as { error: { code: string } }).error.code;
 }
 
+function studentRequest(overrides: Record<string, unknown> = {}) {
+  return { languages: ['en'], activeLanguage: 'en', goal: 'study', ...overrides };
+}
+
 describe('student onboarding', () => {
   it('turns a new account into a student with a language and a goal', async () => {
     const { agent } = await signIn(context);
 
-    const response = await post(agent, '/api/onboarding/student', {
-      learningLanguage: 'fr',
-      goal: 'travel',
-    }).expect(200);
+    const response = await post(
+      agent,
+      '/api/onboarding/student',
+      studentRequest({ languages: ['fr'], activeLanguage: 'fr', goal: 'travel' }),
+    ).expect(200);
 
     const user = meResponseSchema.parse(response.body).user;
     expect(user.role).toBe('student');
-    expect(user.student).toEqual({ learningLanguage: 'fr', goal: 'travel' });
+    expect(user.student).toEqual({ activeLanguage: 'fr', languages: ['fr'], goal: 'travel' });
     expect(user.doctor).toBeNull();
+  });
+
+  it('accepts several languages and starts with the chosen one', async () => {
+    const { agent } = await signIn(context);
+
+    const response = await post(
+      agent,
+      '/api/onboarding/student',
+      studentRequest({ languages: ['ja', 'en', 'fr'], activeLanguage: 'ja' }),
+    ).expect(200);
+
+    // Languages added together are listed in the platform's order, whatever order they came in.
+    expect(meResponseSchema.parse(response.body).user.student).toEqual({
+      activeLanguage: 'ja',
+      languages: ['en', 'fr', 'ja'],
+      goal: 'study',
+    });
+  });
+
+  it('records the chosen languages in the audit log', async () => {
+    const { agent } = await signIn(context);
+    const response = await post(
+      agent,
+      '/api/onboarding/student',
+      studentRequest({ languages: ['de', 'zh'], activeLanguage: 'zh' }),
+    ).expect(200);
+    const userId = meResponseSchema.parse(response.body).user.id;
+
+    const [event] = await context.database.db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.actorUserId, userId),
+          eq(auditEvents.action, 'onboarding.student_completed'),
+        ),
+      );
+    expect(event?.metadata).toEqual({
+      languages: ['de', 'zh'],
+      activeLanguage: 'zh',
+      goal: 'study',
+    });
   });
 
   it('replaces the session when the role is granted', async () => {
     const { agent } = await signIn(context);
-    const response = await post(agent, '/api/onboarding/student', {
-      learningLanguage: 'en',
-      goal: 'study',
-    }).expect(200);
+    const response = await post(agent, '/api/onboarding/student', studentRequest()).expect(200);
 
     expect(String(response.headers['set-cookie'])).toMatch(/acu_session=/);
     await agent.get('/api/me').expect(200);
@@ -87,21 +131,36 @@ describe('student onboarding', () => {
 
   it('validates the choices field by field', async () => {
     const { agent } = await signIn(context);
-    const response = await post(agent, '/api/onboarding/student', {
-      learningLanguage: 'es',
-      goal: 'fun',
-    }).expect(400);
+    const response = await post(
+      agent,
+      '/api/onboarding/student',
+      studentRequest({ languages: ['es'], activeLanguage: 'es', goal: 'fun' }),
+    ).expect(400);
 
     const body = response.body as { error: { code: string; fields: Record<string, string> } };
     expect(body.error.code).toBe('VALIDATION_FAILED');
-    expect(Object.keys(body.error.fields).sort()).toEqual(['goal', 'learningLanguage']);
+    expect(Object.keys(body.error.fields).sort()).toEqual([
+      'activeLanguage',
+      'goal',
+      'languages.0',
+    ]);
+  });
+
+  it.each([
+    ['no language', { languages: [] }],
+    ['the same language twice', { languages: ['en', 'en'] }],
+    ['a starting language that was not chosen', { activeLanguage: 'de' }],
+  ])('refuses %s and grants no role', async (_label, change) => {
+    const { agent } = await signIn(context);
+
+    await post(agent, '/api/onboarding/student', studentRequest(change)).expect(400);
+
+    expect((await me(agent)).role).toBeNull();
   });
 
   it('cannot be repeated or used to change an existing role', async () => {
     const { agent } = await signIn(context);
-    await post(agent, '/api/onboarding/student', { learningLanguage: 'de', goal: 'work' }).expect(
-      200,
-    );
+    await post(agent, '/api/onboarding/student', studentRequest()).expect(200);
 
     const again = await post(agent, '/api/onboarding/doctor', doctorRequest()).expect(409);
     expect(errorCode(again)).toBe('ALREADY_ONBOARDED');
@@ -110,9 +169,7 @@ describe('student onboarding', () => {
   it('requires a session', async () => {
     const { agent } = await signIn(context);
     await post(agent, '/api/auth/sign-out').expect(204);
-    await post(agent, '/api/onboarding/student', { learningLanguage: 'de', goal: 'work' }).expect(
-      401,
-    );
+    await post(agent, '/api/onboarding/student', studentRequest()).expect(401);
   });
 });
 
@@ -352,10 +409,11 @@ describe('doctor onboarding: university email', () => {
     const { agent } = await signIn(context);
     await post(agent, '/api/onboarding/doctor', doctorRequest()).expect(200);
 
-    const response = await post(agent, '/api/onboarding/student', {
-      learningLanguage: 'zh',
-      goal: 'culture',
-    }).expect(200);
+    const response = await post(
+      agent,
+      '/api/onboarding/student',
+      studentRequest({ languages: ['zh'], activeLanguage: 'zh', goal: 'culture' }),
+    ).expect(200);
 
     const user = meResponseSchema.parse(response.body).user;
     expect(user.role).toBe('student');

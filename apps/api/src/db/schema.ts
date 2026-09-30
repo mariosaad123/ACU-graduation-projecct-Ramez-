@@ -2,11 +2,13 @@ import { DOCTOR_STATUSES, LEARNING_GOALS, LEARNING_LANGUAGES, USER_ROLES } from 
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -38,14 +40,38 @@ export const users = pgTable('users', {
   ...timestamps,
 });
 
-export const studentProfiles = pgTable('student_profiles', {
-  userId: uuid('user_id')
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  learningLanguage: learningLanguage('learning_language').notNull(),
-  goal: learningGoal('goal').notNull(),
-  ...timestamps,
-});
+/** Every language a student has added. Per-language progress (level, placement) will live here. */
+export const studentLanguages = pgTable(
+  'student_languages',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    language: learningLanguage('language').notNull(),
+    enrolledAt: timestamp('enrolled_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.language] })],
+);
+
+export const studentProfiles = pgTable(
+  'student_profiles',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** The language being studied now. The composite key below keeps it one of the student's own. */
+    activeLanguage: learningLanguage('active_language').notNull(),
+    goal: learningGoal('goal').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      name: 'student_profiles_active_language_fk',
+      columns: [table.userId, table.activeLanguage],
+      foreignColumns: [studentLanguages.userId, studentLanguages.language],
+    }),
+  ],
+);
 
 export const doctorProfiles = pgTable('doctor_profiles', {
   userId: uuid('user_id')
@@ -145,3 +171,4 @@ export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type DoctorProfile = typeof doctorProfiles.$inferSelect;
 export type StudentProfile = typeof studentProfiles.$inferSelect;
+export type StudentLanguage = typeof studentLanguages.$inferSelect;

@@ -5,12 +5,13 @@ import {
   type StudentOnboardingRequest,
 } from '@acu/shared';
 import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
-import type { Database } from '../../db/client';
+import type { Database, Transaction } from '../../db/client';
 import { uniqueViolation } from '../../db/errors';
 import {
   doctorAccessCodes,
   doctorProfiles,
   emailVerifications,
+  studentLanguages,
   studentProfiles,
   users,
   type User,
@@ -46,6 +47,12 @@ export function maskEmail(email: string): string {
   return `${local.slice(0, 1)}${hidden}@${domain}`;
 }
 
+/** The profile goes first: it points at one of the languages. */
+async function deleteStudentProfile(tx: Transaction, userId: string): Promise<void> {
+  await tx.delete(studentProfiles).where(eq(studentProfiles.userId, userId));
+  await tx.delete(studentLanguages).where(eq(studentLanguages.userId, userId));
+}
+
 function assertNotOnboarded(user: User): void {
   if (user.role) {
     throw new HttpError(409, 'ALREADY_ONBOARDED', 'This account is already set up');
@@ -64,14 +71,18 @@ export async function completeStudentOnboarding(
     // Someone who started the doctor steps and changed their mind leaves nothing behind.
     await tx.delete(emailVerifications).where(eq(emailVerifications.userId, user.id));
     await tx.delete(doctorProfiles).where(eq(doctorProfiles.userId, user.id));
+    await deleteStudentProfile(tx, user.id);
 
     await tx
-      .insert(studentProfiles)
-      .values({ userId: user.id, ...request })
-      .onConflictDoUpdate({
-        target: studentProfiles.userId,
-        set: { ...request, updatedAt: now() },
-      });
+      .insert(studentLanguages)
+      .values(
+        request.languages.map((language) => ({ userId: user.id, language, enrolledAt: now() })),
+      );
+    await tx.insert(studentProfiles).values({
+      userId: user.id,
+      activeLanguage: request.activeLanguage,
+      goal: request.goal,
+    });
     await tx.update(users).set({ role: 'student', updatedAt: now() }).where(eq(users.id, user.id));
   });
 
@@ -79,7 +90,11 @@ export async function completeStudentOnboarding(
     at: now(),
     actorUserId: user.id,
     action: 'onboarding.student_completed',
-    metadata: { learningLanguage: request.learningLanguage, goal: request.goal },
+    metadata: {
+      languages: request.languages,
+      activeLanguage: request.activeLanguage,
+      goal: request.goal,
+    },
     ipAddress: context.ipAddress,
   });
 }
@@ -181,7 +196,7 @@ async function activateDoctor(
       .set({ status: 'active', verifiedAt: now(), updatedAt: now() })
       .where(eq(doctorProfiles.userId, user.id));
     await tx.update(users).set({ role: 'doctor', updatedAt: now() }).where(eq(users.id, user.id));
-    await tx.delete(studentProfiles).where(eq(studentProfiles.userId, user.id));
+    await deleteStudentProfile(tx, user.id);
   });
 
   await recordAudit(db, {

@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = [
   'onboarding.doctor_verification_sent',
   'onboarding.doctor_email_code_rejected',
   'onboarding.doctor_activated',
+  'student.language_added',
+  'student.language_removed',
   'admin.role_granted',
   'admin.doctor_code_rotated',
 ] as const;

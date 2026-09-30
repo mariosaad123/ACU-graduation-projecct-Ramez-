@@ -8,6 +8,13 @@
       "when": 1790712639760,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790773550470,
+      "tag": "0001_student_languages",
+      "breakpoints": true
     }
   ]
 }
