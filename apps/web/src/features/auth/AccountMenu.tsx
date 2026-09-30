@@ -6,10 +6,10 @@ import {
   WarningCircleIcon,
 } from '@phosphor-icons/react';
 import clsx from 'clsx';
-import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Badge } from '../../components/ui/Badge';
+import { usePopover } from '../../components/ui/use-popover';
 import { Avatar } from './Avatar';
 import { landingPathFor, useSignOut } from './session';
 import styles from './AccountMenu.module.css';
@@ -17,44 +17,11 @@ import styles from './AccountMenu.module.css';
 export function AccountMenu({ user, className }: { user: SessionUser; className?: string }) {
   const { t } = useTranslation();
   const signOut = useSignOut();
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
-    };
-  }, [open]);
-
-  const close = () => {
-    setOpen(false);
-  };
-
+  const { open, close, toggle, panelId, containerRef, buttonRef, onKeyDown } = usePopover();
   const setupPending = !user.role;
 
   return (
-    <div
-      ref={containerRef}
-      className={clsx(styles.menu, className)}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && open) {
-          event.stopPropagation();
-          close();
-          buttonRef.current?.focus();
-        }
-      }}
-    >
+    <div ref={containerRef} className={clsx(styles.menu, className)} onKeyDown={onKeyDown}>
       <button
         ref={buttonRef}
         type="button"
@@ -62,9 +29,7 @@ export function AccountMenu({ user, className }: { user: SessionUser; className?
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`${t('account.menu')}: ${user.name}`}
-        onClick={() => {
-          setOpen((value) => !value);
-        }}
+        onClick={toggle}
       >
         <Avatar user={user} size="2.25rem" />
         {setupPending && <span className={styles.dot} aria-hidden="true" />}
