@@ -31,6 +31,13 @@
   --blue-800: #0b2a5f;
   --blue-900: #071d43;
 
+  /* Emblem orange, sampled from the faculty emblem (500 is the emblem itself) */
+  --orange-50: #fff3eb;
+  --orange-100: #ffe0cc;
+  --orange-300: #fd9a5c;
+  --orange-500: #f95a00;
+  --orange-800: #8c3200;
+
   /* ACU gold, for achievements and certificates */
   --gold-50: #fcf6e3;
   --gold-100: #f8ecc4;
@@ -187,6 +194,14 @@
   --color-danger-bg: var(--red-50);
   --color-info: var(--blue-700);
   --color-info-bg: var(--blue-50);
+
+  /* The language picker echoes the emblem. White on the emblem orange is for large text only. */
+  --color-emblem: var(--orange-500);
+  --color-emblem-border: var(--orange-300);
+  --color-emblem-subtle: var(--orange-50);
+  --color-emblem-subtle-hover: var(--orange-100);
+  --color-emblem-on-subtle: var(--orange-800);
+  --color-text-on-emblem: var(--gray-0);
 
   --color-achievement: var(--gold-700);
   --color-achievement-bg: var(--gold-50);

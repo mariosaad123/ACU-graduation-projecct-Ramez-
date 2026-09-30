@@ -8,6 +8,7 @@ import styles from '../DesignSystemPage.module.css';
 const PALETTES = [
   { name: 'gray', steps: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] },
   { name: 'blue', steps: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] },
+  { name: 'orange', steps: [50, 100, 300, 500, 800] },
   { name: 'gold', steps: [50, 100, 500, 700] },
   { name: 'teal', steps: [50, 100, 500, 700] },
   { name: 'coral', steps: [50, 100, 500, 700] },
