@@ -1,0 +1,44 @@
+# The API on Render's free plan. The web app is served by Cloudflare (apps/web/wrangler.jsonc),
+# which passes /api requests here. Values marked sync: false are entered in the Render dashboard.
+services:
+  - type: web
+    name: acu-languages-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: >-
+      npm install --global pnpm@10.34.6 &&
+      pnpm install --frozen-lockfile --prod=false &&
+      pnpm --filter @acu/api build
+    # Free services have no pre-deploy step, so migrations run before the server starts.
+    startCommand: pnpm --filter @acu/api migrate:deploy && pnpm --filter @acu/api start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: '24'
+      # Cloudflare's Worker and Render's own proxy stand between the browser and the API.
+      - key: TRUST_PROXY
+        value: '2'
+      # The free plan's disk is wiped on every deploy and restart.
+      - key: STORAGE_DRIVER
+        value: database
+      - key: LOG_LEVEL
+        value: info
+      - key: WEB_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MAIL_TRANSPORT
+        value: smtp
+      - key: SMTP_URL
+        sync: false
+      - key: MAIL_FROM
+        sync: false
