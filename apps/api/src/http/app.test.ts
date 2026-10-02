@@ -1,6 +1,6 @@
 import { healthResponseSchema } from '@acu/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { WEB_ORIGIN, createTestContext, type TestContext } from '../test/harness';
+import { WEB_ORIGIN, createTestContext, identity, signIn, type TestContext } from '../test/harness';
 import type { ErrorResponseBody } from './http-error';
 
 let context: TestContext;
@@ -88,6 +88,7 @@ describe('rate limiting', () => {
       shareDatabaseWith: context,
       rateLimits: {
         api: { windowMs: 60_000, limit: 1000 },
+        user: { windowMs: 60_000, limit: 1000 },
         auth: { windowMs: 60_000, limit: 3 },
         onboarding: { windowMs: 60_000, limit: 3 },
       },
@@ -100,6 +101,29 @@ describe('rate limiting', () => {
 
     expect(errorOf(blocked).code).toBe('RATE_LIMITED');
     expect(blocked.headers.ratelimit).toBeDefined();
+    await limited.close();
+  });
+});
+
+describe('the limit per person', () => {
+  it('slows down one signed-in person without blocking others on the same network', async () => {
+    const limited = await createTestContext({
+      shareDatabaseWith: context,
+      rateLimits: {
+        api: { windowMs: 60_000, limit: 1000 },
+        user: { windowMs: 60_000, limit: 3 },
+        auth: { windowMs: 60_000, limit: 1000 },
+        onboarding: { windowMs: 60_000, limit: 1000 },
+      },
+    });
+    const { agent: busy } = await signIn(limited, identity());
+    const { agent: classmate } = await signIn(limited, identity());
+
+    for (let request = 0; request < 3; request += 1) {
+      await busy.get('/api/me').expect(200);
+    }
+    expect(errorOf(await busy.get('/api/me').expect(429)).code).toBe('RATE_LIMITED');
+    await classmate.get('/api/me').expect(200);
     await limited.close();
   });
 });

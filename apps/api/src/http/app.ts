@@ -36,6 +36,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api', limitRequests(limits.api));
   app.use('/api', requireSameOrigin(env.WEB_ORIGIN));
   app.use('/api', loadSession(deps));
+  app.use('/api', limitRequests(limits.user, true));
 
   app.use('/api/health', createHealthRouter(APP_VERSION));
   app.use('/api/auth', limitRequests(limits.auth), createAuthRouter(deps));

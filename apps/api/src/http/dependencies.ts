@@ -12,17 +12,21 @@ export interface RateLimit {
 }
 
 export interface RateLimits {
+  /** Per IP address, for everything. Generous: a whole lab can share one address. */
   api: RateLimit;
+  /** Per signed-in person, for everything they do. */
+  user: RateLimit;
   auth: RateLimit;
   onboarding: RateLimit;
 }
 
 const MINUTE_MS = 60 * 1000;
 
-/** Per IP address. */
 export const DEFAULT_RATE_LIMITS: RateLimits = {
+  // A class of students behind the university's network shares one address.
+  api: { windowMs: 15 * MINUTE_MS, limit: 20_000 },
   // An open chat asks for changes every few seconds, on top of everything else a page loads.
-  api: { windowMs: 15 * MINUTE_MS, limit: 1200 },
+  user: { windowMs: 15 * MINUTE_MS, limit: 1500 },
   auth: { windowMs: 10 * MINUTE_MS, limit: 40 },
   onboarding: { windowMs: 10 * MINUTE_MS, limit: 40 },
 };

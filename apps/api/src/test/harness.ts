@@ -93,6 +93,7 @@ export interface TestContext {
 /** Tests sign in many times from one address; the real limits have their own test. */
 const GENEROUS_LIMITS: RateLimits = {
   api: { windowMs: 60_000, limit: 100_000 },
+  user: { windowMs: 60_000, limit: 100_000 },
   auth: { windowMs: 60_000, limit: 100_000 },
   onboarding: { windowMs: 60_000, limit: 100_000 },
 };
