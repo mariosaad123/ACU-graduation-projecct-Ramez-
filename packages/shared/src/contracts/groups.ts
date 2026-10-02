@@ -1,6 +1,7 @@
 import * as z from 'zod/mini';
 import { LEARNING_LANGUAGES } from '../languages';
 import { sessionUserSchema } from './auth';
+import { CHAT_RATE_LIMIT_MAX, CHAT_RATE_LIMIT_MIN } from './chat';
 
 const learningLanguage = z.enum(LEARNING_LANGUAGES);
 
@@ -55,6 +56,8 @@ export const groupUpdateSchema = z.object({
   joinOpen: z.optional(z.boolean()),
   requiresApproval: z.optional(z.boolean()),
   chatOpen: z.optional(z.boolean()),
+  /** Messages each student may send in a minute. */
+  chatRateLimit: z.optional(z.int().check(z.gte(CHAT_RATE_LIMIT_MIN), z.lte(CHAT_RATE_LIMIT_MAX))),
 });
 export type GroupUpdateRequest = z.infer<typeof groupUpdateSchema>;
 
@@ -67,6 +70,7 @@ export const groupSchema = z.object({
   joinOpen: z.boolean(),
   requiresApproval: z.boolean(),
   chatOpen: z.boolean(),
+  chatRateLimit: z.number(),
   photoUrl: z.nullable(z.string()),
   archived: z.boolean(),
   createdAt: z.string(),
@@ -123,7 +127,7 @@ export type MoveMemberRequest = z.infer<typeof moveMemberSchema>;
 export const suspendStudentSchema = z.object({ reason: trimmed(3, 300) });
 export type SuspendStudentRequest = z.infer<typeof suspendStudentSchema>;
 
-/** What a student sees of a group: never the code, never the other members. */
+/** What a student sees of a group in their list; the classmates are on the group's own page. */
 export const studentGroupSchema = z.object({
   id: z.string(),
   name: z.string(),

@@ -1,4 +1,7 @@
 import {
+  CHAT_RATE_LIMIT_DEFAULT,
+  CHAT_RATE_LIMIT_MAX,
+  CHAT_RATE_LIMIT_MIN,
   DOCTOR_STATUSES,
   GROUP_MEMBER_STATUSES,
   FILE_PURPOSES,
@@ -10,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -136,6 +140,8 @@ export const groups = pgTable(
     requiresApproval: boolean('requires_approval').notNull().default(false),
     /** When false only the doctor writes in the chat. */
     chatOpen: boolean('chat_open').notNull().default(true),
+    /** Messages each student may send to the chat in a minute. */
+    chatRateLimit: integer('chat_rate_limit').notNull().default(CHAT_RATE_LIMIT_DEFAULT),
     photoFileId: uuid('photo_file_id').references((): AnyPgColumn => files.id, {
       onDelete: 'set null',
     }),
@@ -144,6 +150,10 @@ export const groups = pgTable(
   },
   (table) => [
     index('groups_doctor_idx').on(table.doctorId),
+    check(
+      'groups_chat_rate_limit_range',
+      sql`${table.chatRateLimit} between ${sql.raw(String(CHAT_RATE_LIMIT_MIN))} and ${sql.raw(String(CHAT_RATE_LIMIT_MAX))}`,
+    ),
     // A group is always in a language its doctor teaches.
     foreignKey({
       name: 'groups_doctor_language_fk',

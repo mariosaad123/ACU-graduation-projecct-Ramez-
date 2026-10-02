@@ -1,5 +1,6 @@
 import {
   CHAT_MESSAGE_MAX_LENGTH,
+  CHAT_RATE_LIMIT_MAX,
   type ChatChanges,
   type ChatMessage,
   type ChatPage,
@@ -48,13 +49,11 @@ export interface ChatContext {
 
 const PAGE_SIZE = 50;
 const CHANGES_LIMIT = 200;
-/** Messages one person may send to a group in a minute, so nobody can flood it. */
-export const MESSAGES_PER_MINUTE = 20;
 const EXCERPT_LENGTH = 120;
 
 const nextVersion = sql`nextval('chat_version_seq')`;
 
-interface Access {
+export interface Access {
   group: Group;
   isDoctor: boolean;
   muted: boolean;
@@ -64,7 +63,7 @@ interface Access {
  * The group's doctor and its active members may use its chat. Anyone else, including students
  * waiting for approval or removed from it, gets the same answer as for a group that does not exist.
  */
-async function accessOf(db: Database, user: User, groupId: string): Promise<Access> {
+export async function accessOf(db: Database, user: User, groupId: string): Promise<Access> {
   const [group] = await db.select().from(groups).where(eq(groups.id, groupId));
   if (group?.doctorId === user.id) {
     return { group, isDoctor: true, muted: false };
@@ -92,6 +91,11 @@ function canPost(access: Access): boolean {
     return false;
   }
   return access.isDoctor || (access.group.chatOpen && !access.muted);
+}
+
+/** Students follow the limit their doctor set for the group; the doctor has the ceiling. */
+function rateLimitOf(access: Access): number {
+  return access.isDoctor ? CHAT_RATE_LIMIT_MAX : access.group.chatRateLimit;
 }
 
 function assertCanPost(access: Access): void {
@@ -148,6 +152,7 @@ export async function groupView(
       muted: access.muted,
       canPost: canPost(access),
       lastReadSeq: await lastReadSeq(context.db, group.id, user.id),
+      rateLimit: rateLimitOf(access),
     },
   };
 }
@@ -386,8 +391,11 @@ export async function postMessage(
         gte(groupMessages.createdAt, since),
       ),
     );
-  if ((recent?.total ?? 0) >= MESSAGES_PER_MINUTE) {
-    throw new HttpError(429, 'RATE_LIMITED', 'Too many messages, wait a moment');
+  const limit = rateLimitOf(access);
+  if ((recent?.total ?? 0) >= limit) {
+    throw new HttpError(429, 'CHAT_RATE_LIMITED', 'Too many messages, wait a moment', {
+      details: { limit },
+    });
   }
 
   if (input.replyToId) {

@@ -28,7 +28,6 @@ import {
   signInAsStudent,
   type Person,
 } from '../../test/people';
-import { MESSAGES_PER_MINUTE } from './chat.service';
 
 let context: TestContext;
 
@@ -203,17 +202,37 @@ describe('writing', () => {
     expect(errorOf(response).code).toBe('UNSUPPORTED_FILE');
   });
 
-  it('slows down someone who floods the chat', async () => {
+  it('lets students send 60 messages a minute unless the doctor chooses otherwise', async () => {
     const { student, group } = await classroom();
-    for (let index = 0; index < MESSAGES_PER_MINUTE; index += 1) {
+
+    expect((await view(student, group.id)).chat.rateLimit).toBe(60);
+  });
+
+  it('slows down a student at the limit their doctor set', async () => {
+    const { doctor, student, group } = await classroom();
+    await send(doctor.agent, 'patch', `/api/doctor/groups/${group.id}`, {
+      chatRateLimit: 3,
+    }).expect(200);
+    for (let index = 0; index < 3; index += 1) {
       await write(student, group.id, `message ${String(index)}`).expect(201);
     }
 
-    expect(errorOf(await write(student, group.id, 'one more').expect(429)).code).toBe(
-      'RATE_LIMITED',
-    );
+    const blocked = errorOf(await write(student, group.id, 'one more').expect(429));
+    expect(blocked.code).toBe('CHAT_RATE_LIMITED');
+    expect(blocked.details).toEqual({ limit: 3 });
+    // The doctor is not held to the students' limit.
+    await write(doctor, group.id, 'announcement').expect(201);
     context.advance(61 * 1000);
     await write(student, group.id, 'a minute later').expect(201);
+  });
+
+  it('keeps the limit within what one person can reasonably send', async () => {
+    const { doctor, group } = await classroom();
+    for (const chatRateLimit of [0, 121, 2.5]) {
+      await send(doctor.agent, 'patch', `/api/doctor/groups/${group.id}`, {
+        chatRateLimit,
+      }).expect(400);
+    }
   });
 });
 

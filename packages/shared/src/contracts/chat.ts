@@ -6,6 +6,14 @@ export const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const CHAT_MESSAGE_MAX_LENGTH = 4000;
 
+/**
+ * How many messages a student may send to a group in a minute. Each doctor sets it for each group;
+ * the ceiling keeps one person from flooding everyone else. The doctor's own limit is the ceiling.
+ */
+export const CHAT_RATE_LIMIT_DEFAULT = 60;
+export const CHAT_RATE_LIMIT_MIN = 1;
+export const CHAT_RATE_LIMIT_MAX = 120;
+
 /** Why a file was uploaded, which decides who may download it. */
 export const FILE_PURPOSES = ['avatar', 'group_photo', 'chat'] as const;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -78,6 +86,8 @@ export const groupViewSchema = z.object({
     muted: z.boolean(),
     canPost: z.boolean(),
     lastReadSeq: z.number(),
+    /** Messages this person may send in a minute. */
+    rateLimit: z.number(),
   }),
 });
 export type GroupView = z.infer<typeof groupViewSchema>;

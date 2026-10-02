@@ -118,6 +118,7 @@ function toGroup(row: GroupRow, counts: Group['counts'] | undefined, unread = 0)
     joinOpen: row.joinOpen,
     requiresApproval: row.requiresApproval,
     chatOpen: row.chatOpen,
+    chatRateLimit: row.chatRateLimit,
     photoUrl: row.photoFileId ? fileUrl(row.photoFileId) : null,
     archived: row.archivedAt !== null,
     createdAt: row.createdAt.toISOString(),
