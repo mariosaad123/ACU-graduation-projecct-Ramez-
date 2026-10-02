@@ -7,7 +7,7 @@ import { createApp } from './http/app';
 import { createLogger } from './lib/logger';
 import { createGoogleIdentityProvider } from './modules/auth/identity-provider';
 import { deleteExpiredSessions } from './modules/auth/sessions';
-import { DiskStorage } from './modules/files/storage';
+import { DatabaseStorage, DiskStorage } from './modules/files/storage';
 import { createMailer } from './modules/mail/mailer';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -37,7 +37,10 @@ const app = createApp({
   db: database.db,
   identityProvider,
   mailer: createMailer(env, logger),
-  storage: new DiskStorage(path.resolve(env.UPLOADS_DIR)),
+  storage:
+    env.STORAGE_DRIVER === 'database'
+      ? new DatabaseStorage(database.db)
+      : new DiskStorage(path.resolve(env.UPLOADS_DIR)),
   now: () => new Date(),
 });
 

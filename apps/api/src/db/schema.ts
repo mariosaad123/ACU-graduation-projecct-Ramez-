@@ -14,6 +14,7 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -210,6 +211,21 @@ export const files = pgTable(
   },
   (table) => [index('files_group_idx').on(table.groupId)],
 );
+
+const bytea = customType<{ data: Buffer; driverData: Buffer | Uint8Array }>({
+  dataType: () => 'bytea',
+  fromDriver: (value) => (Buffer.isBuffer(value) ? value : Buffer.from(value)),
+});
+
+/**
+ * Uploaded bytes, for hosts whose disk does not survive a restart. Keyed like the disk storage;
+ * the `files` row says who may read them.
+ */
+export const fileBlobs = pgTable('file_blobs', {
+  storageKey: text('storage_key').primaryKey(),
+  data: bytea('data').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Every change to a chat message takes the next value, so clients can ask for changes only. */
 export const chatVersion = pgSequence('chat_version_seq');

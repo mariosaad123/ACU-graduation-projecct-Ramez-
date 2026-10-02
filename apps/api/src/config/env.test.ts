@@ -33,6 +33,16 @@ describe('loadEnv', () => {
     });
   });
 
+  it('listens on the port a host announces, unless one is set explicitly', () => {
+    expect(loadEnv({ PORT: '10000' }).API_PORT).toBe(10000);
+    expect(loadEnv({ PORT: '10000', API_PORT: '4100' }).API_PORT).toBe(4100);
+  });
+
+  it('keeps uploads on disk unless told to use the database', () => {
+    expect(loadEnv({}).STORAGE_DRIVER).toBe('disk');
+    expect(loadEnv({ STORAGE_DRIVER: 'database' }).STORAGE_DRIVER).toBe('database');
+  });
+
   it('treats empty optional values as missing', () => {
     expect(
       loadEnv({ GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '' }).GOOGLE_CLIENT_ID,

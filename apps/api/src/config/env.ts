@@ -33,7 +33,9 @@ const envSchema = z
     SMTP_URL: optionalText,
     MAIL_FROM: z.string().default('ACU Languages <no-reply@localhost>'),
 
-    /** Folder for uploaded photos and chat attachments. */
+    /** Where uploaded photos and chat attachments are kept: a folder, or the database itself. */
+    STORAGE_DRIVER: z.enum(['disk', 'database']).default('disk'),
+    /** Folder for uploads when STORAGE_DRIVER is disk. */
     UPLOADS_DIR: z.string().default('.data/uploads'),
   })
   .superRefine((env, context) => {
@@ -69,7 +71,8 @@ const envSchema = z
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const result = envSchema.safeParse(source);
+  // Hosts such as Render choose the port and announce it as PORT.
+  const result = envSchema.safeParse({ ...source, API_PORT: source.API_PORT ?? source.PORT });
 
   if (!result.success) {
     throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);

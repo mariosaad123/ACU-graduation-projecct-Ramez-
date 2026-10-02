@@ -1,5 +1,8 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { eq } from 'drizzle-orm';
+import type { Database } from '../../db/client';
+import { fileBlobs } from '../../db/schema';
 
 /**
  * Where uploaded bytes live. The database row decides who may read a file; the storage only keeps
@@ -50,6 +53,33 @@ export class DiskStorage implements FileStorage {
 
   async remove(key: string): Promise<void> {
     await rm(this.pathOf(key), { force: true });
+  }
+}
+
+/**
+ * Keeps the bytes in PostgreSQL itself: for a host with no lasting disk, at the cost of database
+ * space. Files here are small (photos are re-encoded, attachments stop at 10 MB).
+ */
+export class DatabaseStorage implements FileStorage {
+  constructor(private readonly db: Database) {}
+
+  async put(key: string, data: Buffer): Promise<void> {
+    assertSafeKey(key);
+    await this.db.insert(fileBlobs).values({ storageKey: key, data });
+  }
+
+  async read(key: string): Promise<Buffer | null> {
+    assertSafeKey(key);
+    const [row] = await this.db
+      .select({ data: fileBlobs.data })
+      .from(fileBlobs)
+      .where(eq(fileBlobs.storageKey, key));
+    return row?.data ?? null;
+  }
+
+  async remove(key: string): Promise<void> {
+    assertSafeKey(key);
+    await this.db.delete(fileBlobs).where(eq(fileBlobs.storageKey, key));
   }
 }
 
