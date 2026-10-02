@@ -139,6 +139,7 @@ erDiagram
         boolean join_open
         boolean requires_approval
         boolean chat_open
+        integer chat_rate_limit "1 to 120, default 60"
         uuid photo_file_id FK
         timestamptz archived_at
     }
@@ -290,15 +291,15 @@ erDiagram
 
 Every group has one chat, shared by its doctor and its active members.
 
-| Rule                                      | How                                                         |
-| ----------------------------------------- | ----------------------------------------------------------- |
-| The doctor can close the chat to students | `groups.chat_open`; students then read only (`CHAT_CLOSED`) |
-| The doctor can mute one student           | `group_members.chat_muted` (`CHAT_MUTED`)                   |
-| An archived group's chat is read-only     | Writing answers `GROUP_ARCHIVED`                            |
-| Only the author edits a message           | Text messages only (`MESSAGE_NOT_EDITABLE`)                 |
-| The author or the doctor deletes it       | The row stays as a placeholder; the attachment is removed   |
-| Only the doctor pins                      | `pinned_at`; a deleted message is unpinned                  |
-| No flooding                               | 20 messages a minute per person and group                   |
+| Rule                                      | How                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| The doctor can close the chat to students | `groups.chat_open`; students then read only (`CHAT_CLOSED`)                                                                      |
+| The doctor can mute one student           | `group_members.chat_muted` (`CHAT_MUTED`)                                                                                        |
+| An archived group's chat is read-only     | Writing answers `GROUP_ARCHIVED`                                                                                                 |
+| Only the author edits a message           | Text messages only (`MESSAGE_NOT_EDITABLE`)                                                                                      |
+| The author or the doctor deletes it       | The row stays as a placeholder; the attachment is removed                                                                        |
+| Only the doctor pins                      | `pinned_at`; a deleted message is unpinned                                                                                       |
+| No flooding                               | Each doctor sets the messages per student and minute (1-120, 60 by default); the doctor's own limit is 120 (`CHAT_RATE_LIMITED`) |
 
 Deleting someone else's message, muting and unmuting are written to the audit log.
 
@@ -319,6 +320,26 @@ client never misses an edit made to an old message. Unread counts compare `seq` 
 | `POST /api/groups/:id/chat/read`                   | Marks the chat read up to a message               |
 
 Anyone outside the group gets a 404 for all of these, as for the doctor routes.
+
+## People
+
+Everyone in a group sees who else is in it, and can open their profile.
+
+| Request                      | Effect                                                    |
+| ---------------------------- | --------------------------------------------------------- |
+| `GET /api/groups/:id/people` | The doctor, then the active students by name              |
+| `GET /api/people/:id`        | A profile: name, photo, role, languages, groups in common |
+
+A profile is visible to people who share an active group with its owner, and to a doctor for any
+student who is or was in one of their groups; anyone else gets a 404. A student's email is shown
+only to their doctors; a doctor's university email to everyone who may see the profile. Waiting,
+removed and departed students are not listed to classmates.
+
+## Rate limits
+
+Two limits apply to every API request: a generous one per IP address, since a whole lab shares the
+university's address, and one per signed-in person (1500 requests in 15 minutes, enough for an open
+chat that polls every five seconds). Sign-in and onboarding have stricter limits of their own.
 
 ## Account states
 
