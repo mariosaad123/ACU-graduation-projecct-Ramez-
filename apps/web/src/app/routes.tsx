@@ -7,6 +7,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { GroupPage } from '../features/groups/GroupPage';
 import { JoinPage } from '../features/groups/JoinPage';
 import { StudentGroupPage } from '../features/groups/StudentGroupPage';
+import { PersonPage } from '../features/people/PersonPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { DoctorSetupPage } from '../features/onboarding/DoctorSetupPage';
 import { StudentSetupPage } from '../features/onboarding/StudentSetupPage';
@@ -77,6 +78,14 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
                 {(user) => (user?.role === 'doctor' ? <GroupPage /> : <StudentGroupPage />)}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app/people/:personId',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
+                {() => <PersonPage />}
               </AuthGate>
             ),
           },

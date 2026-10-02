@@ -14,6 +14,7 @@ import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import { GroupChat } from '../chat/GroupChat';
 import { useGroupView } from '../chat/use-chat';
+import { GroupPeople } from '../people/GroupPeople';
 import { GroupPhoto } from './GroupPhoto';
 import styles from './Groups.module.css';
 
@@ -77,7 +78,10 @@ export function StudentGroupPage() {
           </div>
         </header>
 
-        <GroupChat view={group} />
+        <div className={styles.groupLayout}>
+          <GroupChat view={group} />
+          <GroupPeople groupId={group.id} />
+        </div>
       </Container>
     </>
   );

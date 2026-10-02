@@ -1,11 +1,20 @@
-import { addMemberSchema, formatJoinCode, groupUpdateSchema, type Group } from '@acu/shared';
+import {
+  CHAT_RATE_LIMIT_MAX,
+  CHAT_RATE_LIMIT_MIN,
+  addMemberSchema,
+  formatJoinCode,
+  groupUpdateSchema,
+  type Group,
+} from '@acu/shared';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
   ArrowRightIcon,
   PencilSimpleIcon,
+  ProjectorScreenIcon,
   UserPlusIcon,
 } from '@phosphor-icons/react';
+import clsx from 'clsx';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -17,6 +26,8 @@ import { Card } from '../../components/ui/Card';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Dialog } from '../../components/ui/Dialog';
+import { Field } from '../../components/ui/Field';
+import fieldStyles from '../../components/ui/Field.module.css';
 import { PhotoField } from '../../components/ui/PhotoField';
 import { Spinner } from '../../components/ui/Spinner';
 import { Tabs } from '../../components/ui/Tabs';
@@ -39,6 +50,7 @@ import {
 } from './api';
 import { CopyButton } from './CopyButton';
 import { GroupPhoto } from './GroupPhoto';
+import { QrCode } from './QrCode';
 import { MembersPanel } from './MembersPanel';
 import { joinLink } from './pending-join';
 import styles from './Groups.module.css';
@@ -121,22 +133,43 @@ function SharePanel({ group }: { group: Group }) {
   const toast = useToast();
   const regenerate = useGroupCommand(group.id, 'code');
   const [confirming, setConfirming] = useState(false);
+  const [projecting, setProjecting] = useState(false);
   const code = formatJoinCode(group.joinCode);
+  const link = joinLink(group.joinCode);
 
   return (
     <Card className={styles.share}>
-      <p className={styles.muted}>{t('groups.code')}</p>
-      <p className={styles.bigCode} dir="ltr">
-        {code}
-      </p>
+      <div className={styles.shareHead}>
+        <div className={styles.shareCode}>
+          <p className={styles.muted}>{t('groups.code')}</p>
+          <p className={styles.bigCode} dir="ltr">
+            {code}
+          </p>
+          <p className={styles.muted}>{t('groups.qrHint')}</p>
+        </div>
+        <button
+          type="button"
+          className={styles.qrButton}
+          aria-label={t('groups.qrShow')}
+          onClick={() => {
+            setProjecting(true);
+          }}
+        >
+          <QrCode value={link} label={t('groups.qrLabel', { name: group.name })} />
+        </button>
+      </div>
       <div className={styles.shareActions}>
+        <Button
+          variant="secondary"
+          iconStart={<ProjectorScreenIcon aria-hidden="true" />}
+          onClick={() => {
+            setProjecting(true);
+          }}
+        >
+          {t('groups.qrShow')}
+        </Button>
         <CopyButton text={code} label={t('groups.copyCode')} size="md" />
-        <CopyButton
-          text={joinLink(group.joinCode)}
-          label={t('groups.copyLink')}
-          kind="link"
-          size="md"
-        />
+        <CopyButton text={link} label={t('groups.copyLink')} kind="link" size="md" />
         <Button
           variant="ghost"
           iconStart={<ArrowCounterClockwiseIcon aria-hidden="true" />}
@@ -147,6 +180,30 @@ function SharePanel({ group }: { group: Group }) {
           {t('groups.regenerate')}
         </Button>
       </div>
+      {projecting && (
+        <Dialog
+          open
+          onClose={() => {
+            setProjecting(false);
+          }}
+          title={t('groups.qrTitle', { name: group.name })}
+          description={t('groups.qrHint')}
+        >
+          <div className={styles.projection}>
+            <QrCode
+              value={link}
+              label={t('groups.qrLabel', { name: group.name })}
+              className={styles.projectionQr}
+            />
+            <p className={styles.bigCode} dir="ltr">
+              {code}
+            </p>
+            <p className={styles.muted} dir="ltr">
+              {link}
+            </p>
+          </div>
+        </Dialog>
+      )}
       <ConfirmDialog
         open={confirming}
         title={t('groups.regenerateTitle')}
@@ -168,6 +225,76 @@ function SharePanel({ group }: { group: Group }) {
         }}
       />
     </Card>
+  );
+}
+
+/** How many messages each student may send to the chat in a minute. */
+function ChatRateLimitField({ group }: { group: Group }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const update = useUpdateGroup(group.id);
+  const [value, setValue] = useState(String(group.chatRateLimit));
+  const [invalid, setInvalid] = useState(false);
+  const limit = Number(value);
+  const changed = limit !== group.chatRateLimit;
+
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!Number.isInteger(limit) || limit < CHAT_RATE_LIMIT_MIN || limit > CHAT_RATE_LIMIT_MAX) {
+      setInvalid(true);
+      return;
+    }
+    update.mutate(
+      { chatRateLimit: limit },
+      {
+        onSuccess: () => {
+          toast({ tone: 'success', title: t('groups.saved') });
+        },
+        onError: (error) => {
+          toast({ tone: 'danger', title: describeApiError(t, error) });
+        },
+      },
+    );
+  };
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <Field
+        label={t('groups.chatRateLimit')}
+        hint={t('groups.chatRateLimitHint')}
+        error={invalid ? t('groups.chatRateLimitError') : undefined}
+      >
+        {(control) => (
+          <div className={styles.limitRow}>
+            <input
+              {...control}
+              className={clsx(fieldStyles.control, styles.numberInput)}
+              type="number"
+              inputMode="numeric"
+              min={CHAT_RATE_LIMIT_MIN}
+              max={CHAT_RATE_LIMIT_MAX}
+              step={1}
+              dir="ltr"
+              required
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                setInvalid(false);
+              }}
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              loading={update.isPending}
+              disabled={!changed}
+            >
+              {t('groups.chatRateLimitSave')}
+            </Button>
+          </div>
+        )}
+      </Field>
+    </form>
   );
 }
 
@@ -233,6 +360,7 @@ function SettingsPanel({ group }: { group: Group }) {
           toggle({ chatOpen: event.target.checked });
         }}
       />
+      {group.chatOpen && <ChatRateLimitField group={group} />}
       <Checkbox
         label={t('groups.joinOpen')}
         hint={t('groups.joinOpenHint')}

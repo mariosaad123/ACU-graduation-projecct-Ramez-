@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { LanguageGlyph } from '../../components/language/LanguageGlyph';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
@@ -88,7 +89,11 @@ function MemberRow({
     <li className={styles.member}>
       <Avatar user={student} size="2.5rem" />
       <div className={styles.memberInfo}>
-        <p className={styles.memberName}>{student.name}</p>
+        <p className={styles.memberName}>
+          <Link to={`/app/people/${student.id}`} className={styles.memberLink}>
+            {student.name}
+          </Link>
+        </p>
         <p className={styles.memberEmail}>
           <span dir="ltr">{student.email}</span>
         </p>

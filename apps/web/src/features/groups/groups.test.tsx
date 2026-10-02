@@ -25,6 +25,7 @@ function group(overrides: Partial<Group> = {}): Group {
     joinOpen: true,
     requiresApproval: false,
     chatOpen: true,
+    chatRateLimit: 60,
     photoUrl: null,
     archived: false,
     createdAt: '2026-09-30T10:00:00.000Z',
@@ -364,6 +365,47 @@ describe('a group’s page', () => {
     expect(screen.getByRole('tab', { name: 'Students' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('lets the doctor choose how many messages each student sends a minute', async () => {
+    const user = userEvent.setup();
+    const { fetchMock, calls } = queueResponses([200, { group: group({ chatRateLimit: 30 }) }]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderGroup([member()]);
+
+    const field = screen.getByLabelText(/Messages per student per minute/);
+    expect(field).toHaveValue(60);
+    expect(screen.getByRole('button', { name: 'Save limit' })).toBeDisabled();
+
+    await user.clear(field);
+    await user.type(field, '0');
+    await user.click(screen.getByRole('button', { name: 'Save limit' }));
+    expect(field).toHaveAccessibleDescription(/Enter a whole number from 1 to 120/);
+    expect(calls).toHaveLength(0);
+
+    await user.clear(field);
+    await user.type(field, '30');
+    await user.click(screen.getByRole('button', { name: 'Save limit' }));
+    await vi.waitFor(() => {
+      expect(nth(calls, 0)).toMatchObject({
+        url: `/api/doctor/groups/${GROUP_ID}`,
+        init: { method: 'PATCH', body: JSON.stringify({ chatRateLimit: 30 }) },
+      });
+    });
+  });
+
+  it('shows a QR code students can scan, and a large one for the projector', async () => {
+    const user = userEvent.setup();
+    renderGroup([member()]);
+
+    expect(
+      screen.getByRole('img', { name: 'QR code to join “Conversation 2”' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Show on screen' })[0] ?? never());
+
+    const dialog = screen.getByRole('dialog', { name: 'Join “Conversation 2”' });
+    expect(within(dialog).getByText('K7QM-9XRT')).toBeInTheDocument();
+    expect(within(dialog).getByText(/\/join\/K7QM9XRT$/)).toBeInTheDocument();
+  });
+
   it('is read-only while archived', () => {
     renderGroup([member()], { archived: true });
 
@@ -547,7 +589,7 @@ describe('a group as its student sees it', () => {
     archived: false,
     doctor: { name: 'Dr. Mona', avatarUrl: null },
     isDoctor: false,
-    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0 },
+    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0, rateLimit: 60 },
   };
 
   it('shows who teaches the group and opens its chat', async () => {
@@ -560,16 +602,33 @@ describe('a group as its student sees it', () => {
       route: `/app/groups/${GROUP_ID}`,
       path: '/app/groups/:groupId',
       session: studentUser(['fr']),
-      cache: [[['group', GROUP_ID], view]],
+      cache: [
+        [['group', GROUP_ID], view],
+        [
+          ['group', GROUP_ID, 'people'],
+          [
+            {
+              id: 'doctor-1',
+              name: 'Dr. Mona',
+              avatarUrl: null,
+              role: 'doctor',
+              joinedAt: null,
+              me: false,
+            },
+          ],
+        ],
+      ],
     });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Conversation 2' })).toBeInTheDocument();
-    expect(screen.getByText('Dr. Mona')).toBeInTheDocument();
+    // In the header, and first among the group's members.
+    expect(screen.getAllByText('Dr. Mona')).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'My groups' })).toHaveAttribute(
       'href',
       '/app#my-groups',
     );
     expect(await screen.findByText('No messages yet. Start the conversation.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Members (1)' })).toBeInTheDocument();
   });
 
   it('shows the missing page to someone outside the group', async () => {
