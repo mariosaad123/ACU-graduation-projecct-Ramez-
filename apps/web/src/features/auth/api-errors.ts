@@ -49,6 +49,8 @@ export function describeApiError(t: TFunction, error: unknown): string {
       return t('errors.chatClosed');
     case 'CHAT_MUTED':
       return t('errors.chatMuted');
+    case 'CHAT_RATE_LIMITED':
+      return t('errors.chatRateLimited', { count: error.detail('limit') ?? 0 });
     case 'MESSAGE_NOT_EDITABLE':
       return t('errors.messageNotEditable');
     default:

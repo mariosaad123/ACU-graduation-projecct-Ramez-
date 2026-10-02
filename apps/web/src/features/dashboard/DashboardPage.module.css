@@ -34,6 +34,7 @@
 @media (width >= 56rem) {
   .summary {
     grid-template-columns: 1.3fr 1fr;
+    align-items: start;
   }
 }
 

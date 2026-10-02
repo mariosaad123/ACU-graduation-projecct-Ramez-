@@ -38,6 +38,22 @@ const CONTINUE_WITHIN_MS = 5 * 60 * 1000;
 /** How near the bottom still counts as reading the latest messages. */
 const NEAR_BOTTOM_PX = 120;
 
+/** Scrolls the message list, and only the list, so a message sits at its top or middle. */
+function scrollListTo(
+  box: HTMLElement,
+  target: HTMLElement,
+  where: 'start' | 'center',
+  behavior: ScrollBehavior = 'auto',
+) {
+  const offset = target.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  const shift = where === 'center' ? (box.clientHeight - target.offsetHeight) / 2 : 0;
+  box.scrollTo({ top: box.scrollTop + offset - Math.max(shift, 0), behavior });
+}
+
+function nearBottom(box: HTMLElement): boolean {
+  return box.scrollHeight - box.scrollTop - box.clientHeight < NEAR_BOTTOM_PX;
+}
+
 function dayKey(iso: string): string {
   const date = new Date(iso);
   return `${String(date.getFullYear())}-${String(date.getMonth())}-${String(date.getDate())}`;
@@ -137,8 +153,8 @@ export function GroupChat({ view }: { view: GroupView }) {
 
   const jumpTo = useCallback((messageId: string) => {
     const target = document.getElementById(`message-${messageId}`);
-    if (target) {
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (target && list.current) {
+      scrollListTo(list.current, target, 'center', 'smooth');
       target.classList.add(styles.highlight ?? '');
       window.setTimeout(() => {
         target.classList.remove(styles.highlight ?? '');
@@ -157,15 +173,19 @@ export function GroupChat({ view }: { view: GroupView }) {
       const firstUnread = chat.messages.find(
         (message) => message.seq > unreadFrom && !message.mine,
       );
-      if (firstUnread) {
-        document.getElementById(`message-${firstUnread.id}`)?.scrollIntoView({ block: 'start' });
+      const target = firstUnread && document.getElementById(`message-${firstUnread.id}`);
+      if (target && list.current) {
+        // The "new messages" line sits just above the first unread message.
+        scrollListTo(list.current, target, 'start');
+        list.current.scrollTop -= 48;
       } else {
         scrollToBottom();
       }
       return;
     }
+    // At once rather than animated: an animation can be cut short and leave the reader above it.
     if (atBottom || newest?.mine) {
-      scrollToBottom('smooth');
+      scrollToBottom();
     }
     // Only a new message at the end should move the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,7 +193,9 @@ export function GroupChat({ view }: { view: GroupView }) {
 
   // Reading the bottom of the chat marks everything up to the newest message as read.
   useEffect(() => {
-    if (!atBottom || !newest || newest.seq <= lastMarked.current) {
+    // Measured, not remembered: the first view may open on the first unread message instead.
+    const box = list.current;
+    if (!box || !nearBottom(box) || !newest || newest.seq <= lastMarked.current) {
       return;
     }
     if (document.visibilityState !== 'visible') {
@@ -303,87 +325,89 @@ export function GroupChat({ view }: { view: GroupView }) {
         </details>
       )}
 
-      <div
-        ref={list}
-        className={styles.list}
-        aria-busy={chat.status === 'loading'}
-        onScroll={(event) => {
-          const box = event.currentTarget;
-          setAtBottom(box.scrollHeight - box.scrollTop - box.clientHeight < NEAR_BOTTOM_PX);
-        }}
-      >
-        {chat.status === 'loading' && <Spinner size="2rem" className={styles.loading} />}
-        {chat.status === 'failed' && (
-          <Alert tone="danger" live>
-            {describeApiError(t, chat.error) || t('chat.loadFailed')}
-          </Alert>
-        )}
-        {chat.status === 'ready' && chat.hasOlder && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={styles.older}
-            onClick={() => {
-              void chat.loadOlder();
-            }}
-          >
-            {t('chat.loadOlder')}
-          </Button>
-        )}
-        {chat.status === 'ready' && chat.messages.length === 0 && (
-          <p className={styles.empty}>
-            {closedToStudents ? t('chat.emptyAnnouncements') : t('chat.empty')}
-          </p>
-        )}
-        <ol className={styles.messages} aria-live="polite" aria-relevant="additions">
-          {chat.messages.map((message, index) => {
-            const previous = chat.messages[index - 1];
-            const newDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
-            const firstUnread = message.id === firstUnreadId;
-            const continued =
-              !newDay &&
-              !firstUnread &&
-              previous.author.id === message.author.id &&
-              new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <
-                CONTINUE_WITHIN_MS;
-            return (
-              <Fragment key={message.id}>
-                {newDay && (
-                  <li className={styles.day} role="separator">
-                    <span>{dayLabel(message.createdAt)}</span>
-                  </li>
-                )}
-                {firstUnread && (
-                  <li className={styles.unreadLine} role="separator">
-                    <span>{t('chat.newMessages')}</span>
-                  </li>
-                )}
-                <ChatMessageItem
-                  message={message}
-                  continued={continued}
-                  time={timeFormat.format(new Date(message.createdAt))}
-                  permissions={permissions}
-                  actions={actions}
-                />
-              </Fragment>
-            );
-          })}
-        </ol>
-      </div>
-
-      {!atBottom && chat.messages.length > 0 && (
-        <Button
-          size="sm"
-          variant="secondary"
-          className={styles.jump}
-          iconStart={<ArrowDownIcon aria-hidden="true" />}
-          onClick={() => {
-            scrollToBottom('smooth');
+      <div className={styles.viewport}>
+        <div
+          ref={list}
+          className={styles.list}
+          data-chat-list
+          aria-busy={chat.status === 'loading'}
+          onScroll={(event) => {
+            setAtBottom(nearBottom(event.currentTarget));
           }}
         >
-          {t('chat.jumpToLatest')}
-        </Button>
-      )}
+          {chat.status === 'loading' && <Spinner size="2rem" className={styles.loading} />}
+          {chat.status === 'failed' && (
+            <Alert tone="danger" live>
+              {describeApiError(t, chat.error) || t('chat.loadFailed')}
+            </Alert>
+          )}
+          {chat.status === 'ready' && chat.hasOlder && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={styles.older}
+              onClick={() => {
+                void chat.loadOlder();
+              }}
+            >
+              {t('chat.loadOlder')}
+            </Button>
+          )}
+          {chat.status === 'ready' && chat.messages.length === 0 && (
+            <p className={styles.empty}>
+              {closedToStudents ? t('chat.emptyAnnouncements') : t('chat.empty')}
+            </p>
+          )}
+          <ol className={styles.messages} aria-live="polite" aria-relevant="additions">
+            {chat.messages.map((message, index) => {
+              const previous = chat.messages[index - 1];
+              const newDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
+              const firstUnread = message.id === firstUnreadId;
+              const continued =
+                !newDay &&
+                !firstUnread &&
+                previous.author.id === message.author.id &&
+                new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <
+                  CONTINUE_WITHIN_MS;
+              return (
+                <Fragment key={message.id}>
+                  {newDay && (
+                    <li className={styles.day} role="separator">
+                      <span>{dayLabel(message.createdAt)}</span>
+                    </li>
+                  )}
+                  {firstUnread && (
+                    <li className={styles.unreadLine} role="separator">
+                      <span>{t('chat.newMessages')}</span>
+                    </li>
+                  )}
+                  <ChatMessageItem
+                    message={message}
+                    continued={continued}
+                    time={timeFormat.format(new Date(message.createdAt))}
+                    permissions={permissions}
+                    actions={actions}
+                  />
+                </Fragment>
+              );
+            })}
+          </ol>
+        </div>
+
+        {!atBottom && chat.messages.length > 0 && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className={styles.jump}
+            iconStart={<ArrowDownIcon aria-hidden="true" />}
+            onClick={() => {
+              scrollToBottom('smooth');
+            }}
+          >
+            {t('chat.jumpToLatest')}
+          </Button>
+        )}
+      </div>
 
       {view.chat.canPost ? (
         <ChatComposer

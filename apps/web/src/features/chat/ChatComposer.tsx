@@ -237,7 +237,7 @@ export function ChatComposer({
             void submit();
           }}
         >
-          {recording && file ? t('chat.sendRecording') : t('chat.send')}
+          {editing ? t('chat.save') : recording && file ? t('chat.sendRecording') : t('chat.send')}
         </Button>
       </div>
 

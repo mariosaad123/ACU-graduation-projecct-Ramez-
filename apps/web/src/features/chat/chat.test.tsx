@@ -2,7 +2,7 @@ import type { ChatMessage, ChatPage, GroupView } from '@acu/shared';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../test/render';
+import { apiError, renderWithProviders } from '../../test/render';
 import { GroupChat } from './GroupChat';
 import { chatReducer } from './use-chat';
 
@@ -22,7 +22,7 @@ function view(
     doctor: { name: 'Dr. Mona', avatarUrl: null },
     isDoctor: false,
     ...overrides,
-    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0, ...chat },
+    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0, rateLimit: 60, ...chat },
   };
 }
 
@@ -205,6 +205,22 @@ describe('a group chat', () => {
     const body = calls.find((call) => call.key === `POST ${CHAT}`)?.init?.body;
     expect(body).toBeInstanceOf(FormData);
     expect((body as FormData).get('body')).toBe('Hello everyone');
+  });
+
+  it('tells a student the limit their doctor set when they send too fast', async () => {
+    const user = userEvent.setup();
+    serve({
+      [`GET ${CHAT}`]: () => [200, page([])],
+      [`POST ${CHAT}`]: () => [429, apiError('CHAT_RATE_LIMITED', { details: { limit: 5 } })],
+    });
+    renderWithProviders(<GroupChat view={view()} />);
+
+    await user.type(await screen.findByLabelText('Your message'), 'Hello{Enter}');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'You reached the limit of 5 messages a minute.',
+    );
+    expect(screen.getByLabelText('Your message')).toHaveValue('Hello');
   });
 
   it('starts a new line with Shift+Enter instead of sending', async () => {

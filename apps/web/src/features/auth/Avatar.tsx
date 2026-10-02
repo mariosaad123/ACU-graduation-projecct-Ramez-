@@ -2,8 +2,13 @@ import type { SessionUser } from '@acu/shared';
 import { useState, type CSSProperties } from 'react';
 import styles from './Avatar.module.css';
 
+/** Titles such as "Dr." or "د." are not part of anyone's initials. */
+const TITLE = /^(dr|prof|د|أ\.?د|م)\.?$/i;
+
 function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const named = words.filter((word) => !TITLE.test(word));
+  const parts = named.length > 0 ? named : words;
   const letters = parts.length > 1 ? [parts[0], parts.at(-1)] : [parts[0]];
   return letters
     .map((part) => part?.charAt(0) ?? '')

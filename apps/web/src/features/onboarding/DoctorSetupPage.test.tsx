@@ -52,7 +52,8 @@ describe('DoctorSetupPage details step', () => {
     expect(JSON.parse(typeof body === 'string' ? body : '{}')).toMatchObject({
       languages: ['de', 'en'],
     });
-  });
+    // A whole form filled in on a busy machine: role queries over this page are slow in jsdom.
+  }, 15_000);
 
   it('checks the fields before sending anything', async () => {
     const user = userEvent.setup();

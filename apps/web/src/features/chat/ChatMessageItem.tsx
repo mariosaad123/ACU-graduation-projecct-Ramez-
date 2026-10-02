@@ -12,8 +12,9 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import clsx from 'clsx';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { AudioPlayer } from '../../components/media/AudioPlayer';
 import { usePopover } from '../../components/ui/use-popover';
 import { useLocale } from '../../i18n/use-locale';
@@ -56,6 +57,23 @@ function useFormatSize() {
   }, [intlLocale]);
 }
 
+/** The tallest an image may be in the chat, in rem. */
+const IMAGE_MAX_REM = 20;
+
+/**
+ * Reserves the image's exact box before it loads, so the chat does not jump (and lose its place
+ * at the bottom) when it arrives. Tall images are narrowed rather than cropped.
+ */
+function imageBox({ width, height }: Attachment): CSSProperties | undefined {
+  if (!width || !height) {
+    return undefined;
+  }
+  return {
+    aspectRatio: `${String(width)} / ${String(height)}`,
+    inlineSize: `min(100%, ${String(width)}px, ${String((IMAGE_MAX_REM * width) / height)}rem)`,
+  };
+}
+
 function AttachmentView({
   attachment,
   authorName,
@@ -75,6 +93,7 @@ function AttachmentView({
           alt={t('chat.photoAlt', { name: authorName })}
           width={attachment.width ?? undefined}
           height={attachment.height ?? undefined}
+          style={imageBox(attachment)}
           loading="lazy"
         />
       </a>
@@ -115,6 +134,8 @@ function MessageMenu({
 }) {
   const { t } = useTranslation();
   const { open, close, toggle, panelId, containerRef, buttonRef, onKeyDown } = usePopover();
+  // Near the bottom of the chat the menu opens upwards, so the list never cuts it off.
+  const [above, setAbove] = useState(false);
 
   const items: { label: string; icon: ReactNode; run: () => void }[] = [];
   if (permissions.canPost) {
@@ -179,11 +200,21 @@ function MessageMenu({
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={t('chat.actions', { name: message.author.name })}
-        onClick={toggle}
+        onClick={(event) => {
+          const button = event.currentTarget.getBoundingClientRect();
+          const box = event.currentTarget.closest('[data-chat-list]')?.getBoundingClientRect();
+          const needed = items.length * 44 + 16;
+          setAbove(
+            box !== undefined &&
+              box.bottom - button.bottom < needed &&
+              button.top - box.top > box.bottom - button.bottom,
+          );
+          toggle();
+        }}
       >
         <DotsThreeIcon weight="bold" aria-hidden="true" />
       </button>
-      <ul id={panelId} className={styles.menuPanel} hidden={!open}>
+      <ul id={panelId} className={styles.menuPanel} data-above={above} hidden={!open}>
         {items.map((item) => (
           <li key={item.label}>
             <button
@@ -230,12 +261,23 @@ export function ChatMessageItem({
       data-doctor={author.isDoctor}
     >
       <div className={styles.avatarSlot}>
-        {!continued && <Avatar user={author} size="2.25rem" />}
+        {!continued && (
+          // The name below is the same link for screen readers; the photo is for the eye.
+          <Link to={`/app/people/${author.id}`} tabIndex={-1} aria-hidden="true">
+            <Avatar user={author} size="2.25rem" />
+          </Link>
+        )}
       </div>
       <div className={styles.bubble}>
         {!continued && (
           <p className={styles.author}>
-            <span className={styles.authorName}>{author.name}</span>
+            <Link
+              to={`/app/people/${author.id}`}
+              className={styles.authorName}
+              title={t('chat.viewProfile', { name: author.name })}
+            >
+              {author.name}
+            </Link>
             {author.isDoctor && <span className={styles.doctorTag}>{t('chat.doctor')}</span>}
           </p>
         )}

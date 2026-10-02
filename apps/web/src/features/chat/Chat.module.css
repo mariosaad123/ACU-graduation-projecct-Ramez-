@@ -1,9 +1,10 @@
 .chat {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  block-size: min(78vh, 46rem);
-  min-block-size: 28rem;
+  display: flex;
+  flex-direction: column;
+
+  /* The whole chat fits under the sticky header once scrolled to. */
+  block-size: min(calc(100dvh - var(--header-height) - var(--space-6)), 46rem);
+  min-block-size: 26rem;
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -75,11 +76,17 @@
   text-align: start;
 }
 
-/* Message list */
+/* Message list: takes whatever height the header, pins and composer leave. */
+.viewport {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+}
+
 .list {
+  block-size: 100%;
   overflow-y: auto;
   padding: var(--space-3) var(--space-4);
-  overscroll-behavior: contain;
 }
 
 .loading {
@@ -192,7 +199,13 @@
 }
 
 .authorName {
+  color: var(--color-text);
   font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.authorName:hover {
+  text-decoration: underline;
 }
 
 .doctorTag {
@@ -263,10 +276,10 @@
 
 .image {
   display: block;
-  inline-size: auto;
   max-inline-size: 100%;
   block-size: auto;
   max-block-size: 20rem;
+  background: var(--color-surface-sunken);
   border-radius: var(--radius-md);
 }
 
@@ -317,6 +330,7 @@
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
+.menu:has([aria-expanded='true']),
 .message:hover .menu,
 .message:focus-within .menu {
   opacity: 1;
@@ -361,6 +375,10 @@
   list-style: none;
 }
 
+.menuPanel[data-above='true'] {
+  inset-block: auto calc(100% + var(--space-1));
+}
+
 .menuPanel[hidden] {
   display: none;
 }
@@ -385,7 +403,7 @@
 
 .jump {
   position: absolute;
-  inset-block-end: 9rem;
+  inset-block-end: var(--space-3);
   inset-inline-start: 50%;
   translate: -50% 0;
   box-shadow: var(--shadow-overlay);

@@ -1,11 +1,12 @@
 import { normalizeJoinCode, type SessionUser, type StudentGroup } from '@acu/shared';
-import { SignOutIcon } from '@phosphor-icons/react';
+import { ChatsCircleIcon, SignOutIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ButtonLink } from '../../components/ui/ButtonLink';
 import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Dialog } from '../../components/ui/Dialog';
@@ -102,11 +103,7 @@ export function StudentGroupsCard({ student }: { student: Student }) {
               <GroupPhoto photoUrl={group.photoUrl} language={group.language} />
               <div className={styles.groupTitle}>
                 {group.status === 'active' ? (
-                  <Link
-                    to={`/app/groups/${group.id}`}
-                    className={styles.groupLink}
-                    aria-label={t('myGroups.openGroup', { name: group.name })}
-                  >
+                  <Link to={`/app/groups/${group.id}`} className={styles.groupLink}>
                     {group.name}
                   </Link>
                 ) : (
@@ -126,6 +123,17 @@ export function StudentGroupsCard({ student }: { student: Student }) {
                   <Badge tone="emblem">{t('groups.unread', { count: group.unread })}</Badge>
                 )}
               </div>
+              {group.status === 'active' && (
+                <ButtonLink
+                  to={`/app/groups/${group.id}`}
+                  size="sm"
+                  variant="secondary"
+                  iconStart={<ChatsCircleIcon aria-hidden="true" />}
+                  aria-label={t('myGroups.openGroup', { name: group.name })}
+                >
+                  {t('myGroups.enter')}
+                </ButtonLink>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
