@@ -1,0 +1,23 @@
+/* Same sizes as the language tile it replaces, so layouts do not move. */
+.photo {
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  object-fit: cover;
+}
+
+.sm {
+  inline-size: 2rem;
+  block-size: 2rem;
+}
+
+.md {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+}
+
+.lg {
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  border-radius: var(--radius-md);
+}

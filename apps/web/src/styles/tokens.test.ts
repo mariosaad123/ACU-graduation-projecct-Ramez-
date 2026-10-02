@@ -45,6 +45,8 @@ const textPairs: Pair[] = [
   ['--color-warning', '--color-warning-bg'],
   ['--color-danger', '--color-danger-bg'],
   ['--color-info', '--color-info-bg'],
+  ['--color-emblem-on-subtle', '--color-emblem-subtle'],
+  ['--color-emblem-on-subtle', '--color-emblem-subtle-hover'],
   ['--color-achievement', '--color-achievement-bg'],
   ...(['listening', 'speaking', 'reading', 'writing'] as const).flatMap((skill): Pair[] => [
     [`--color-${skill}`, `--color-${skill}-bg`],
@@ -52,8 +54,12 @@ const textPairs: Pair[] = [
   ]),
 ];
 
+/** Bold text of at least 18.66px (1.1667rem), or regular text of at least 24px. */
+const largeTextPairs: Pair[] = [['--color-text-on-emblem', '--color-emblem']];
+
 const nonTextPairs: Pair[] = [
   ['--color-focus-ring', '--color-bg'],
+  ['--color-emblem', '--color-bg'],
   ['--color-border-input', '--color-bg'],
   ['--color-listening-accent', '--color-bg'],
   ['--color-speaking-accent', '--color-bg'],
@@ -67,6 +73,12 @@ describe('design tokens', () => {
     expect(
       contrastRatio(resolveColor(foreground), resolveColor(background)),
     ).toBeGreaterThanOrEqual(WCAG_AA.text);
+  });
+
+  it.each(largeTextPairs)('%s on %s meets WCAG AA for large text', (foreground, background) => {
+    expect(
+      contrastRatio(resolveColor(foreground), resolveColor(background)),
+    ).toBeGreaterThanOrEqual(WCAG_AA.largeText);
   });
 
   it.each(nonTextPairs)('%s against %s meets WCAG AA for UI graphics', (foreground, background) => {

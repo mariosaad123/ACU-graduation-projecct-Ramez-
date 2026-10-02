@@ -15,6 +15,20 @@ if (hasDom && typeof HTMLDialogElement.prototype.showModal !== 'function') {
   };
 }
 
+// jsdom lays nothing out, so there is never anything to scroll.
+if (hasDom && !('scrollIntoView' in Element.prototype)) {
+  Object.defineProperty(Element.prototype, 'scrollTo', {
+    value: () => undefined,
+    writable: true,
+    configurable: true,
+  });
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    value: () => undefined,
+    writable: true,
+    configurable: true,
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();

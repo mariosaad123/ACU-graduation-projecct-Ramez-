@@ -1,0 +1,2 @@
+ALTER TABLE "groups" ADD COLUMN "chat_rate_limit" integer DEFAULT 60 NOT NULL;--> statement-breakpoint
+ALTER TABLE "groups" ADD CONSTRAINT "groups_chat_rate_limit_range" CHECK ("groups"."chat_rate_limit" between 1 and 120);

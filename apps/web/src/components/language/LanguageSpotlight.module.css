@@ -1,0 +1,79 @@
+.spotlight {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--space-4);
+  padding-block-start: var(--space-5);
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+}
+
+.greeting {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-emblem-on-subtle);
+}
+
+.greeting:lang(zh) {
+  font-family: var(--font-zh);
+}
+
+.greeting:lang(ja) {
+  font-family: var(--font-ja);
+}
+
+.title {
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+/* Side by side when the card is wide enough; skills, the shortest, spans the row below. */
+@container (inline-size >= 30rem) {
+  .facts {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-6);
+  }
+
+  .facts > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.facts dt {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.scale {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.action:empty {
+  display: none;
+}

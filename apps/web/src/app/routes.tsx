@@ -1,6 +1,17 @@
 import type { RouteObject } from 'react-router';
 import { AppLayout } from '../components/layout/AppLayout';
 import { FOOTER_NAV, PRIMARY_NAV } from '../components/layout/nav-items';
+import { AuthGate } from '../features/auth/AuthGate';
+import { SignInPage } from '../features/auth/SignInPage';
+import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { GroupPage } from '../features/groups/GroupPage';
+import { JoinPage } from '../features/groups/JoinPage';
+import { StudentGroupPage } from '../features/groups/StudentGroupPage';
+import { PersonPage } from '../features/people/PersonPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
+import { DoctorSetupPage } from '../features/onboarding/DoctorSetupPage';
+import { StudentSetupPage } from '../features/onboarding/StudentSetupPage';
+import { WelcomePage } from '../features/onboarding/WelcomePage';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlannedSectionPage } from '../pages/PlannedSectionPage';
@@ -9,7 +20,6 @@ import { RouteErrorPage } from '../pages/RouteErrorPage';
 const plannedSections = [
   ...PRIMARY_NAV,
   ...FOOTER_NAV.filter((item) => item.to !== '/design-system'),
-  { to: '/sign-in', labelKey: 'nav.signIn' },
 ] as const;
 
 export const routes: RouteObject[] = [
@@ -23,6 +33,64 @@ export const routes: RouteObject[] = [
         errorElement: <RouteErrorPage />,
         children: [
           { index: true, element: <HomePage /> },
+          {
+            path: 'sign-in',
+            element: <AuthGate rule={{ kind: 'visitor' }}>{() => <SignInPage />}</AuthGate>,
+          },
+          {
+            path: 'welcome',
+            element: (
+              <AuthGate rule={{ kind: 'setup' }}>
+                {(user) => user && <WelcomePage user={user} />}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'welcome/student',
+            element: <AuthGate rule={{ kind: 'setup' }}>{() => <StudentSetupPage />}</AuthGate>,
+          },
+          {
+            path: 'welcome/doctor',
+            element: (
+              <AuthGate rule={{ kind: 'setup' }}>
+                {(user) => user && <DoctorSetupPage user={user} />}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['student', 'doctor', 'admin'] }}>
+                {(user) => user && <DashboardPage user={user} />}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app/profile',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['student', 'doctor', 'admin'] }}>
+                {(user) => user && <ProfilePage user={user} />}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app/groups/:groupId',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
+                {(user) => (user?.role === 'doctor' ? <GroupPage /> : <StudentGroupPage />)}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app/people/:personId',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
+                {() => <PersonPage />}
+              </AuthGate>
+            ),
+          },
+          // Open to everyone: the page itself explains what a visitor must do before joining.
+          { path: 'join/:code', element: <JoinPage /> },
           {
             path: 'design-system',
             lazy: async () => {

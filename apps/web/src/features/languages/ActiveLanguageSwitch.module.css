@@ -1,0 +1,150 @@
+.switch {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 2.75rem;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  border-color: var(--color-emblem-border);
+  background: var(--color-emblem-subtle);
+}
+
+/*
+ * The glyph alone names the language where the header is tight: on phones, and while the desktop
+ * navigation shares the bar with it (72rem to 80rem). The button label always says it in full.
+ */
+.triggerName {
+  display: none;
+  white-space: nowrap;
+}
+
+@media (40rem <= width < 72rem), (width >= 80rem) {
+  .triggerName {
+    display: inline;
+  }
+}
+
+.caret {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  gap: var(--space-2);
+  inline-size: min(18rem, calc(100vw - 2 * var(--container-gutter)));
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.heading {
+  padding-inline: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text);
+  text-align: start;
+}
+
+.item:disabled {
+  cursor: progress;
+}
+
+.item:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.item[aria-current='true'] {
+  background: var(--color-emblem-subtle);
+}
+
+.itemText {
+  display: grid;
+  min-inline-size: 0;
+  line-height: var(--leading-snug);
+}
+
+.itemText > :first-child {
+  font-weight: var(--weight-semibold);
+}
+
+.itemTranslation {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.check {
+  flex-shrink: 0;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-inline-start: auto;
+  color: var(--color-emblem-on-subtle);
+}
+
+.manage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 2.75rem;
+  padding-inline: var(--space-2);
+  border-block-start: var(--border-width) solid var(--color-border);
+  color: var(--color-link);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.manage:hover {
+  text-decoration: underline;
+}
+
+.manage svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+}

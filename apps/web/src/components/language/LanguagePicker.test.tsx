@@ -49,3 +49,95 @@ describe('LanguagePicker', () => {
     expect(screen.getByRole('radio', { name: /日本語/ })).toBeChecked();
   });
 });
+
+function MultiPicker({ onChange }: { onChange?: (languages: LearningLanguage[]) => void }) {
+  const [languages, setLanguages] = useState<LearningLanguage[]>([]);
+  return (
+    <LanguagePicker
+      multiple
+      value={languages}
+      onChange={(next) => {
+        setLanguages(next);
+        onChange?.(next);
+      }}
+    />
+  );
+}
+
+function bladeOf(container: HTMLElement, language: LearningLanguage): Element {
+  const blade = container.querySelector(`svg text[lang="${language}"]`)?.parentElement;
+  if (!blade) {
+    throw new Error(`${language} blade not rendered`);
+  }
+  return blade;
+}
+
+describe('LanguagePicker with several languages', () => {
+  it('offers checkboxes and keeps the order languages were picked in', async () => {
+    const user = userEvent.setup();
+    const changes: LearningLanguage[][] = [];
+    renderWithProviders(<MultiPicker onChange={(next) => changes.push(next)} />);
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(6);
+    await user.click(screen.getByRole('checkbox', { name: /Français/ }));
+    await user.click(screen.getByRole('checkbox', { name: /English/ }));
+
+    expect(changes.at(-1)).toEqual(['fr', 'en']);
+    expect(screen.getByRole('checkbox', { name: /Français/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /English/ })).toBeChecked();
+  });
+
+  it('removes a language when it is picked again, from its option or its blade', async () => {
+    const user = userEvent.setup();
+    const changes: LearningLanguage[][] = [];
+    const { container } = renderWithProviders(
+      <MultiPicker onChange={(next) => changes.push(next)} />,
+    );
+
+    await user.click(bladeOf(container, 'de'));
+    await user.click(bladeOf(container, 'zh'));
+    await user.click(screen.getByRole('checkbox', { name: /Deutsch/ }));
+
+    expect(changes.at(-1)).toEqual(['zh']);
+    expect(bladeOf(container, 'zh')).toHaveAttribute('data-selected', 'true');
+    expect(bladeOf(container, 'de')).toHaveAttribute('data-selected', 'false');
+  });
+});
+
+describe('LanguagePicker with unavailable languages', () => {
+  function PickerWithout({ onChange }: { onChange: (language: LearningLanguage) => void }) {
+    return (
+      <LanguagePicker
+        value={null}
+        onChange={onChange}
+        unavailable={['en', 'fr']}
+        unavailableNote="added"
+        error="Choose a language to add."
+      />
+    );
+  }
+
+  it('shows them, says why, and does not let them be chosen', async () => {
+    const user = userEvent.setup();
+    const chosen: LearningLanguage[] = [];
+    const { container } = renderWithProviders(
+      <PickerWithout onChange={(language) => chosen.push(language)} />,
+    );
+
+    const english = screen.getByRole('radio', { name: /English.*added/ });
+    expect(english).toBeDisabled();
+    await user.click(bladeOf(container, 'fr'));
+    expect(chosen).toEqual([]);
+
+    await user.click(screen.getByRole('radio', { name: /Deutsch/ }));
+    expect(chosen).toEqual(['de']);
+  });
+
+  it('describes an error on the whole group', () => {
+    renderWithProviders(<PickerWithout onChange={() => undefined} />);
+
+    const group = screen.getByRole('group', { name: 'Choose a language to learn' });
+    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(group).toHaveAccessibleDescription('Choose a language to add.');
+  });
+});

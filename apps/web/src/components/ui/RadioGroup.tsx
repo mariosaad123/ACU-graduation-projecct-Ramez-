@@ -10,6 +10,8 @@ export interface RadioOption<Value extends string> {
 
 interface RadioGroupProps<Value extends string> {
   legend: string;
+  /** A sentence under the legend that applies to every option. */
+  description?: string;
   name: string;
   options: readonly RadioOption<Value>[];
   value: Value | null;
@@ -20,6 +22,7 @@ interface RadioGroupProps<Value extends string> {
 
 export function RadioGroup<Value extends string>({
   legend,
+  description,
   name,
   options,
   value,
@@ -29,14 +32,21 @@ export function RadioGroup<Value extends string>({
 }: RadioGroupProps<Value>) {
   const id = useId();
   const errorId = `${id}-error`;
+  const descriptionId = `${id}-description`;
+  const describedBy = [description && descriptionId, error && errorId].filter(Boolean).join(' ');
 
   return (
     <fieldset
       className={clsx(styles.group, className)}
-      aria-describedby={error ? errorId : undefined}
+      aria-describedby={describedBy || undefined}
       aria-invalid={error ? true : undefined}
     >
       <legend className={styles.legend}>{legend}</legend>
+      {description && (
+        <p id={descriptionId} className={styles.description}>
+          {description}
+        </p>
+      )}
       {error && (
         <p id={errorId} className={styles.error}>
           {error}

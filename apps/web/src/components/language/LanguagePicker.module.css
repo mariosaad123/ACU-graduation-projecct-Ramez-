@@ -32,6 +32,13 @@
   font-weight: var(--weight-semibold);
 }
 
+.error {
+  margin-block-end: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
 .aperture {
   inline-size: min(100%, 14rem);
   margin-inline: auto;
@@ -54,25 +61,37 @@
   fill: var(--color-text-secondary);
   font-family: var(--font-display);
   font-size: 11px;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   pointer-events: none;
   transition: fill var(--duration-base) var(--ease-standard);
 }
 
 .blade[data-highlighted='true'] .bladeShape {
-  fill: var(--blue-100);
+  fill: var(--color-emblem-subtle-hover);
 }
 
 .blade[data-highlighted='true'] .glyph {
-  fill: var(--blue-800);
+  fill: var(--color-emblem-on-subtle);
 }
 
 .blade[data-selected='true'] .bladeShape {
-  fill: var(--color-action);
+  fill: var(--color-emblem);
 }
 
 .blade[data-selected='true'] .glyph {
-  fill: var(--color-text-on-action);
+  fill: var(--color-text-on-emblem);
+}
+
+.blade[data-unavailable='true'] {
+  cursor: not-allowed;
+}
+
+.blade[data-unavailable='true'] .bladeShape {
+  fill: var(--color-surface-muted);
+}
+
+.blade[data-unavailable='true'] .glyph {
+  fill: var(--color-border-strong);
 }
 
 .options {
@@ -102,15 +121,26 @@
     background-color var(--duration-fast) var(--ease-standard);
 }
 
+.picker[aria-invalid='true'] .optionLabel {
+  border-color: var(--color-danger);
+}
+
 .option[data-highlighted='true'] .optionLabel {
-  border-color: var(--blue-300);
-  background: var(--color-action-subtle);
+  border-color: var(--color-emblem-border);
+  background: var(--color-emblem-subtle);
 }
 
 .option input:checked + .optionLabel {
-  border-color: var(--color-action);
-  background: var(--color-action-subtle);
-  box-shadow: inset 0 0 0 1px var(--color-action);
+  border-color: var(--color-emblem);
+  background: var(--color-emblem-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-emblem);
+}
+
+.option input:disabled + .optionLabel {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 
 .option input:focus-visible + .optionLabel {
@@ -118,6 +148,7 @@
   outline-offset: 2px;
 }
 
+/* Bold 20px counts as large text, so white on the emblem orange stays legible. */
 .optionGlyph {
   display: grid;
   place-items: center;
@@ -128,14 +159,19 @@
   background: var(--color-surface-sunken);
   color: var(--color-text-secondary);
   font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
   line-height: 1;
 }
 
 .option input:checked + .optionLabel .optionGlyph {
-  background: var(--color-action);
-  color: var(--color-text-on-action);
+  background: var(--color-emblem);
+  color: var(--color-text-on-emblem);
+}
+
+.option input:disabled + .optionLabel .optionGlyph {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
 .optionText {
@@ -147,6 +183,19 @@
 .optionText > :first-child {
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+}
+
+.check {
+  flex-shrink: 0;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-inline-start: auto;
+  color: var(--color-emblem-on-subtle);
+  visibility: hidden;
+}
+
+.option input:checked + .optionLabel .check {
+  visibility: visible;
 }
 
 .optionTranslation {

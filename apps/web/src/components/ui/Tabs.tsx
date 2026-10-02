@@ -13,12 +13,20 @@ interface TabsProps {
   label: string;
   tabs: readonly TabItem[];
   defaultTabId?: string;
+  /** Makes the choice controlled, e.g. kept in the address so a reload returns to it. */
+  selectedTabId?: string;
+  onSelect?: (id: string) => void;
   className?: string;
 }
 
-export function Tabs({ label, tabs, defaultTabId, className }: TabsProps) {
+export function Tabs({ label, tabs, defaultTabId, selectedTabId, onSelect, className }: TabsProps) {
   const baseId = useId();
-  const [selectedId, setSelectedId] = useState(defaultTabId ?? tabs[0]?.id);
+  const [ownSelectedId, setOwnSelectedId] = useState(defaultTabId ?? tabs[0]?.id);
+  const selectedId = selectedTabId ?? ownSelectedId;
+  const setSelectedId = (id: string) => {
+    setOwnSelectedId(id);
+    onSelect?.(id);
+  };
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   const selectedIndex = Math.max(

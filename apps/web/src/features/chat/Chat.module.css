@@ -1,0 +1,517 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+
+  /* The whole chat fits under the sticky header once scrolled to. */
+  block-size: min(calc(100dvh - var(--header-height) - var(--space-6)), 46rem);
+  min-block-size: 26rem;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* Header */
+.chatHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.chatTitle {
+  font-size: var(--text-lg);
+}
+
+.chatToggle {
+  margin-inline-start: auto;
+}
+
+/* Pinned messages */
+.pinned {
+  border-block-end: var(--border-width) solid var(--color-border);
+  background: var(--color-emblem-subtle);
+}
+
+.pinned > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-emblem-on-subtle);
+  cursor: pointer;
+}
+
+.pinnedPreview {
+  overflow: hidden;
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinnedList {
+  display: grid;
+  gap: var(--space-1);
+  max-block-size: 12rem;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.pinnedItem {
+  display: grid;
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-align: start;
+}
+
+/* Message list: takes whatever height the header, pins and composer leave. */
+.viewport {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+}
+
+.list {
+  block-size: 100%;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.loading {
+  display: grid;
+  justify-items: center;
+  padding-block: var(--space-8);
+}
+
+.older {
+  display: flex;
+  margin-inline: auto;
+}
+
+.empty {
+  padding-block: var(--space-10);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.messages {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day,
+.unreadLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-4) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.day::before,
+.day::after,
+.unreadLine::before,
+.unreadLine::after {
+  content: '';
+  flex: 1;
+  border-block-start: var(--border-width) solid var(--color-border);
+}
+
+.unreadLine {
+  color: var(--color-emblem-on-subtle);
+}
+
+.unreadLine::before,
+.unreadLine::after {
+  border-color: var(--color-emblem);
+}
+
+/* One message */
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-slow) var(--ease-standard);
+}
+
+.continued {
+  margin-block-start: 0;
+}
+
+/* One's own messages sit on the other side, as in every messenger. */
+.message[data-mine='true'] {
+  flex-direction: row-reverse;
+}
+
+.highlight {
+  background: var(--color-emblem-subtle);
+}
+
+.avatarSlot {
+  flex-shrink: 0;
+  inline-size: 2.25rem;
+}
+
+.bubble {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  max-inline-size: min(36rem, 78%);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.message[data-mine='true'] .bubble {
+  background: var(--color-action-subtle);
+}
+
+.message[data-doctor='true'] .bubble {
+  border-inline-start: 3px solid var(--color-emblem);
+  background: var(--color-emblem-subtle);
+}
+
+.author {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.authorName {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.authorName:hover {
+  text-decoration: underline;
+}
+
+.doctorTag {
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-emblem-subtle-hover);
+  color: var(--color-emblem-on-subtle);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.body {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.body a {
+  color: var(--color-link);
+}
+
+.deleted {
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.pinMark {
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  color: var(--color-emblem-on-subtle);
+}
+
+/* Replies */
+.quote {
+  display: grid;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-inline-start: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-align: start;
+}
+
+.quoteAuthor {
+  font-weight: var(--weight-semibold);
+}
+
+.quoteText {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Attachments */
+.imageLink {
+  display: block;
+}
+
+.image {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  max-block-size: 20rem;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.audio {
+  min-inline-size: min(18rem, 60vw);
+}
+
+.document {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.document:hover {
+  border-color: var(--color-border-strong);
+}
+
+.documentIcon {
+  flex-shrink: 0;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  color: var(--color-text-secondary);
+}
+
+.documentText {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.documentName {
+  overflow: hidden;
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Message actions */
+.menu {
+  position: relative;
+  align-self: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.menu:has([aria-expanded='true']),
+.message:hover .menu,
+.message:focus-within .menu {
+  opacity: 1;
+}
+
+/* Touch screens have no hover: the button is always there. */
+@media (hover: none) {
+  .menu {
+    opacity: 1;
+  }
+}
+
+.menuButton {
+  display: grid;
+  place-items: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-secondary);
+}
+
+.menuButton:hover,
+.menuButton[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+}
+
+.menuPanel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  min-inline-size: 11rem;
+  margin: 0;
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+  list-style: none;
+}
+
+.menuPanel[data-above='true'] {
+  inset-block: auto calc(100% + var(--space-1));
+}
+
+.menuPanel[hidden] {
+  display: none;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: 2.5rem;
+  padding-inline: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  text-align: start;
+}
+
+.menuItem:hover {
+  background: var(--color-surface-muted);
+}
+
+.jump {
+  position: absolute;
+  inset-block-end: var(--space-3);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Composer */
+.composer {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-block-start: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.context,
+.attached {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: var(--text-sm);
+}
+
+.contextText {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.contextQuote,
+.attachedName {
+  overflow: hidden;
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachedName {
+  flex: 1;
+}
+
+.recorder {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.textarea {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+  max-block-size: 10rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  line-height: var(--leading-snug);
+  resize: none;
+  field-sizing: content;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.counter {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-align: end;
+}
+
+.counter[data-over='true'] {
+  color: var(--color-danger);
+}
+
+.composerError {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
+.composerHint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.notice {
+  padding: var(--space-3) var(--space-4);
+  border-block-start: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
