@@ -10,6 +10,7 @@ import { createFilesRouter } from '../modules/files/files.routes';
 import { createDoctorRouter } from '../modules/groups/doctor.routes';
 import { createStudentGroupsRouter } from '../modules/groups/student-groups.routes';
 import { createOnboardingRouter } from '../modules/onboarding/onboarding.routes';
+import { createPeopleRouter } from '../modules/people/people.routes';
 import { createStudentLanguagesRouter } from '../modules/students/student-languages.routes';
 import { createMeRouter } from '../modules/users/me.routes';
 import { DEFAULT_RATE_LIMITS, type AppDependencies } from './dependencies';
@@ -47,6 +48,7 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api/doctor', createDoctorRouter(deps));
   app.use('/api/files', createFilesRouter(deps));
   app.use('/api/groups/:groupId', createGroupChatRouter(deps));
+  app.use('/api/people', createPeopleRouter(deps));
 
   app.use(notFound);
   app.use(errorHandler);

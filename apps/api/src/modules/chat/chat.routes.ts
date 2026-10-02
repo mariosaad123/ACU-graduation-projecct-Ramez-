@@ -12,6 +12,7 @@ import { authOf, requireAuth } from '../../http/middleware/require-auth';
 import { acceptOneFile, uploadedFile } from '../../http/middleware/upload';
 import { withBody } from '../../http/middleware/validate';
 import { parseId } from '../groups/groups.service';
+import { groupPeople } from '../people/people.service';
 import {
   chatChanges,
   chatPage,
@@ -52,6 +53,11 @@ export function createGroupChatRouter(deps: AppDependencies): Router {
   router.get('/', async (req, res) => {
     const group = await groupView(contextFor(req), authOf(req).user, groupIdOf(req));
     res.set('Cache-Control', 'no-store').json({ group });
+  });
+
+  router.get('/people', async (req, res) => {
+    const people = await groupPeople(db, authOf(req).user, groupIdOf(req));
+    res.set('Cache-Control', 'no-store').json({ people });
   });
 
   router.get('/chat', async (req, res) => {
