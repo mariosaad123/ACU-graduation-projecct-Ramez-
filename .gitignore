@@ -15,6 +15,10 @@ coverage/
 # Local embedded database (development without Docker)
 .data/
 
+# Wrangler's local state and secrets for `wrangler dev`
+.wrangler/
+.dev.vars*
+
 # Logs
 *.log
 logs/

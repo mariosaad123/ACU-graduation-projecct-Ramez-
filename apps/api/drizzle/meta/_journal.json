@@ -36,6 +36,13 @@
       "when": 1790961958472,
       "tag": "0004_chat_rate_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790964496847,
+      "tag": "0005_file_blobs",
+      "breakpoints": true
     }
   ]
 }
