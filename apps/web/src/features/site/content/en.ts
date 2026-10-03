@@ -15,11 +15,11 @@ export const en: SiteContent = {
         ],
       },
       {
-        heading: 'Six languages',
+        heading: 'Seven languages',
         paragraphs: [
-          'The platform teaches six languages, and you can learn more than one at a time:',
+          'The platform teaches seven languages, and you can learn more than one at a time:',
         ],
-        items: ['Arabic', 'English', 'French', 'German', 'Chinese', 'Japanese'],
+        items: ['Arabic', 'English', 'French', 'German', 'Spanish', 'Chinese', 'Japanese'],
       },
       {
         heading: 'The Faculty of Languages and Translation',

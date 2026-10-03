@@ -8,6 +8,7 @@ const LETTERS = [
   { letter: 'A', lang: 'en' },
   { letter: 'É', lang: 'fr' },
   { letter: 'Ä', lang: 'de' },
+  { letter: 'Ñ', lang: 'es' },
   { letter: '中', lang: 'zh' },
   { letter: 'あ', lang: 'ja' },
 ] as const;

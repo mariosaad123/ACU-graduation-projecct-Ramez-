@@ -589,7 +589,7 @@ stateDiagram-v2
 
 ## Student languages
 
-A student learns one or more of the six languages and studies one at a time. The active
+A student learns one or more of the seven languages and studies one at a time. The active
 language lives on `student_profiles`; everything that belongs to one language (level, placement
 results, progress) will hang off `student_languages`.
 

@@ -57,6 +57,13 @@
       "when": 1791043538006,
       "tag": "0007_group_coursework",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791063961193,
+      "tag": "0008_spanish",
+      "breakpoints": true
     }
   ]
 }

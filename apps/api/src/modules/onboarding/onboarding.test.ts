@@ -156,7 +156,7 @@ describe('student onboarding', () => {
     const response = await post(
       agent,
       '/api/onboarding/student',
-      studentRequest({ languages: ['es'], activeLanguage: 'es', goal: 'fun' }),
+      studentRequest({ languages: ['it'], activeLanguage: 'it', goal: 'fun' }),
     ).expect(400);
 
     const body = response.body as { error: { code: string; fields: Record<string, string> } };

@@ -61,7 +61,7 @@ export const en: Messages = {
   pages: {
     home: {
       eyebrow: 'Faculty of Languages and Translation',
-      title: 'Learn six languages at the level that suits you',
+      title: 'Learn seven languages at the level that suits you',
       lead: 'Start with a placement test, then practise listening, speaking, reading and writing one step at a time.',
       start: 'Take the placement test',
       explore: 'Explore the skills',
@@ -135,7 +135,7 @@ export const en: Messages = {
       'By continuing you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy>.',
     highlights: {
       placement: 'A placement test across all four skills',
-      practice: 'Daily practice in six languages',
+      practice: 'Daily practice in seven languages',
       doctors: 'Guidance from the Faculty of Languages and Translation',
     },
     failures: {
@@ -178,7 +178,7 @@ export const en: Messages = {
       study: { label: 'Study', hint: 'Coursework, research and references' },
       work: { label: 'Work', hint: 'Emails, meetings and interviews' },
       travel: { label: 'Travel', hint: 'Everyday situations, getting around and meeting people' },
-      exam: { label: 'Pass an exam', hint: 'Such as IELTS, DELF, HSK and JLPT' },
+      exam: { label: 'Pass an exam', hint: 'Such as IELTS, DELF, DELE, HSK and JLPT' },
       culture: { label: 'Culture and fun', hint: 'Books, films and meeting people' },
     },
     submit: 'Create my account',

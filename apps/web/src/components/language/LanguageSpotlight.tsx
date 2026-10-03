@@ -21,6 +21,7 @@ const FACTS: Record<
   en: { greeting: 'Hello', script: 'latin' },
   fr: { greeting: 'Bonjour', script: 'latin' },
   de: { greeting: 'Hallo', script: 'latin' },
+  es: { greeting: '¡Hola!', script: 'latin' },
   zh: { greeting: '你好', script: 'chinese', scale: 'hsk' },
   ja: { greeting: 'こんにちは', script: 'japanese', scale: 'jlpt' },
 };

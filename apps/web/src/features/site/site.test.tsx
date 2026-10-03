@@ -30,10 +30,18 @@ describe('the public reading pages', () => {
     expect(within(more).queryByRole('link', { name: 'Privacy policy' })).not.toBeInTheDocument();
   });
 
-  it('names the six languages and links to the university on the about page', () => {
+  it('names the seven languages and links to the university on the about page', () => {
     renderWithProviders(<SitePage page="about" />);
 
-    for (const language of ['Arabic', 'English', 'French', 'German', 'Chinese', 'Japanese']) {
+    for (const language of [
+      'Arabic',
+      'English',
+      'French',
+      'German',
+      'Spanish',
+      'Chinese',
+      'Japanese',
+    ]) {
       expect(screen.getByText(language)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: /Ahram Canadian University website/ })).toHaveAttribute(

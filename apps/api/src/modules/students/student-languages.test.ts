@@ -140,7 +140,7 @@ describe('adding a language', () => {
 
   it('refuses languages the platform does not teach', async () => {
     const agent = await signInAsStudent();
-    const response = await post(agent, '/api/student/languages', { language: 'es' }).expect(400);
+    const response = await post(agent, '/api/student/languages', { language: 'it' }).expect(400);
 
     expect(errorCode(response)).toBe('VALIDATION_FAILED');
   });

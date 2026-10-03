@@ -59,7 +59,7 @@
         animation: splash-shutter 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
       }
 
-      /* A hairline orbit carrying one letter from each of the six languages. */
+      /* A hairline orbit carrying one letter from each language the platform teaches. */
       .splash-orbit {
         position: absolute;
         inset: -2.4rem;
@@ -69,7 +69,7 @@
       }
 
       .splash-orbit span {
-        --angle: calc(var(--i) * 60deg);
+        --angle: calc(var(--i) * 360deg / 7);
 
         position: absolute;
         top: 50%;
@@ -87,7 +87,7 @@
         line-height: 1;
         transform: translate(-50%, -50%) rotate(var(--angle))
           translateY(calc(-0.5 * var(--splash-size) - 2.4rem)) rotate(calc(-1 * var(--angle)));
-        animation: splash-letter 3.6s calc(var(--i) * 0.6s) ease-in-out infinite;
+        animation: splash-letter 4.2s calc(var(--i) * 0.6s) ease-in-out infinite;
       }
 
       .splash-text {
@@ -167,13 +167,13 @@
       @keyframes splash-letter {
         /* The size is animated, not the scale: a scale would also stretch the letter's orbit. */
         0%,
-        22%,
+        20%,
         100% {
           color: #98a2b3;
           font-size: 1.05rem;
         }
 
-        8% {
+        7% {
           color: #f95a00;
           font-size: 1.4rem;
         }
@@ -246,8 +246,9 @@
             <span style="--i: 1">A</span>
             <span style="--i: 2">É</span>
             <span style="--i: 3">Ä</span>
-            <span style="--i: 4" lang="zh">中</span>
-            <span style="--i: 5" lang="ja">あ</span>
+            <span style="--i: 4" lang="es">Ñ</span>
+            <span style="--i: 5" lang="zh">中</span>
+            <span style="--i: 6" lang="ja">あ</span>
           </div>
           <img class="splash-layer splash-globe" src="/src/assets/brand/emblem.webp" alt="" />
           <img class="splash-layer splash-ring" src="/src/assets/brand/emblem.webp" alt="" />

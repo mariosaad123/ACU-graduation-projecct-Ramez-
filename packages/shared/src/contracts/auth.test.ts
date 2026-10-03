@@ -83,7 +83,7 @@ describe('studentOnboardingSchema', () => {
 
   it.each([
     ['no language', { languages: [] }],
-    ['an unsupported language', { languages: ['ja', 'es'] }],
+    ['an unsupported language', { languages: ['ja', 'it'] }],
     ['the same language twice', { languages: ['ja', 'ja'] }],
     ['an unsupported goal', { goal: 'fun' }],
     ['no university number', { universityId: '' }],
@@ -103,7 +103,7 @@ describe('studentOnboardingSchema', () => {
 describe('studentLanguageRequestSchema', () => {
   it('accepts a supported language only', () => {
     expect(studentLanguageRequestSchema.safeParse({ language: 'de' }).success).toBe(true);
-    expect(studentLanguageRequestSchema.safeParse({ language: 'es' }).success).toBe(false);
+    expect(studentLanguageRequestSchema.safeParse({ language: 'it' }).success).toBe(false);
     expect(studentLanguageRequestSchema.safeParse({}).success).toBe(false);
   });
 });
