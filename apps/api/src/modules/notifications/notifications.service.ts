@@ -103,6 +103,9 @@ const ROLE_LABELS: Record<Locale, Record<string, string>> = {
   },
 };
 
+/** How a mention of the whole group reads in a push notification. */
+const EVERYONE: Record<Locale, string> = { ar: '@الكل', en: '@all' };
+
 export function excerptOf(text: string | null): string | null {
   if (!text) {
     return null;
@@ -178,7 +181,9 @@ export async function notify(context: NotifyContext, event: NotifyEvent): Promis
     const message: PushMessage = {
       title: TITLES[target.locale][event.kind](event.actor?.name ?? '', event.groupName),
       body:
-        event.kind === 'role' ? (ROLE_LABELS[target.locale][excerpt ?? ''] ?? '') : (excerpt ?? ''),
+        event.kind === 'role'
+          ? (ROLE_LABELS[target.locale][excerpt ?? ''] ?? '')
+          : (excerpt ?? '').replaceAll('@all', EVERYONE[target.locale]),
       url: link,
       tag: event.kind === 'message' ? `group-${event.groupId}` : `${event.kind}-${link}`,
     };

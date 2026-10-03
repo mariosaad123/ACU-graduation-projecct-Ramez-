@@ -309,7 +309,8 @@ describe('mentions', () => {
       kind: 'mention',
       link: `/app/groups/${group.id}?tab=chat&message=${message.id}`,
     });
-    expect(notifications[0]?.excerpt).toMatch(/^@.+ see page 4$/);
+    // The mention travels inside a directional isolate.
+    expect(notifications[0]?.excerpt).toMatch(/^⁨@.+⁩ see page 4$/);
     expect((await notificationsOf(doctor)).notifications).toEqual([]);
   });
 

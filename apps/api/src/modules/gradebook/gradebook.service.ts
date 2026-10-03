@@ -165,7 +165,10 @@ export async function activityOf(
 
   for (const id of studentIds) {
     const message = messageBy.get(id);
-    const lastSeenAt = seenBy.get(id)?.lastSeenAt ?? null;
+    // Writing a message is being there, whatever the last recorded visit says.
+    const visited = seenBy.get(id)?.lastSeenAt ?? null;
+    const wrote = message?.last ?? null;
+    const lastSeenAt = visited && wrote ? (visited > wrote ? visited : wrote) : (visited ?? wrote);
     result.set(id, {
       messages: message?.total ?? 0,
       messagesThisWeek: message?.thisWeek ?? 0,

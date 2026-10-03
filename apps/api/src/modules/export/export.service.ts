@@ -170,7 +170,7 @@ const TEXT = {
     noColumns: 'لم تُضف أعمدة درجات بعد.',
   },
   en: {
-    font: 'Calibri',
+    font: 'Arial',
     summary: 'Summary',
     grades: 'Grade sheet',
     activity: 'Activity',
@@ -363,7 +363,7 @@ function headerRow(sheet: ExcelJS.Worksheet, rowNumber: number, values: string[]
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = BORDER;
   });
-  row.height = 34;
+  row.height = 50;
 }
 
 function bodyCell(cell: ExcelJS.Cell, text: Text, zebra: boolean) {
@@ -373,6 +373,15 @@ function bodyCell(cell: ExcelJS.Cell, text: Text, zebra: boolean) {
     cell.fill = solid(COLOR.graySoft);
   }
   cell.alignment = { vertical: 'middle', ...cell.alignment };
+}
+
+/** Dates in words of the report's language, always with Western digits like the rest of it. */
+function dateText(date: Date, locale: ExportLocale, withTime = false): string {
+  return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
+    dateStyle: 'long',
+    timeStyle: withTime ? 'short' : undefined,
+    timeZone: 'Africa/Cairo',
+  }).format(date);
 }
 
 function dateCell(value: string | null): Date | string {
@@ -538,8 +547,8 @@ function gradesSheet(
   banner(
     sheet,
     headers.length,
-    `${text.reportTitle.grades} — ${data.group.name}`,
-    `${text.doctor}: ${data.doctorName} · ${text.language}: ${LANGUAGE_NAMES[locale][data.group.language] ?? ''} · ${text.generated}: ${new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB')}`,
+    `${official ? text.reportTitle.grades : text.grades} — ${data.group.name}`,
+    `${text.doctor}: ${data.doctorName} · ${text.language}: ${LANGUAGE_NAMES[locale][data.group.language] ?? ''} · ${text.generated}: ${dateText(new Date(), locale)}`,
     text,
   );
   sheet.getRow(3).height = 6;
@@ -580,7 +589,6 @@ function gradesSheet(
         cell.font = { name: text.font, italic: true, color: { argb: COLOR.gray } };
       } else if (grade?.score !== null && grade?.score !== undefined) {
         cell.value = grade.score;
-        cell.numFmt = '0.##';
         if (grade.score < column.maxScore / 2) {
           cell.font = { name: text.font, bold: true, color: { argb: COLOR.red } };
           cell.fill = solid(COLOR.redSoft);
@@ -640,9 +648,8 @@ function gradesSheet(
         const cell = row.getCell(firstScore + position);
         const letter = sheet.getColumn(firstScore + position).letter;
         cell.value = {
-          formula: `IFERROR(${fn}(${letter}5:${letter}${String(lastStudentRow)}),"")`,
+          formula: `IFERROR(ROUND(${fn}(${letter}5:${letter}${String(lastStudentRow)}),2),"")`,
         };
-        cell.numFmt = '0.##';
         cell.alignment = { horizontal: 'center' };
         cell.font = { name: text.font, bold: true, color: { argb: COLOR.navy } };
         cell.fill = solid(COLOR.blueSoft);
@@ -672,11 +679,11 @@ function gradesSheet(
     sheet.getColumn(4).width = 30;
   }
   columns.forEach((_column, position) => {
-    sheet.getColumn(firstScore + position).width = 16;
+    sheet.getColumn(firstScore + position).width = 20;
   });
   sheet.getColumn(firstScore + columns.length).width = 12;
   sheet.getColumn(firstScore + columns.length + 1).width = 13;
-  sheet.getColumn(firstScore + columns.length + 2).width = 15;
+  sheet.getColumn(firstScore + columns.length + 2).width = 19;
   sheet.pageSetup.printTitlesRow = '4:4';
 }
 
@@ -704,7 +711,7 @@ function summarySheet(
     [text.doctor, data.doctorName],
     [text.assistants, data.assistants.join('، ') || '—'],
     [text.students, active.length],
-    [text.generated, new Date().toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-GB')],
+    [text.generated, dateText(new Date(), locale, true)],
   ];
   let row = 4;
   for (const [label, value] of facts) {
@@ -718,6 +725,11 @@ function summarySheet(
     valueCell.value = value;
     valueCell.font = { name: text.font };
     valueCell.border = BORDER;
+    // Stated outright: a value starting with a digit would otherwise be laid out left to right.
+    valueCell.alignment = {
+      horizontal: locale === 'ar' ? 'right' : 'left',
+      readingOrder: locale === 'ar' ? 'rtl' : 'ltr',
+    };
     row += 1;
   }
 
@@ -767,8 +779,14 @@ function summarySheet(
 
   row += 1;
   const activities = active.map((student) => student.activity);
-  kpi(text.kpis.activeThisWeek, String(activities.filter((a) => !a.quiet).length));
-  kpi(text.kpis.quiet, String(activities.filter((a) => a.quiet).length), '', COLOR.amber);
+  // Each student counts once: away, else quiet, else active.
+  kpi(text.kpis.activeThisWeek, String(activities.filter((a) => !a.quiet && !a.away).length));
+  kpi(
+    text.kpis.quiet,
+    String(activities.filter((a) => a.quiet && !a.away).length),
+    '',
+    COLOR.amber,
+  );
   kpi(text.kpis.away, String(activities.filter((a) => a.away).length), '', COLOR.red);
   const { announcements: announcementTotal, polls: pollTotal } = data.gradebook.totals;
   kpi(

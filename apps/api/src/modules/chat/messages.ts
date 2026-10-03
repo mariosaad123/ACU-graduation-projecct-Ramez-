@@ -58,14 +58,18 @@ export function cleanMentions(
   return { body, ...mentionsIn(body) };
 }
 
-/** Plain text for excerpts and notifications: @[id] becomes @Name. */
+/**
+ * Plain text for excerpts and notifications: @[id] becomes @Name. Each mention sits in a
+ * directional isolate, so the sign stays in front of a Latin name inside an Arabic sentence.
+ */
 export function plainText(
   text: string,
   names: ReadonlyMap<string, string>,
   everyone = '@all',
 ): string {
-  return text.replace(MENTION, (_token, target: string) =>
-    target === 'all' ? everyone : `@${names.get(target) ?? ''}`,
+  return text.replace(
+    MENTION,
+    (_token, target: string) => `⁨${target === 'all' ? everyone : `@${names.get(target) ?? ''}`}⁩`,
   );
 }
 
