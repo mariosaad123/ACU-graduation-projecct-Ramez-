@@ -41,6 +41,7 @@ export const en: Messages = {
     rights: '© {{year}} Ahram Canadian University. All rights reserved.',
     universityLogo: 'Ahram Canadian University logo',
     facultyLogo: 'Faculty of Languages and Translation logo',
+    credits: 'Credits',
   },
   common: {
     close: 'Close',
@@ -1223,5 +1224,10 @@ export const en: Messages = {
   connection: {
     offline: 'You are offline. What you write will not be sent until the connection is back.',
     back: 'You are back online.',
+  },
+  site: {
+    updated: 'Last updated: {{date}}',
+    contents: 'On this page',
+    more: 'More pages',
   },
 };

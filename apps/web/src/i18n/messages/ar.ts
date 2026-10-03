@@ -39,6 +39,7 @@ export const ar = {
     rights: '© {{year}} جامعة الأهرام الكندية. جميع الحقوق محفوظة.',
     universityLogo: 'شعار جامعة الأهرام الكندية',
     facultyLogo: 'شعار كلية اللغات والترجمة',
+    credits: 'المصادر والتراخيص',
   },
   common: {
     close: 'إغلاق',
@@ -1196,5 +1197,10 @@ export const ar = {
   connection: {
     offline: 'لا يوجد اتصال بالإنترنت. ما تكتبه لن يُرسل حتى يعود الاتصال.',
     back: 'عاد الاتصال.',
+  },
+  site: {
+    updated: 'آخر تحديث: {{date}}',
+    contents: 'في هذه الصفحة',
+    more: 'صفحات أخرى',
   },
 } as const;
