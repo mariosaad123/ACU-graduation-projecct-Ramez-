@@ -2,8 +2,10 @@ import {
   CHAT_RATE_LIMIT_DEFAULT,
   CHAT_RATE_LIMIT_MAX,
   CHAT_RATE_LIMIT_MIN,
+  ASSIGNMENT_KINDS,
   DOCTOR_STATUSES,
   GRADE_COLUMN_KINDS,
+  GRADE_COLUMN_SOURCES,
   GRADE_STATUSES,
   GROUP_MEMBER_ROLES,
   GROUP_MEMBER_STATUSES,
@@ -100,8 +102,11 @@ export const studentProfiles = pgTable(
     /** The language being studied now. The composite key below keeps it one of the student's own. */
     activeLanguage: learningLanguage('active_language').notNull(),
     goal: learningGoal('goal').notNull(),
-    /** The university's student number, shown to the student's doctors only. */
-    universityId: text('university_id'),
+    /**
+     * The university's student number, upper-cased; one account each. Null only for accounts
+     * created before it was required, which are asked for it at their next visit.
+     */
+    universityId: text('university_id').unique('student_profiles_university_id_key'),
     ...timestamps,
   },
   (table) => [
@@ -447,6 +452,8 @@ export const gradeColumns = pgTable(
     heldOn: date('held_on', { mode: 'string' }),
     published: boolean('published').notNull().default(false),
     position: integer('position').notNull(),
+    /** Typed by the staff, or filled by grading work handed in on the platform. */
+    source: text('source', { enum: GRADE_COLUMN_SOURCES }).notNull().default('manual'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -482,6 +489,107 @@ export const grades = pgTable(
   ],
 );
 
+/**
+ * Work students hand in. Its scores live in a gradebook column of its own, so the gradebook stays
+ * the one place a grade is stored.
+ */
+export const assignments = pgTable(
+  'assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    columnId: uuid('column_id')
+      .notNull()
+      .unique()
+      .references(() => gradeColumns.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ASSIGNMENT_KINDS }).notNull(),
+    title: text('title').notNull(),
+    instructions: text('instructions').notNull().default(''),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    allowLate: boolean('allow_late').notNull().default(true),
+    /** Closed by hand: no more work is accepted, whatever the deadline says. */
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+  },
+  (table) => [index('assignments_group_idx').on(table.groupId, table.createdAt)],
+);
+
+export const assignmentAttachments = pgTable(
+  'assignment_attachments',
+  {
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    fileId: uuid('file_id')
+      .notNull()
+      .unique()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.assignmentId, table.fileId] })],
+);
+
+/** What one student handed in for one assignment; handing in again replaces it. */
+export const submissions = pgTable(
+  'submissions',
+  {
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    late: boolean('late').notNull().default(false),
+  },
+  (table) => [primaryKey({ columns: [table.assignmentId, table.studentId] })],
+);
+
+export const submissionFiles = pgTable(
+  'submission_files',
+  {
+    assignmentId: uuid('assignment_id').notNull(),
+    studentId: uuid('student_id').notNull(),
+    fileId: uuid('file_id')
+      .notNull()
+      .unique()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assignmentId, table.fileId] }),
+    foreignKey({
+      name: 'submission_files_submission_fk',
+      columns: [table.assignmentId, table.studentId],
+      foreignColumns: [submissions.assignmentId, submissions.studentId],
+    }).onDelete('cascade'),
+  ],
+);
+
+/** One reaction per person on a message, as in any messenger. */
+export const messageReactions = pgTable(
+  'message_reactions',
+  {
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => groupMessages.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    reactedAt: timestamp('reacted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.messageId, table.userId] })],
+);
+
 /** What each person is told about; kept in the app and, if they allow it, pushed. */
 export const notifications = pgTable(
   'notifications',
@@ -502,6 +610,7 @@ export const notifications = pgTable(
     gradeColumnId: uuid('grade_column_id').references(() => gradeColumns.id, {
       onDelete: 'cascade',
     }),
+    assignmentId: uuid('assignment_id').references(() => assignments.id, { onDelete: 'cascade' }),
     excerpt: text('excerpt'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     readAt: timestamp('read_at', { withTimezone: true }),
@@ -538,6 +647,7 @@ export const notificationSettings = pgTable('notification_settings', {
   announcements: boolean('announcements').notNull().default(true),
   polls: boolean('polls').notNull().default(true),
   grades: boolean('grades').notNull().default(true),
+  assignments: boolean('assignments').notNull().default(true),
   messages: boolean('messages').notNull().default(false),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -636,4 +746,6 @@ export type FileRow = typeof files.$inferSelect;
 export type GroupMessage = typeof groupMessages.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type GradeColumnRow = typeof gradeColumns.$inferSelect;
+export type AssignmentRow = typeof assignments.$inferSelect;
+export type SubmissionRow = typeof submissions.$inferSelect;
 export type Poll = typeof polls.$inferSelect;
