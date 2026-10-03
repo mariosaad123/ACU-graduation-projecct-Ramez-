@@ -29,6 +29,176 @@
   margin-inline-start: auto;
 }
 
+.chatSearchButton {
+  margin-inline-start: auto;
+}
+
+.chatSearchButton + .chatToggle {
+  margin-inline-start: 0;
+}
+
+.inlineAction {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Search, laid over the messages while it is open */
+.search {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.searchInput {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.searchInput:focus {
+  outline: none;
+}
+
+/* The bar has its own close button. */
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.searchBar:focus-within {
+  box-shadow: inset 0 -2px 0 var(--color-action);
+}
+
+.searchFilters {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  overflow-x: auto;
+}
+
+.searchFilter {
+  flex-shrink: 0;
+  min-block-size: 2rem;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.searchFilter[aria-pressed='true'] {
+  border-color: var(--color-action);
+  background: var(--color-action-subtle);
+  font-weight: var(--weight-semibold);
+}
+
+.searchResults {
+  flex: 1;
+  min-block-size: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  overflow-y: auto;
+}
+
+.searchHint {
+  padding-block: var(--space-6);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.searchList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.searchResult {
+  display: grid;
+  gap: 2px;
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.searchResult:hover {
+  background: var(--color-surface-muted);
+}
+
+.searchMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.searchText {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  text-align: match-parent;
+}
+
+.searchText mark,
+.searchFile mark {
+  border-radius: 2px;
+  background: var(--color-emblem-subtle);
+  color: inherit;
+  font-weight: var(--weight-semibold);
+}
+
+.searchFile {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* The buttons beside a message: react, and the menu */
+.messageActions {
+  display: flex;
+  align-self: center;
+}
+
 /* Pinned messages: one bar that walks through them, as messengers do */
 .pinned {
   border-block-end: var(--border-width) solid var(--color-border);

@@ -418,7 +418,9 @@ export function ChatComposer({
 
       {body.length > CHAT_MESSAGE_MAX_LENGTH * 0.9 && (
         <p id={counterId} className={styles.counter} data-over={tooLong}>
-          {body.length} / {CHAT_MESSAGE_MAX_LENGTH}
+          <bdi dir="ltr">
+            {body.length} / {CHAT_MESSAGE_MAX_LENGTH}
+          </bdi>
         </p>
       )}
       {message && (

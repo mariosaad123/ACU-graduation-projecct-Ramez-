@@ -17,6 +17,7 @@ import { Avatar } from '../auth/Avatar';
 import { AttachmentView } from './AttachmentView';
 import { renderBody } from './mentions';
 import { PollView } from './PollView';
+import { ReactionBar, ReactionPicker } from './Reactions';
 import styles from './Chat.module.css';
 
 export interface MessagePermissions {
@@ -45,7 +46,7 @@ export interface MessageActions {
   onPin: (message: ChatMessage, pinned: boolean) => void;
   onCopy: (message: ChatMessage) => void;
   onJumpTo: (messageId: string) => void;
-  /** A poll's votes changed: the message comes back with its new results. */
+  /** A poll's votes or the reactions changed: the message comes back as it now is. */
   onChanged: (message: ChatMessage) => void;
 }
 
@@ -253,6 +254,14 @@ export function ChatMessageItem({
             )}
           </>
         )}
+        {!message.deleted && (
+          <ReactionBar
+            groupId={groupId}
+            message={message}
+            readOnly={permissions.archived}
+            onChanged={actions.onChanged}
+          />
+        )}
         <p className={styles.meta}>
           {message.pinned && (
             <PushPinIcon className={styles.pinMark} aria-label={t('chat.pinnedMark')} />
@@ -262,7 +271,17 @@ export function ChatMessageItem({
         </p>
       </div>
       {!message.deleted && (
-        <MessageMenu message={message} permissions={permissions} actions={actions} />
+        <div className={styles.messageActions}>
+          {!permissions.archived && (
+            <ReactionPicker
+              groupId={groupId}
+              message={message}
+              onChanged={actions.onChanged}
+              className={styles.menu}
+            />
+          )}
+          <MessageMenu message={message} permissions={permissions} actions={actions} />
+        </div>
       )}
     </li>
   );

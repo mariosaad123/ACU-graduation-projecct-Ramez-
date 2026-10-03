@@ -9,6 +9,7 @@ import {
   CalendarDotsIcon,
   LockSimpleIcon,
   LockSimpleOpenIcon,
+  MagnifyingGlassIcon,
 } from '@phosphor-icons/react';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -26,6 +27,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { IconButton } from '../../components/ui/IconButton';
 import { Spinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/toast/toast-context';
 import { useFormatDate } from '../../i18n/use-format-date';
@@ -37,6 +39,7 @@ import { useUpdateGroup } from '../groups/api';
 import { useGroupPeople } from '../people/api';
 import { ChatComposer, type ComposerDraft } from './ChatComposer';
 import { ChatMessageItem, type MessageActions } from './ChatMessageItem';
+import { ChatSearch } from './ChatSearch';
 import { plainBody } from './mentions';
 import { PinnedBar } from './PinnedBar';
 import { PollDialog } from './PollDialog';
@@ -48,7 +51,7 @@ const CONTINUE_WITHIN_MS = 5 * 60 * 1000;
 /** How near the bottom still counts as reading the latest messages. */
 const NEAR_BOTTOM_PX = 120;
 /** Older pages loaded, at most, to reach a pinned or quoted message. */
-const JUMP_PAGES = 10;
+const JUMP_PAGES = 60;
 
 /** Scrolls the message list, and only the list, so a message sits at its top or middle. */
 function scrollListTo(
@@ -124,6 +127,7 @@ export function GroupChat({ view }: { view: GroupView }) {
   const [deleting, setDeleting] = useState<ChatMessage | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   // The "new messages" line stays where it was when the chat was opened.
   const [unreadFrom] = useState(view.chat.lastReadSeq);
@@ -193,13 +197,22 @@ export function GroupChat({ view }: { view: GroupView }) {
     async (messageId: string) => {
       let target = document.getElementById(`message-${messageId}`);
       let more = hasOlder;
-      for (let page = 0; !target && more && page < JUMP_PAGES; page += 1) {
-        more = await loadOlder();
-        // The older messages are in the page after the next paint.
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        target = document.getElementById(`message-${messageId}`);
+      try {
+        for (let page = 0; !target && more && page < JUMP_PAGES; page += 1) {
+          more = await loadOlder();
+          // The older messages are in the page after the next paint.
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          target = document.getElementById(`message-${messageId}`);
+        }
+      } catch (error) {
+        toast({ tone: 'danger', title: describeApiError(t, error) });
+        return;
       }
-      if (target && list.current) {
+      if (!target) {
+        toast({ tone: 'info', title: t('chat.messageGone') });
+        return;
+      }
+      if (list.current) {
         scrollListTo(list.current, target, 'center', 'smooth');
         target.classList.add(styles.highlight ?? '');
         const found = target;
@@ -208,7 +221,7 @@ export function GroupChat({ view }: { view: GroupView }) {
         }, 1600);
       }
     },
-    [hasOlder, loadOlder],
+    [hasOlder, loadOlder, t, toast],
   );
 
   // First view: the first unread message, or the bottom. Later: follow new messages while at the bottom.
@@ -352,6 +365,16 @@ export function GroupChat({ view }: { view: GroupView }) {
           {status}
         </Badge>
         {manual && <Badge>{t('chat.manual')}</Badge>}
+        <IconButton
+          size="sm"
+          className={styles.chatSearchButton}
+          label={t('chatSearch.open')}
+          aria-pressed={searching}
+          icon={<MagnifyingGlassIcon />}
+          onClick={() => {
+            setSearching((value) => !value);
+          }}
+        />
         {view.can.manage && !view.archived && (
           <Button
             size="sm"
@@ -401,6 +424,18 @@ export function GroupChat({ view }: { view: GroupView }) {
       )}
 
       <div className={styles.viewport}>
+        {searching && (
+          <ChatSearch
+            groupId={view.id}
+            onClose={() => {
+              setSearching(false);
+            }}
+            onOpen={(message) => {
+              setSearching(false);
+              void jumpTo(message.id);
+            }}
+          />
+        )}
         <div
           ref={list}
           className={styles.list}
@@ -413,7 +448,10 @@ export function GroupChat({ view }: { view: GroupView }) {
           {chat.status === 'loading' && <Spinner size="2rem" className={styles.loading} />}
           {chat.status === 'failed' && (
             <Alert tone="danger" live>
-              {describeApiError(t, chat.error) || t('chat.loadFailed')}
+              {describeApiError(t, chat.error) || t('chat.loadFailed')}{' '}
+              <button type="button" className={styles.inlineAction} onClick={chat.reload}>
+                {t('common.retry')}
+              </button>
             </Alert>
           )}
           {chat.status === 'ready' && chat.hasOlder && (
@@ -422,7 +460,9 @@ export function GroupChat({ view }: { view: GroupView }) {
               size="sm"
               className={styles.older}
               onClick={() => {
-                void chat.loadOlder();
+                chat.loadOlder().catch((error: unknown) => {
+                  toast({ tone: 'danger', title: describeApiError(t, error) });
+                });
               }}
             >
               {t('chat.loadOlder')}
