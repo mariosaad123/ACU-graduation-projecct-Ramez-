@@ -41,6 +41,7 @@ export const en: Messages = {
     rights: '© {{year}} Ahram Canadian University. All rights reserved.',
     universityLogo: 'Ahram Canadian University logo',
     facultyLogo: 'Faculty of Languages and Translation logo',
+    credits: 'Credits',
   },
   common: {
     close: 'Close',
@@ -60,7 +61,7 @@ export const en: Messages = {
   pages: {
     home: {
       eyebrow: 'Faculty of Languages and Translation',
-      title: 'Learn six languages at the level that suits you',
+      title: 'Learn seven languages at the level that suits you',
       lead: 'Start with a placement test, then practise listening, speaking, reading and writing one step at a time.',
       start: 'Take the placement test',
       explore: 'Explore the skills',
@@ -134,7 +135,7 @@ export const en: Messages = {
       'By continuing you agree to the <terms>terms of use</terms> and the <privacy>privacy policy</privacy>.',
     highlights: {
       placement: 'A placement test across all four skills',
-      practice: 'Daily practice in six languages',
+      practice: 'Daily practice in seven languages',
       doctors: 'Guidance from the Faculty of Languages and Translation',
     },
     failures: {
@@ -177,7 +178,7 @@ export const en: Messages = {
       study: { label: 'Study', hint: 'Coursework, research and references' },
       work: { label: 'Work', hint: 'Emails, meetings and interviews' },
       travel: { label: 'Travel', hint: 'Everyday situations, getting around and meeting people' },
-      exam: { label: 'Pass an exam', hint: 'Such as IELTS, DELF, HSK and JLPT' },
+      exam: { label: 'Pass an exam', hint: 'Such as IELTS, DELF, DELE, HSK and JLPT' },
       culture: { label: 'Culture and fun', hint: 'Books, films and meeting people' },
     },
     submit: 'Create my account',
@@ -1223,5 +1224,87 @@ export const en: Messages = {
   connection: {
     offline: 'You are offline. What you write will not be sent until the connection is back.',
     back: 'You are back online.',
+  },
+  site: {
+    updated: 'Last updated: {{date}}',
+    contents: 'On this page',
+    more: 'More pages',
+  },
+  home: {
+    start: 'Get started',
+    dashboard: 'Go to my dashboard',
+    howItWorks: 'How it works',
+    ready: 'Available now',
+    journey: {
+      title: 'Your way in three steps',
+      level: {
+        title: 'Find your level',
+        body: 'A short test places you on the ladder from A1 to C2, so you start where you are, not from zero.',
+        ladder: 'The six levels, from A1 to C2',
+      },
+      practice: {
+        title: 'Practise the four skills',
+        body: 'Lessons and exercises at your level in each skill, a little every day.',
+      },
+      follow: {
+        title: 'Follow up with your doctor',
+        body: 'A group for every course brings you, your doctor and your classmates together.',
+        chat: 'Chat',
+        assignments: 'Assignments',
+        grades: 'Grades',
+      },
+    },
+    skills: {
+      listening: 'Dialogues and lectures at different speeds.',
+      speaking: 'Record yourself and improve your pronunciation.',
+      reading: 'Texts that grow with your level.',
+      writing: 'From a sentence to an essay.',
+    },
+    areas: {
+      title: 'Everything on the platform',
+      lead: 'The four skills in their colours, and what completes them. What is not ready yet says “coming soon”.',
+      placement: {
+        title: 'Placement test',
+        body: 'Where everyone starts: listening, reading, writing and speaking, with a result for each skill.',
+      },
+      groups: {
+        title: 'Groups',
+        body: 'Chat, announcements, assignments and a gradebook for every course.',
+      },
+      translation: {
+        title: 'Translation',
+        body: 'Practice translating between Arabic and your language.',
+      },
+      practice: {
+        title: 'Practice',
+        body: 'Daily conversation that makes what you learned stick.',
+      },
+      library: {
+        title: 'Library',
+        body: 'Stories and literary texts chosen for each level.',
+      },
+      exams: {
+        title: 'Exams',
+        body: 'Your doctors’ quizzes and timed exams.',
+      },
+    },
+    audiences: {
+      title: 'Who is it for?',
+      student: {
+        title: 'For students',
+        one: 'Learn more than one language and switch whenever you like.',
+        two: 'Join your doctor’s group with a code or a QR code.',
+        three: 'Hand in your assignments and keep track of their deadlines.',
+        four: 'See your grades privately, with your doctor’s notes.',
+      },
+      doctor: {
+        title: 'For doctors',
+        one: 'A group for every course, with your teaching assistants.',
+        two: 'Announcements with read receipts, and polls in a moment.',
+        three: 'Grade assignments student by student; the score records itself.',
+        four: 'A gradebook exported to Excel, ready to hand in.',
+      },
+    },
+    closing: 'A new language starts with one step.',
   },
 };

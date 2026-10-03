@@ -13,7 +13,7 @@ describe('languages', () => {
 
   it('recognises supported codes only', () => {
     expect(isLearningLanguage('ja')).toBe(true);
-    expect(isLearningLanguage('es')).toBe(false);
+    expect(isLearningLanguage('it')).toBe(false);
     expect(isInterfaceLocale('ar')).toBe(true);
     expect(isInterfaceLocale('fr')).toBe(false);
   });

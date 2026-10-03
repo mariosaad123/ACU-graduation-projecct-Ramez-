@@ -1,4 +1,9 @@
-import type { LearningLanguage, SessionUser, StudentGroup } from '@acu/shared';
+import {
+  LEARNING_LANGUAGES,
+  type LearningLanguage,
+  type SessionUser,
+  type StudentGroup,
+} from '@acu/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -155,8 +160,8 @@ describe('LanguagesCard', () => {
     expect(cachedStudent()).toMatchObject({ activeLanguage: 'zh', languages: ['en', 'zh'] });
   });
 
-  it('stops offering to add languages once all six are there', () => {
-    renderCard(studentWith('en', ['ar', 'en', 'fr', 'de', 'zh', 'ja']));
+  it('stops offering to add languages once every one is there', () => {
+    renderCard(studentWith('en', [...LEARNING_LANGUAGES]));
 
     expect(screen.queryByRole('button', { name: 'Add a language' })).not.toBeInTheDocument();
     expect(

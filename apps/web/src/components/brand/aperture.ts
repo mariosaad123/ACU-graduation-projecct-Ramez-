@@ -11,6 +11,7 @@ export const LANGUAGE_GLYPHS: Record<LearningLanguage, string> = {
   en: 'A',
   fr: 'É',
   de: 'Ä',
+  es: 'Ñ',
   zh: '中',
   ja: 'あ',
 };

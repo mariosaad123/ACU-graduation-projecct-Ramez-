@@ -12,5 +12,6 @@ export const FOOTER_NAV = [
   { to: '/privacy', labelKey: 'footer.privacy' },
   { to: '/terms', labelKey: 'footer.terms' },
   { to: '/contact', labelKey: 'footer.contact' },
+  { to: '/credits', labelKey: 'footer.credits' },
   { to: '/design-system', labelKey: 'footer.designSystem' },
 ] as const;

@@ -2,9 +2,9 @@ import type { SessionUser, UserRole } from '@acu/shared';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router';
+import { SplashScreen } from '../../components/brand/SplashScreen';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
-import { Spinner } from '../../components/ui/Spinner';
 import { ForbiddenPage } from '../../pages/ForbiddenPage';
 import { UniversityIdStep } from '../profile/UniversityIdStep';
 import { landingPathFor, useSession } from './session';
@@ -29,11 +29,7 @@ export function AuthGate({ rule, children }: AuthGateProps) {
   const session = useSession();
 
   if (session.isPending) {
-    return (
-      <div className={styles.loading}>
-        <Spinner size="4rem" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (session.isError) {

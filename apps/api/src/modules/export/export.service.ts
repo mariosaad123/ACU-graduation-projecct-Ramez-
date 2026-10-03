@@ -297,10 +297,19 @@ const LANGUAGE_NAMES: Record<ExportLocale, Record<string, string>> = {
     en: 'الإنجليزية',
     fr: 'الفرنسية',
     de: 'الألمانية',
+    es: 'الإسبانية',
     zh: 'الصينية',
     ja: 'اليابانية',
   },
-  en: { ar: 'Arabic', en: 'English', fr: 'French', de: 'German', zh: 'Chinese', ja: 'Japanese' },
+  en: {
+    ar: 'Arabic',
+    en: 'English',
+    fr: 'French',
+    de: 'German',
+    es: 'Spanish',
+    zh: 'Chinese',
+    ja: 'Japanese',
+  },
 };
 
 const thin = { style: 'thin' as const, color: { argb: COLOR.line } };

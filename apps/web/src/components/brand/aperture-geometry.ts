@@ -3,7 +3,7 @@
  *
  * An inner regular polygon forms the opening. Each side of that polygon is extended until it
  * meets the outer circle; the region between two consecutive extended sides is one blade.
- * With six blades, each one stands for one of the six languages taught on the platform.
+ * The language picker draws one blade for each language taught on the platform.
  */
 
 export interface Point {

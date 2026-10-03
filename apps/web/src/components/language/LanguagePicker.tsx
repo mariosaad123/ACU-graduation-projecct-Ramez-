@@ -40,7 +40,7 @@ interface MultipleProps extends CommonProps {
 export type LanguagePickerProps = SingleProps | MultipleProps;
 
 /**
- * Six-blade aperture, one blade per language. Keyboard and screen reader support comes from the
+ * An aperture with one blade per language. Keyboard and screen reader support comes from the
  * native radio group (or checkboxes, for several languages) next to it; the aperture is a pointer
  * shortcut that mirrors its state.
  */

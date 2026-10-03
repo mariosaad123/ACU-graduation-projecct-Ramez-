@@ -49,7 +49,7 @@ describe('group requests', () => {
     ['a short name', { name: 'ab' }],
     ['a long name', { name: 'x'.repeat(81) }],
     ['a long description', { description: 'x'.repeat(301) }],
-    ['an unsupported language', { language: 'es' }],
+    ['an unsupported language', { language: 'it' }],
   ])('refuses %s', (_label, change) => {
     const request = { name: 'Conversation 2', language: 'fr', ...change };
     expect(groupCreateSchema.safeParse(request).success).toBe(false);

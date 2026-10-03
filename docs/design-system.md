@@ -73,7 +73,7 @@ the two meet inside the white rim around the globe, so the join is invisible whe
 - The same emblem is the loading indicator everywhere, including inside busy buttons.
 - With reduced motion enabled, the mark stays still.
 
-The language picker uses a separate six-blade aperture, one blade per language on the platform,
+The language picker uses a separate aperture with one blade per language on the platform,
 generated from geometry in `components/brand/aperture-geometry.ts`.
 
 ## Components

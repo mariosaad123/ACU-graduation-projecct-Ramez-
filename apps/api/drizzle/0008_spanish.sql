@@ -1,0 +1,1 @@
+ALTER TYPE "public"."learning_language" ADD VALUE 'es' BEFORE 'zh';

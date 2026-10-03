@@ -1,4 +1,4 @@
-import type { LearningLanguage } from '@acu/shared';
+import { LEARNING_LANGUAGES, type LearningLanguage } from '@acu/shared';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -12,11 +12,11 @@ function Picker() {
 }
 
 describe('LanguagePicker', () => {
-  it('offers the six languages as a labelled radio group', () => {
+  it('offers every language as a labelled radio group', () => {
     renderWithProviders(<Picker />);
 
     expect(screen.getByRole('group', { name: 'Choose a language to learn' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(6);
+    expect(screen.getAllByRole('radio')).toHaveLength(LEARNING_LANGUAGES.length);
     expect(screen.getByRole('radio', { name: /English/ })).toBeChecked();
   });
 
@@ -78,7 +78,7 @@ describe('LanguagePicker with several languages', () => {
     const changes: LearningLanguage[][] = [];
     renderWithProviders(<MultiPicker onChange={(next) => changes.push(next)} />);
 
-    expect(screen.getAllByRole('checkbox')).toHaveLength(6);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(LEARNING_LANGUAGES.length);
     await user.click(screen.getByRole('checkbox', { name: /Français/ }));
     await user.click(screen.getByRole('checkbox', { name: /English/ }));
 
