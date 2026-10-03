@@ -58,7 +58,12 @@ describe('doctorOnboardingSchema', () => {
 });
 
 describe('studentOnboardingSchema', () => {
-  const validStudent = { languages: ['ja'], activeLanguage: 'ja', goal: 'travel' };
+  const validStudent = {
+    languages: ['ja'],
+    activeLanguage: 'ja',
+    goal: 'travel',
+    universityId: '20231234',
+  };
 
   it('accepts one language', () => {
     expect(studentOnboardingSchema.safeParse(validStudent).success).toBe(true);
@@ -69,8 +74,11 @@ describe('studentOnboardingSchema', () => {
       languages: ['en', 'fr', 'de', 'zh', 'ja', 'ar'],
       activeLanguage: 'zh',
       goal: 'study',
+      universityId: ' 2023-a17 ',
     });
     expect(result.success).toBe(true);
+    // Kept as the card prints it.
+    expect(result.data?.universityId).toBe('2023-A17');
   });
 
   it.each([
@@ -78,6 +86,8 @@ describe('studentOnboardingSchema', () => {
     ['an unsupported language', { languages: ['ja', 'es'] }],
     ['the same language twice', { languages: ['ja', 'ja'] }],
     ['an unsupported goal', { goal: 'fun' }],
+    ['no university number', { universityId: '' }],
+    ['a university number with spaces inside', { universityId: '2023 1234' }],
   ])('rejects %s', (_label, change) => {
     expect(studentOnboardingSchema.safeParse({ ...validStudent, ...change }).success).toBe(false);
   });

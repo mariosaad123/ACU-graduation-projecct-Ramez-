@@ -19,7 +19,7 @@ export const CHAT_RATE_LIMIT_MIN = 1;
 export const CHAT_RATE_LIMIT_MAX = 120;
 
 /** Why a file was uploaded, which decides who may download it. */
-export const FILE_PURPOSES = ['avatar', 'group_photo', 'chat'] as const;
+export const FILE_PURPOSES = ['avatar', 'group_photo', 'chat', 'submission'] as const;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 
 /**
@@ -42,6 +42,47 @@ export const attachmentSchema = z.object({
 export type Attachment = z.infer<typeof attachmentSchema>;
 
 export const POLL_MAX_OPTIONS = 10;
+
+/** The reactions offered first on every message; any other emoji can be picked from the full list. */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
+
+/**
+ * How students answer a message from the staff: understood, or needs explaining. They are ordinary
+ * reactions, shown with words so the doctor reads the room at a glance.
+ */
+export const UNDERSTOOD_REACTION = '✅';
+export const UNCLEAR_REACTION = '❓';
+
+const PICTOGRAPH = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u;
+
+/**
+ * One emoji as people see it: a single grapheme (so skin tones, flags and joined sequences count
+ * as one) that holds a pictograph.
+ */
+export function isEmoji(text: string): boolean {
+  if (text.length === 0 || text.length > 32 || !PICTOGRAPH.test(text)) {
+    return false;
+  }
+  const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text);
+  return [...graphemes].length === 1;
+}
+
+/** A person's reaction to a message; null takes it back. Each person has one per message. */
+export const reactionSchema = z.object({
+  emoji: z.nullable(z.string().check(z.refine(isEmoji, { message: 'not_emoji' }))),
+});
+
+export const messageReactionsSchema = z.object({
+  reactions: z.array(
+    z.object({
+      emoji: z.string(),
+      people: z.array(
+        z.object({ id: z.string(), name: z.string(), avatarUrl: z.nullable(z.string()) }),
+      ),
+    }),
+  ),
+});
+export type MessageReactions = z.infer<typeof messageReactionsSchema>;
 
 /** A question with options, asked in a chat message; results update as people vote. */
 export const pollSchema = z.object({
@@ -124,6 +165,8 @@ export const chatMessageSchema = z.object({
   /** The reader is mentioned by name or through @all. */
   mentionsMe: z.boolean(),
   poll: z.nullable(pollSchema),
+  /** Each emoji people reacted with, most used first. */
+  reactions: z.array(z.object({ emoji: z.string(), count: z.number(), mine: z.boolean() })),
   pinned: z.boolean(),
   edited: z.boolean(),
   deleted: z.boolean(),
@@ -188,6 +231,17 @@ export type ChatChanges = z.infer<typeof chatChangesSchema>;
 
 export const chatMessageResponseSchema = z.object({ message: chatMessageSchema });
 
+/** What a search of the chat can be narrowed to. */
+export const CHAT_SEARCH_FILTERS = ['all', 'staff', 'pinned', 'mentions', 'files'] as const;
+export type ChatSearchFilter = (typeof CHAT_SEARCH_FILTERS)[number];
+export const CHAT_SEARCH_MIN_LENGTH = 2;
+
+export const chatSearchResponseSchema = z.object({
+  messages: z.array(chatMessageSchema),
+  hasMore: z.boolean(),
+});
+export type ChatSearchResponse = z.infer<typeof chatSearchResponseSchema>;
+
 export const editMessageSchema = z.object({
   body: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHAT_MESSAGE_MAX_LENGTH)),
 });
@@ -202,8 +256,8 @@ export const memberRoleSchema = z.object({ role: z.enum(GROUP_MEMBER_ROLES) });
 export const groupFileSchema = z.object({
   attachment: attachmentSchema,
   author: z.object({ id: z.string(), name: z.string() }),
-  source: z.enum(['chat', 'announcement']),
-  /** The message or announcement it came with. */
+  source: z.enum(['chat', 'announcement', 'assignment']),
+  /** The message, announcement or assignment it came with. */
   sourceId: z.string(),
   createdAt: z.string(),
 });

@@ -40,7 +40,7 @@ export const sessionUserSchema = z.object({
       activeLanguage: learningLanguage,
       languages: languageListSchema,
       goal: z.enum(LEARNING_GOALS),
-      /** The university's student number, for doctors' grade sheets; optional. */
+      /** The university's student number; null only for accounts older than the requirement. */
       universityId: z.nullable(z.string()),
     }),
   ),
@@ -60,11 +60,18 @@ export type SessionUser = z.infer<typeof sessionUserSchema>;
 export const meResponseSchema = z.object({ user: sessionUserSchema });
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
+/** A student number as printed on the university card: 3 to 20 letters, digits or dashes. */
+export const universityIdPattern = /^[A-Za-z0-9-]{3,20}$/;
+const universityId = z
+  .string()
+  .check(z.trim(), z.toUpperCase(), z.regex(universityIdPattern, { message: 'invalid' }));
+
 export const studentOnboardingSchema = z
   .object({
     languages: languageListSchema,
     activeLanguage: learningLanguage,
     goal: z.enum(LEARNING_GOALS),
+    universityId,
   })
   .check(
     z.refine((request) => request.languages.includes(request.activeLanguage), {
@@ -132,6 +139,11 @@ export const API_ERROR_CODES = [
   'ALREADY_ASSISTANT',
   'POLL_CLOSED',
   'SCORE_TOO_HIGH',
+  'COLUMN_HAS_ASSIGNMENT',
+  'ASSIGNMENT_CLOSED',
+  'SUBMISSION_LOCKED',
+  'UNIVERSITY_ID_TAKEN',
+  'UNIVERSITY_ID_REQUIRED',
   'PUSH_NOT_CONFIGURED',
   'TOO_MANY_FILES',
   'CSRF_REJECTED',
@@ -179,7 +191,5 @@ export const apiErrorSchema = z.object({
 });
 export type ApiErrorBody = z.infer<typeof apiErrorSchema>;
 
-/** Digits and letters as printed on a student card, 3 to 20 of them; empty clears it. */
-export const universityIdSchema = z.object({
-  universityId: z.nullable(z.string().check(z.trim(), z.regex(/^[A-Za-z0-9-]{3,20}$/))),
-});
+/** A student's number can be corrected, never removed: grade sheets are keyed by it. */
+export const universityIdSchema = z.object({ universityId });
