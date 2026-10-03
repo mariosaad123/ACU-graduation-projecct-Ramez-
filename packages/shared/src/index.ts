@@ -7,3 +7,8 @@ export * from './contracts/auth';
 export * from './contracts/groups';
 export * from './contracts/chat';
 export * from './contracts/people';
+export * from './contracts/roles';
+export * from './contracts/schedule';
+export * from './contracts/gradebook';
+export * from './contracts/notifications';
+export * from './contracts/announcements';
