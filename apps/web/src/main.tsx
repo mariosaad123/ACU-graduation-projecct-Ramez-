@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { detectInitialLocale } from './i18n/config';
 import { initI18n } from './i18n/i18n';
+import { registerServiceWorker } from './lib/service-worker';
 import { loadDeferredFonts } from './styles/load-deferred-fonts';
 import './styles/fonts.css';
 import './styles/tokens.css';
@@ -24,3 +25,4 @@ createRoot(container).render(
 );
 
 loadDeferredFonts();
+registerServiceWorker();

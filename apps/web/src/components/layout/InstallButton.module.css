@@ -1,0 +1,5 @@
+.hint {
+  max-inline-size: 22rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
