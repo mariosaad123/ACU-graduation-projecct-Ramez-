@@ -1230,4 +1230,81 @@ export const en: Messages = {
     contents: 'On this page',
     more: 'More pages',
   },
+  home: {
+    start: 'Get started',
+    dashboard: 'Go to my dashboard',
+    howItWorks: 'How it works',
+    ready: 'Available now',
+    journey: {
+      title: 'Your way in three steps',
+      level: {
+        title: 'Find your level',
+        body: 'A short test places you on the ladder from A1 to C2, so you start where you are, not from zero.',
+        ladder: 'The six levels, from A1 to C2',
+      },
+      practice: {
+        title: 'Practise the four skills',
+        body: 'Lessons and exercises at your level in each skill, a little every day.',
+      },
+      follow: {
+        title: 'Follow up with your doctor',
+        body: 'A group for every course brings you, your doctor and your classmates together.',
+        chat: 'Chat',
+        assignments: 'Assignments',
+        grades: 'Grades',
+      },
+    },
+    skills: {
+      listening: 'Dialogues and lectures at different speeds.',
+      speaking: 'Record yourself and improve your pronunciation.',
+      reading: 'Texts that grow with your level.',
+      writing: 'From a sentence to an essay.',
+    },
+    areas: {
+      title: 'Everything on the platform',
+      lead: 'The four skills in their colours, and what completes them. What is not ready yet says “coming soon”.',
+      placement: {
+        title: 'Placement test',
+        body: 'Where everyone starts: listening, reading, writing and speaking, with a result for each skill.',
+      },
+      groups: {
+        title: 'Groups',
+        body: 'Chat, announcements, assignments and a gradebook for every course.',
+      },
+      translation: {
+        title: 'Translation',
+        body: 'Practice translating between Arabic and your language.',
+      },
+      practice: {
+        title: 'Practice',
+        body: 'Daily conversation that makes what you learned stick.',
+      },
+      library: {
+        title: 'Library',
+        body: 'Stories and literary texts chosen for each level.',
+      },
+      exams: {
+        title: 'Exams',
+        body: 'Your doctors’ quizzes and timed exams.',
+      },
+    },
+    audiences: {
+      title: 'Who is it for?',
+      student: {
+        title: 'For students',
+        one: 'Learn more than one language and switch whenever you like.',
+        two: 'Join your doctor’s group with a code or a QR code.',
+        three: 'Hand in your assignments and keep track of their deadlines.',
+        four: 'See your grades privately, with your doctor’s notes.',
+      },
+      doctor: {
+        title: 'For doctors',
+        one: 'A group for every course, with your teaching assistants.',
+        two: 'Announcements with read receipts, and polls in a moment.',
+        three: 'Grade assignments student by student; the score records itself.',
+        four: 'A gradebook exported to Excel, ready to hand in.',
+      },
+    },
+    closing: 'A new language starts with one step.',
+  },
 };
