@@ -21,6 +21,8 @@ const ar = {
     loading: 'مؤشر التحميل',
     hover: 'مرّر المؤشر فوق الشعار ليدور شفرة واحدة',
     selected: 'اللغة المختارة',
+    splash: 'شاشة التحميل',
+    splashShow: 'اعرض شاشة التحميل لخمس ثوانٍ',
   },
   colors: {
     body: 'خلفية بيضاء، وأزرق مشتق من كحلي الجامعة للأفعال الأساسية، ولون مميز لكل مهارة. الأرقام بجانب كل زوج هي نسبة التباين محسوبة مباشرة من المتصفح.',
@@ -146,6 +148,8 @@ const en: Copy = {
     loading: 'Loading indicator',
     hover: 'Hover over the mark to turn it by one blade',
     selected: 'Selected language',
+    splash: 'Loading screen',
+    splashShow: 'Show the loading screen for five seconds',
   },
   colors: {
     body: 'A white background, a blue derived from the university navy for primary actions, and one colour per skill. The number next to each pair is its contrast ratio, computed live in the browser.',
