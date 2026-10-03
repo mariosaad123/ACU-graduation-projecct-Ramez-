@@ -144,3 +144,31 @@ export const nudgeResponseSchema = z.object({
   skipped: z.number(),
 });
 export type NudgeResponse = z.infer<typeof nudgeResponseSchema>;
+
+/**
+ * What is waiting for someone across all their groups: for a student, assignments not handed in
+ * yet; for the staff, handed-in work not graded yet.
+ */
+export const agendaSchema = z.object({
+  toHandIn: z.array(
+    z.object({
+      assignmentId: z.string(),
+      title: z.string(),
+      groupId: z.string(),
+      groupName: z.string(),
+      dueAt: z.nullable(z.string()),
+      /** The deadline has passed and late work is still taken. */
+      overdue: z.boolean(),
+    }),
+  ),
+  toGrade: z.array(
+    z.object({
+      assignmentId: z.string(),
+      title: z.string(),
+      groupId: z.string(),
+      groupName: z.string(),
+      waiting: z.number(),
+    }),
+  ),
+});
+export type Agenda = z.infer<typeof agendaSchema>;
