@@ -10,7 +10,10 @@ function render(language: LearningLanguage, session: SessionUser | null) {
 }
 
 const student = (activeLanguage: LearningLanguage, languages: LearningLanguage[]) =>
-  sessionUser({ role: 'student', student: { activeLanguage, languages, goal: 'study' } });
+  sessionUser({
+    role: 'student',
+    student: { activeLanguage, languages, goal: 'study', universityId: null },
+  });
 
 const doctor = (languages: LearningLanguage[]) =>
   sessionUser({

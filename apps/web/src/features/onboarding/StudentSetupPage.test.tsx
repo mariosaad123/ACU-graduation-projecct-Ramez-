@@ -8,7 +8,10 @@ const dashboard = { '/app': <p>dashboard</p> };
 
 function student(activeLanguage: 'en' | 'fr' | 'ja', languages: ('en' | 'fr' | 'ja')[]) {
   return {
-    user: sessionUser({ role: 'student', student: { activeLanguage, languages, goal: 'study' } }),
+    user: sessionUser({
+      role: 'student',
+      student: { activeLanguage, languages, goal: 'study', universityId: null },
+    }),
   };
 }
 

@@ -68,7 +68,7 @@ describe('SiteHeader account', () => {
     renderWithProviders(<SiteHeader />, {
       session: sessionUser({
         role: 'student',
-        student: { activeLanguage: 'fr', languages: ['fr'], goal: 'travel' },
+        student: { activeLanguage: 'fr', languages: ['fr'], goal: 'travel', universityId: null },
       }),
     });
 
@@ -124,6 +124,8 @@ describe('SiteHeader account', () => {
       {
         route: '/app',
         session: sessionUser({ role: 'student' }),
+        // The bell's count is already known, so signing out is the only request.
+        cache: [[['notifications', 'unread'], 0]],
         extraRoutes: { '/sign-in': <p>sign-in page</p> },
       },
     );
@@ -142,7 +144,12 @@ describe('SiteHeader account', () => {
     const { unmount } = renderWithProviders(<SiteHeader />, {
       session: sessionUser({
         role: 'student',
-        student: { activeLanguage: 'de', languages: ['en', 'de'], goal: 'study' },
+        student: {
+          activeLanguage: 'de',
+          languages: ['en', 'de'],
+          goal: 'study',
+          universityId: null,
+        },
       }),
     });
     expect(
