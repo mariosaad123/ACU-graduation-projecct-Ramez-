@@ -51,6 +51,18 @@ export function describeApiError(t: TFunction, error: unknown): string {
       return t('errors.chatMuted');
     case 'CHAT_RATE_LIMITED':
       return t('errors.chatRateLimited', { count: error.detail('limit') ?? 0 });
+    case 'ASSISTANT_NOT_FOUND':
+      return t('errors.assistantNotFound');
+    case 'ALREADY_ASSISTANT':
+      return t('errors.alreadyAssistant');
+    case 'POLL_CLOSED':
+      return t('errors.pollClosed');
+    case 'SCORE_TOO_HIGH':
+      return t('errors.scoreTooHigh');
+    case 'TOO_MANY_FILES':
+      return t('errors.tooManyFiles');
+    case 'PUSH_NOT_CONFIGURED':
+      return t('errors.pushNotConfigured');
     case 'MESSAGE_NOT_EDITABLE':
       return t('errors.messageNotEditable');
     default:
