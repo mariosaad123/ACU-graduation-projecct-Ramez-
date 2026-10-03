@@ -14,12 +14,14 @@ import { Badge } from '../../components/ui/Badge';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { Card } from '../../components/ui/Card';
 import { useLanguageName } from '../../i18n/use-language-name';
+import { useLocale } from '../../i18n/use-locale';
 import { PageTitle } from '../../pages/PageTitle';
 import { firstName } from '../auth/session';
 import { AssistedGroupsSection } from '../groups/AssistedGroupsSection';
 import { DoctorGroupsSection } from '../groups/DoctorGroupsSection';
 import { StudentGroupsCard } from '../groups/StudentGroupsCard';
 import { TeachingLanguagesCard } from '../groups/TeachingLanguagesCard';
+import { AttentionCard } from './AttentionCard';
 import { LanguagesCard } from '../languages/LanguagesCard';
 import styles from './DashboardPage.module.css';
 
@@ -57,8 +59,6 @@ function StudentDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <p className={styles.lead}>{t('dashboard.student.lead')}</p>
-
       <div className={styles.summary}>
         <LanguagesCard student={student} />
 
@@ -105,8 +105,6 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <p className={styles.lead}>{t('dashboard.doctor.lead')}</p>
-
       <div className={styles.summary}>
         <Card className={styles.profileCard}>
           <div className={styles.profileHead}>
@@ -159,6 +157,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
 
 export function DashboardPage({ user }: { user: SessionUser }) {
   const { t } = useTranslation();
+  const { intlLocale } = useLocale();
   const { hash } = useLocation();
 
   // Links such as /app#groups land on their section; #languages focuses its own card.
@@ -169,15 +168,30 @@ export function DashboardPage({ user }: { user: SessionUser }) {
   }, [hash]);
   const displayName =
     user.role === 'doctor' && user.doctor ? user.doctor.displayName : firstName(user.name);
+  const now = new Date();
+  const today = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'full' }).format(now);
 
   return (
     <>
       <PageTitle>{t('dashboard.title')}</PageTitle>
       <Container className={styles.page}>
         <header className={styles.header}>
-          {user.role && <Badge tone="info">{t(`account.roles.${user.role}`)}</Badge>}
-          <h1 className={styles.title}>{t('dashboard.greeting', { name: displayName })}</h1>
+          <p className={styles.today}>
+            {user.role && <Badge tone="info">{t(`account.roles.${user.role}`)}</Badge>}
+            <time dateTime={now.toISOString().slice(0, 10)}>{today}</time>
+          </p>
+          <h1 className={styles.title}>
+            {t(
+              now.getHours() >= 5 && now.getHours() < 12
+                ? 'dashboard.morning'
+                : 'dashboard.evening',
+              {
+                name: displayName,
+              },
+            )}
+          </h1>
         </header>
+        {(user.role === 'student' || user.role === 'doctor') && <AttentionCard role={user.role} />}
         {user.role === 'student' && <StudentDashboard user={user} />}
         {user.role === 'doctor' && <DoctorDashboard user={user} />}
         {user.role === 'admin' && <p className={styles.lead}>{t('dashboard.admin.lead')}</p>}

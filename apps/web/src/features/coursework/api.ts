@@ -1,4 +1,5 @@
 import {
+  agendaSchema,
   assignmentDetailSchema,
   assignmentResponseSchema,
   assignmentsResponseSchema,
@@ -25,6 +26,14 @@ function formOf(data: object, files: readonly File[]): FormData {
     form.append('files', file, file.name);
   }
   return form;
+}
+
+/** What is waiting for the reader across their groups; refreshed as assignments change. */
+export function useAgenda() {
+  return useQuery({
+    queryKey: ['agenda'],
+    queryFn: () => apiRequest('/api/me/agenda', { schema: agendaSchema }),
+  });
 }
 
 export function useAssignments(groupId: string) {
@@ -57,6 +66,7 @@ function useRefresh(groupId: string) {
       queryClient.invalidateQueries({ queryKey: assignmentsKey(groupId) }),
       queryClient.invalidateQueries({ queryKey: gradebookKey(groupId) }),
       queryClient.invalidateQueries({ queryKey: ['group', groupId, 'my-grades'] }),
+      queryClient.invalidateQueries({ queryKey: ['agenda'] }),
     ]);
 }
 
