@@ -16,6 +16,7 @@ import { Card } from '../../components/ui/Card';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { PageTitle } from '../../pages/PageTitle';
 import { firstName } from '../auth/session';
+import { AssistedGroupsSection } from '../groups/AssistedGroupsSection';
 import { DoctorGroupsSection } from '../groups/DoctorGroupsSection';
 import { StudentGroupsCard } from '../groups/StudentGroupsCard';
 import { TeachingLanguagesCard } from '../groups/TeachingLanguagesCard';
@@ -133,6 +134,7 @@ function DoctorDashboard({ user }: { user: SessionUser }) {
       </div>
 
       <DoctorGroupsSection languages={doctor.languages} />
+      <AssistedGroupsSection />
 
       <section className={styles.section} aria-labelledby="doctor-tools">
         <h2 id="doctor-tools" className={styles.sectionTitle}>

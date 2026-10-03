@@ -17,7 +17,7 @@ import {
 import clsx from 'clsx';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
@@ -30,16 +30,13 @@ import { Field } from '../../components/ui/Field';
 import fieldStyles from '../../components/ui/Field.module.css';
 import { PhotoField } from '../../components/ui/PhotoField';
 import { Spinner } from '../../components/ui/Spinner';
-import { Tabs } from '../../components/ui/Tabs';
 import { TextArea } from '../../components/ui/TextArea';
 import { TextField } from '../../components/ui/TextField';
 import { useToast } from '../../components/ui/toast/toast-context';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { ApiError } from '../../lib/api';
-import { NotFoundPage } from '../../pages/NotFoundPage';
 import { PageTitle } from '../../pages/PageTitle';
 import { describeApiError } from '../auth/api-errors';
-import { GroupChat } from '../chat/GroupChat';
 import { useGroupView } from '../chat/use-chat';
 import {
   useAddMember,
@@ -48,8 +45,12 @@ import {
   useGroupPhoto,
   useUpdateGroup,
 } from './api';
+import { AssistantsPanel } from './AssistantsPanel';
+import { ChatSettings } from './ChatSettings';
 import { CopyButton } from './CopyButton';
 import { GroupPhoto } from './GroupPhoto';
+import { GroupTabs } from './GroupTabs';
+import { MemberGroupPage } from './MemberGroupPage';
 import { QrCode } from './QrCode';
 import { MembersPanel } from './MembersPanel';
 import { joinLink } from './pending-join';
@@ -352,16 +353,6 @@ function SettingsPanel({ group }: { group: Group }) {
         }}
       />
       <Checkbox
-        label={t('groups.chatOpen')}
-        hint={t('groups.chatOpenHint')}
-        checked={group.chatOpen}
-        disabled={update.isPending}
-        onChange={(event) => {
-          toggle({ chatOpen: event.target.checked });
-        }}
-      />
-      {group.chatOpen && <ChatRateLimitField group={group} />}
-      <Checkbox
         label={t('groups.joinOpen')}
         hint={t('groups.joinOpenHint')}
         checked={group.joinOpen}
@@ -483,23 +474,6 @@ function AddMemberForm({ group }: { group: Group }) {
   );
 }
 
-/** The group's chat as its doctor sees it. */
-function DoctorChat({ groupId }: { groupId: string }) {
-  const { t } = useTranslation();
-  const view = useGroupView(groupId);
-  if (view.isPending) {
-    return <Spinner size="2rem" />;
-  }
-  if (view.isError) {
-    return (
-      <Alert tone="danger" live>
-        {describeApiError(t, view.error)}
-      </Alert>
-    );
-  }
-  return <GroupChat view={view.data} />;
-}
-
 /** One group of the signed-in doctor: share it, change it, and look after its students. */
 export function GroupPage() {
   const { t } = useTranslation();
@@ -508,9 +482,7 @@ export function GroupPage() {
   const { groupId = '' } = useParams();
   const groups = useDoctorGroups();
   const restore = useGroupCommand(groupId, 'restore');
-  // The open tab lives in the address, so a reload or a shared link lands on the same one.
-  const [search, setSearch] = useSearchParams();
-  const tab = search.get('tab');
+  const view = useGroupView(groupId);
 
   if (groups.isPending) {
     return (
@@ -530,7 +502,8 @@ export function GroupPage() {
   }
   const group = groups.data.find((candidate) => candidate.id === groupId);
   if (!group) {
-    return <NotFoundPage />;
+    // Not one of the doctor's own: perhaps one they help run, which its own page works out.
+    return <MemberGroupPage />;
   }
 
   return (
@@ -565,7 +538,7 @@ export function GroupPage() {
           </div>
         </header>
 
-        {group.archived ? (
+        {group.archived && (
           <Alert tone="info">
             <span className={styles.archivedNotice}>
               {t('groups.archivedNotice')}
@@ -588,54 +561,73 @@ export function GroupPage() {
               </Button>
             </span>
           </Alert>
-        ) : (
-          <div className={styles.panels}>
-            <SharePanel group={group} />
-            <SettingsPanel group={group} />
-          </div>
         )}
 
-        <Tabs
-          label={group.name}
-          selectedTabId={
-            tab === 'chat' || tab === 'students'
-              ? tab
-              : group.counts.pending > 0
-                ? 'students'
-                : 'chat'
-          }
-          onSelect={(id) => {
-            setSearch({ tab: id }, { replace: true });
-          }}
-          tabs={[
-            {
-              id: 'chat',
-              label:
-                group.unread > 0
-                  ? `${t('groups.tabChat')} (${String(group.unread)})`
-                  : t('groups.tabChat'),
-              content: <DoctorChat groupId={group.id} />,
-            },
-            {
-              id: 'students',
-              label: t('groups.tabStudents'),
-              content: (
-                <section className={styles.section} aria-labelledby="group-members">
-                  <h2 id="group-members" className="visually-hidden">
-                    {t('groups.membersLabel')}
-                  </h2>
-                  {!group.archived && (
-                    <Card>
-                      <h3 className={styles.cardTitle}>{t('groups.addTitle')}</h3>
-                      <AddMemberForm group={group} />
+        {view.isPending && <Spinner size="2rem" />}
+        {view.isError && (
+          <Alert tone="danger" live>
+            {describeApiError(t, view.error)}
+          </Alert>
+        )}
+        {view.isSuccess && (
+          <GroupTabs
+            view={view.data}
+            unreadChat={group.unread}
+            initial={group.counts.pending > 0 ? 'students' : 'chat'}
+            extra={[
+              {
+                id: 'students',
+                label:
+                  group.counts.pending > 0
+                    ? `${t('groups.tabStudents')} (${String(group.counts.pending)})`
+                    : t('groups.tabStudents'),
+                content: (
+                  <section className={styles.section} aria-labelledby="group-members">
+                    <h2 id="group-members" className="visually-hidden">
+                      {t('groups.membersLabel')}
+                    </h2>
+                    {!group.archived && (
+                      <Card>
+                        <h3 className={styles.cardTitle}>{t('groups.addTitle')}</h3>
+                        <AddMemberForm group={group} />
+                      </Card>
+                    )}
+                    <MembersPanel group={group} />
+                  </section>
+                ),
+              },
+              {
+                id: 'settings',
+                label: t('groups.tabSettings'),
+                content: (
+                  <div className={styles.settingsTab}>
+                    {!group.archived && (
+                      <div className={styles.panels}>
+                        <SharePanel group={group} />
+                        <SettingsPanel group={group} />
+                      </div>
+                    )}
+                    {!group.archived && (
+                      <Card className={styles.settings}>
+                        <h2 className={styles.cardTitle}>{t('chatSettings.title')}</h2>
+                        <ChatSettings
+                          // A saved change, here or from the chat, starts the form afresh.
+                          key={JSON.stringify([group.chatOpen, group.chatSchedule])}
+                          group={group}
+                        />
+                        <ChatRateLimitField group={group} />
+                      </Card>
+                    )}
+                    <Card className={styles.settings}>
+                      <h2 className={styles.cardTitle}>{t('assistants.title')}</h2>
+                      <AssistantsPanel group={group} />
                     </Card>
-                  )}
-                  <MembersPanel group={group} />
-                </section>
-              ),
-            },
-          ]}
-        />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
       </Container>
     </>
   );

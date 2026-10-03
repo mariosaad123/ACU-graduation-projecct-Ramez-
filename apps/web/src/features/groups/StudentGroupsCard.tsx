@@ -122,6 +122,12 @@ export function StudentGroupsCard({ student }: { student: Student }) {
                 {group.unread > 0 && (
                   <Badge tone="emblem">{t('groups.unread', { count: group.unread })}</Badge>
                 )}
+                {group.unreadAnnouncements > 0 && (
+                  <Badge tone="warning">
+                    {t('groups.unreadAnnouncements', { count: group.unreadAnnouncements })}
+                  </Badge>
+                )}
+                {group.role !== 'student' && <Badge tone="info">{t(`roles.${group.role}`)}</Badge>}
               </div>
               {group.status === 'active' && (
                 <ButtonLink

@@ -1,10 +1,17 @@
-import { suspendStudentSchema, type Group, type GroupMember } from '@acu/shared';
+import {
+  GROUP_MEMBER_ROLES,
+  suspendStudentSchema,
+  type Group,
+  type GroupMember,
+  type GroupMemberRole,
+} from '@acu/shared';
 import {
   ArrowsLeftRightIcon,
   ArrowUUpLeftIcon,
   ChatCircleSlashIcon,
   CheckIcon,
   ProhibitIcon,
+  ShieldStarIcon,
   UserMinusIcon,
   XIcon,
 } from '@phosphor-icons/react';
@@ -28,6 +35,7 @@ import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import {
   useChatMute,
+  useMemberRole,
   useDoctorGroups,
   useGroupMembers,
   useMemberAction,
@@ -61,6 +69,7 @@ function MemberRow({
   onDialog,
   onUnsuspend,
   onMute,
+  onRole,
 }: {
   member: GroupMember;
   readOnly: boolean;
@@ -69,6 +78,7 @@ function MemberRow({
   onDialog: (dialog: NonNullable<Dialogs>['kind']) => void;
   onUnsuspend: () => void;
   onMute: (muted: boolean) => void;
+  onRole: (role: GroupMemberRole) => void;
 }) {
   const { t } = useTranslation();
   const languageName = useLanguageName();
@@ -117,6 +127,13 @@ function MemberRow({
               </li>
             ))}
           </ul>
+        )}
+        {status === 'active' && member.role !== 'student' && (
+          <p className={styles.suspension}>
+            <Badge tone="emblem" icon={<ShieldStarIcon aria-hidden="true" />}>
+              {t(`roles.${member.role}`)}
+            </Badge>
+          </p>
         )}
         {status === 'active' && member.chatMuted && (
           <p className={styles.suspension}>
@@ -171,6 +188,22 @@ function MemberRow({
         )}
         {!readOnly && status === 'active' && (
           <>
+            <label className={styles.roleSelect}>
+              <span className="visually-hidden">{t('groups.roleOf', { name: student.name })}</span>
+              <select
+                value={member.role}
+                disabled={busy}
+                onChange={(event) => {
+                  onRole(event.target.value as GroupMemberRole);
+                }}
+              >
+                {GROUP_MEMBER_ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {t(`roles.${role}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Button
               size="sm"
               variant="secondary"
@@ -256,6 +289,7 @@ function MemberList({
   onDialog: (dialog: NonNullable<Dialogs>) => void;
   onUnsuspend: (member: GroupMember) => void;
   onMute: (member: GroupMember, muted: boolean) => void;
+  onRole: (member: GroupMember, role: GroupMemberRole) => void;
 }) {
   if (members.length === 0) {
     return <p className={styles.emptyList}>{empty}</p>;
@@ -279,6 +313,9 @@ function MemberList({
           }}
           onMute={(muted) => {
             rowProps.onMute(member, muted);
+          }}
+          onRole={(role) => {
+            rowProps.onRole(member, role);
           }}
         />
       ))}
@@ -428,12 +465,14 @@ export function MembersPanel({ group }: { group: Group }) {
   const action = useMemberAction(group.id);
   const suspension = useSuspension();
   const chatMute = useChatMute(group.id);
+  const memberRole = useMemberRole(group.id);
   const [dialog, setDialog] = useState<Dialogs>(null);
 
   const busyId =
     (action.isPending && action.variables.studentId) ||
     (suspension.isPending && suspension.variables.studentId) ||
     (chatMute.isPending && chatMute.variables.studentId) ||
+    (memberRole.isPending && memberRole.variables.studentId) ||
     null;
 
   const run = (member: GroupMember, memberAction: MemberAction, onDone?: () => void) => {
@@ -490,6 +529,23 @@ export function MembersPanel({ group }: { group: Group }) {
     );
   };
 
+  const changeRole = (member: GroupMember, role: GroupMemberRole) => {
+    memberRole.mutate(
+      { studentId: member.student.id, role },
+      {
+        onSuccess: () => {
+          toast({
+            tone: 'success',
+            title: t('groups.roleChanged', { name: member.student.name, role: t(`roles.${role}`) }),
+          });
+        },
+        onError: (error) => {
+          toast({ tone: 'danger', title: describeApiError(t, error) });
+        },
+      },
+    );
+  };
+
   if (members.isPending) {
     return (
       <div className={styles.members} aria-busy="true">
@@ -520,6 +576,7 @@ export function MembersPanel({ group }: { group: Group }) {
     onDialog: setDialog,
     onUnsuspend: unsuspend,
     onMute: mute,
+    onRole: changeRole,
   };
 
   return (
