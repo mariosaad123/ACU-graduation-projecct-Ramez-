@@ -1,0 +1,275 @@
+/* The bell in the header */
+.bell {
+  position: relative;
+}
+
+.bellButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.bellButton:hover,
+.bellButton[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+}
+
+.bellButton > svg {
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+}
+
+.badge {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-end: 0.125rem;
+  min-inline-size: 1.125rem;
+  padding-inline: 0.25rem;
+  border: 2px solid var(--color-surface);
+  border-radius: var(--radius-full);
+  background: var(--color-danger-solid);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: var(--weight-bold);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  gap: var(--space-2);
+  inline-size: min(24rem, calc(100vw - var(--space-6)));
+  max-block-size: min(32rem, calc(100dvh - var(--header-height) - var(--space-6)));
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-overlay);
+  overflow-y: auto;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+/* On a phone the bell is far from the edge: the panel spans the screen instead. */
+@media (width < 40rem) {
+  .panel {
+    position: fixed;
+    inset-block-start: calc(var(--header-height) + var(--space-1));
+    inset-inline: var(--space-3);
+    inline-size: auto;
+  }
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.panelTitle,
+.cardTitle {
+  font-size: var(--text-lg);
+}
+
+.textButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.textButton:hover {
+  text-decoration: underline;
+}
+
+.all {
+  justify-self: center;
+  padding: var(--space-2);
+  color: var(--color-link);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.empty {
+  padding: var(--space-6) var(--space-3);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* The list, in the bell and on the page */
+.list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--color-surface-muted);
+}
+
+.item[data-unread='true'] {
+  background: var(--color-action-subtle);
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.icon[data-kind='mention'],
+.icon[data-kind='role'] {
+  background: var(--color-emblem-subtle);
+  color: var(--color-emblem-on-subtle);
+}
+
+.icon[data-kind='announcement'] {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.icon[data-kind='grade'] {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.what {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+
+  /* A Latin excerpt keeps its own direction and still lines up with the Arabic around it. */
+  text-align: match-parent;
+}
+
+.when {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.dot {
+  flex-shrink: 0;
+  align-self: center;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-action);
+}
+
+/* The notifications page */
+.page {
+  display: grid;
+  gap: var(--space-6);
+  padding-block: var(--space-10) var(--space-8);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+}
+
+.lead {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+}
+
+.columns {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (width >= 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.side {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.muted {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.pushRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pushOn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-success);
+  font-weight: var(--weight-semibold);
+}
