@@ -530,6 +530,7 @@ describe('exporting to Excel', () => {
     expect(book.worksheets.map((sheet) => sheet.name)).toEqual([
       'ملخص',
       'كشف الدرجات',
+      'الواجبات',
       'النشاط',
       'الإعلانات',
       'الاستطلاعات',

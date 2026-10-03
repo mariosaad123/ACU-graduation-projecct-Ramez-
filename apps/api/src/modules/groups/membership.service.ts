@@ -1,7 +1,14 @@
 import { normalizeJoinCode, type JoinPreview, type StudentGroup } from '@acu/shared';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database } from '../../db/client';
-import { doctorProfiles, groupMembers, groups, users, type User } from '../../db/schema';
+import {
+  doctorProfiles,
+  groupMembers,
+  groups,
+  studentProfiles,
+  users,
+  type User,
+} from '../../db/schema';
 import { HttpError } from '../../http/http-error';
 import { countRecentAudit, recordAudit } from '../audit/audit';
 import { unreadAnnouncementCounts, unreadCounts } from '../chat/chat.service';
@@ -116,6 +123,14 @@ export async function joinGroup(
   const { group, membership } = await findJoinable(context, student, rawCode);
   if (membership) {
     throw new HttpError(409, 'ALREADY_MEMBER', 'You are already in this group');
+  }
+  // A doctor's sheets are keyed by the university number, so nobody joins without one.
+  const [profile] = await db
+    .select({ universityId: studentProfiles.universityId })
+    .from(studentProfiles)
+    .where(eq(studentProfiles.userId, student.id));
+  if (!profile?.universityId) {
+    throw new HttpError(409, 'UNIVERSITY_ID_REQUIRED', 'Add your university number first');
   }
   const status = group.requiresApproval ? 'pending' : 'active';
 

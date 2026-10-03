@@ -150,6 +150,7 @@ export async function personProfile(db: Database, viewer: User, personId: string
     avatarUrl: avatarUrlOf(person),
     role: person.role,
     email: doctor ? doctor.universityEmail : me || theirDoctor ? person.email : null,
+    universityId: me || theirDoctor ? (student?.universityId ?? null) : null,
     languages: await languagesOf(db, person),
     activeLanguage: student?.activeLanguage ?? null,
     memberSince: person.createdAt.toISOString(),

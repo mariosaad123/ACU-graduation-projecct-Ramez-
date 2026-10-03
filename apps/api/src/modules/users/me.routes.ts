@@ -1,6 +1,7 @@
 import { PHOTO_MAX_BYTES, universityIdSchema, type MeResponse } from '@acu/shared';
 import { eq } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
+import { uniqueViolation } from '../../db/errors';
 import { studentProfiles, users } from '../../db/schema';
 import type { AppDependencies } from '../../http/dependencies';
 import { HttpError } from '../../http/http-error';
@@ -9,6 +10,7 @@ import { acceptOneFile, uploadedFile } from '../../http/middleware/upload';
 import { withBody } from '../../http/middleware/validate';
 import { recordAudit } from '../audit/audit';
 import { removeFile, saveUpload } from '../files/files.service';
+import { universityIdTaken } from '../onboarding/onboarding.service';
 import { toSessionUser } from './session-user';
 
 export function createMeRouter(deps: AppDependencies): Router {
@@ -40,10 +42,23 @@ export function createMeRouter(deps: AppDependencies): Router {
       if (user.role !== 'student') {
         throw new HttpError(403, 'FORBIDDEN', 'Only students have a university number here');
       }
-      await db
-        .update(studentProfiles)
-        .set({ universityId: body.universityId, updatedAt: now() })
-        .where(eq(studentProfiles.userId, user.id));
+      try {
+        await db
+          .update(studentProfiles)
+          .set({ universityId: body.universityId, updatedAt: now() })
+          .where(eq(studentProfiles.userId, user.id));
+      } catch (error) {
+        if (uniqueViolation(error)?.includes('university_id')) {
+          throw universityIdTaken();
+        }
+        throw error;
+      }
+      await recordAudit(db, {
+        at: now(),
+        actorUserId: user.id,
+        action: 'student.university_id_changed',
+        ipAddress: req.ip,
+      });
       await respondWithAccount(req, res);
     }),
   );

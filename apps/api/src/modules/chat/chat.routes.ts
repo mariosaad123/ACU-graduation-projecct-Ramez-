@@ -1,8 +1,11 @@
 import {
+  CHAT_SEARCH_FILTERS,
   CHAT_VIDEO_MAX_BYTES,
   CHAT_MESSAGE_MAX_LENGTH,
   editMessageSchema,
   markReadSchema,
+  reactionSchema,
+  type ChatSearchFilter,
 } from '@acu/shared';
 import { Router, type Request } from 'express';
 import * as z from 'zod/mini';
@@ -24,6 +27,8 @@ import {
   setPinned,
   type ChatContext,
 } from './chat.service';
+import { reactionsOf, setReaction } from './reactions.service';
+import { searchChat } from './search.service';
 
 const postFields = z.object({
   body: z.optional(z.string().check(z.maxLength(CHAT_MESSAGE_MAX_LENGTH * 2))),
@@ -89,6 +94,20 @@ export function createGroupChatRouter(deps: AppDependencies): Router {
     res.set('Cache-Control', 'no-store').json(changes);
   });
 
+  router.get('/chat/search', async (req, res) => {
+    const before = req.query.before === undefined ? null : numberParam(req.query.before);
+    const filter = (CHAT_SEARCH_FILTERS as readonly unknown[]).includes(req.query.filter)
+      ? (req.query.filter as ChatSearchFilter)
+      : 'all';
+    const text = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : '';
+    const result = await searchChat(contextFor(req), authOf(req).user, groupIdOf(req), {
+      text,
+      filter,
+      beforeSeq: before,
+    });
+    res.set('Cache-Control', 'no-store').json(result);
+  });
+
   // Videos may be up to 25 MB; other files are held to their own limit once recognised.
   router.post('/chat', acceptOneFile('file', CHAT_VIDEO_MAX_BYTES), async (req, res) => {
     const fields = postFields.safeParse(req.body ?? {});
@@ -144,6 +163,30 @@ export function createGroupChatRouter(deps: AppDependencies): Router {
       res.json({ message });
     });
   }
+
+  router.put(
+    '/chat/:messageId/reaction',
+    withBody(reactionSchema, async (req, res, body) => {
+      const message = await setReaction(
+        contextFor(req),
+        authOf(req).user,
+        groupIdOf(req),
+        messageIdOf(req),
+        body.emoji,
+      );
+      res.json({ message });
+    }),
+  );
+
+  router.get('/chat/:messageId/reactions', async (req, res) => {
+    const reactions = await reactionsOf(
+      contextFor(req),
+      authOf(req).user,
+      groupIdOf(req),
+      messageIdOf(req),
+    );
+    res.set('Cache-Control', 'no-store').json(reactions);
+  });
 
   router.post(
     '/chat/read',

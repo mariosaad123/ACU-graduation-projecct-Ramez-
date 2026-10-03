@@ -1,10 +1,11 @@
 import { isStaff, type ChatMessage, type GroupRole, type Poll } from '@acu/shared';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import {
   doctorProfiles,
   files,
   groupMessages,
+  messageReactions,
   pollOptions,
   polls,
   pollVotes,
@@ -201,6 +202,31 @@ export async function toMessages(
     now,
   );
 
+  const reactionRows =
+    rows.length === 0
+      ? []
+      : await db
+          .select({
+            messageId: messageReactions.messageId,
+            emoji: messageReactions.emoji,
+            total: count(),
+            mine: sql<boolean>`bool_or(${messageReactions.userId} = ${reader.id})`,
+          })
+          .from(messageReactions)
+          .where(
+            inArray(
+              messageReactions.messageId,
+              rows.map((row) => row.id),
+            ),
+          )
+          .groupBy(messageReactions.messageId, messageReactions.emoji);
+  const reactionsBy = new Map<string, ChatMessage['reactions']>();
+  for (const row of reactionRows) {
+    const list = reactionsBy.get(row.messageId) ?? [];
+    list.push({ emoji: row.emoji, count: row.total, mine: row.mine });
+    reactionsBy.set(row.messageId, list);
+  }
+
   return rows.map((row) => {
     const reply = row.replyToId ? replyById.get(row.replyToId) : undefined;
     const deleted = row.deletedAt !== null;
@@ -239,6 +265,11 @@ export async function toMessages(
         row.authorId !== reader.id &&
         (row.mentions.includes(reader.id) || row.mentionsAll),
       poll: deleted ? null : (pollByMessage.get(row.id) ?? null),
+      reactions: deleted
+        ? []
+        : (reactionsBy.get(row.id) ?? []).sort(
+            (a, b) => b.count - a.count || a.emoji.localeCompare(b.emoji),
+          ),
       pinned: !deleted && row.pinnedAt !== null,
       edited: !deleted && row.editedAt !== null,
       deleted,

@@ -43,6 +43,8 @@ export const AUDIT_ACTIONS = [
   'group.grades_exported',
   'admin.role_granted',
   'admin.doctor_code_rotated',
+  'assignment.deleted',
+  'student.university_id_changed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

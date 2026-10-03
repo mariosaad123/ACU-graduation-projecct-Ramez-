@@ -26,6 +26,7 @@ const IMAGE_SHAPES: Record<FilePurpose, { size: number; square: boolean }> = {
   avatar: { size: 256, square: true },
   group_photo: { size: 512, square: true },
   chat: { size: 1600, square: false },
+  submission: { size: 2000, square: false },
 };
 
 /** Beyond this an image is refused before it is decoded (a "decompression bomb"). */
@@ -47,7 +48,7 @@ async function processImage(data: Buffer, purpose: FilePurpose) {
   const shape = IMAGE_SHAPES[purpose];
   try {
     const pipeline = sharp(data, {
-      animated: purpose === 'chat',
+      animated: purpose === 'chat' || purpose === 'submission',
       limitInputPixels: MAX_INPUT_PIXELS,
     })
       .rotate()
@@ -84,7 +85,8 @@ export async function saveUpload(
   groupId: string | null = null,
 ): Promise<FileRow> {
   const sniffed = sniffType(upload.buffer, upload.originalName, upload.declaredType);
-  if (!sniffed || (purpose !== 'chat' && sniffed.kind !== 'image')) {
+  const anyKind = purpose === 'chat' || purpose === 'submission';
+  if (!sniffed || (!anyKind && sniffed.kind !== 'image')) {
     throw unsupported();
   }
   // Videos may be larger; the route already stopped anything beyond their limit.
@@ -170,6 +172,23 @@ export async function readFileFor(
       await groupAccess(context.db, user, row.groupId);
     } catch {
       throw missing;
+    }
+  }
+
+  if (row.purpose === 'submission') {
+    // Handed-in work is between its student and the group's staff.
+    if (!row.groupId) {
+      throw missing;
+    }
+    if (row.ownerId !== user.id) {
+      try {
+        const access = await groupAccess(context.db, user, row.groupId);
+        if (!access.can.teach) {
+          throw missing;
+        }
+      } catch {
+        throw missing;
+      }
     }
   }
 

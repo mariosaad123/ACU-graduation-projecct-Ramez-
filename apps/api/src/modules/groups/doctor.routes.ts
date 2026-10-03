@@ -168,7 +168,12 @@ export function createDoctorRouter(deps: AppDependencies): Router {
     '/groups/:groupId/members',
     withBody(addMemberSchema, async (req, res, body) => {
       const groupId = parseId(req.params.groupId);
-      const member = await addMemberByEmail(contextFor(req), doctorOf(req), groupId, body.email);
+      const member = await addMemberByEmail(
+        contextFor(req),
+        doctorOf(req),
+        groupId,
+        body.identifier,
+      );
       res.status(201).json({ member });
     }),
   );

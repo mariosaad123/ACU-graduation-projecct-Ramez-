@@ -1,6 +1,12 @@
 import {
   ANNOUNCEMENT_MAX_ATTACHMENTS,
+  ASSIGNMENT_MAX_FILES,
   ATTACHMENT_KINDS,
+  SUBMISSION_MAX_FILES,
+  assignmentInputSchema,
+  assignmentUpdateSchema,
+  nudgeSchema,
+  submissionInputSchema,
   CHAT_VIDEO_MAX_BYTES,
   announcementFieldsSchema,
   chatMuteSchema,
@@ -27,6 +33,17 @@ import {
   listAnnouncements,
   markAnnouncementsRead,
 } from '../announcements/announcements.service';
+import {
+  assignmentDetail,
+  createAssignment,
+  deleteAssignment,
+  gradeSubmission,
+  listAssignments,
+  submitWork,
+  updateAssignment,
+  withdrawWork,
+} from '../coursework/assignments.service';
+import { nudgeStudents } from '../coursework/nudges.service';
 import { groupFiles } from '../files/group-files.service';
 import {
   createColumn,
@@ -52,6 +69,29 @@ const gradesBodySchema = z.object({
     .array(z.object({ studentId: z.string().check(z.uuid()), ...gradeInputSchema.shape }))
     .check(z.minLength(1), z.maxLength(500)),
 });
+
+/**
+ * A form that carries files sends its other values as JSON in one `data` field; this reads and
+ * checks it like any JSON body.
+ */
+function formData<Schema extends z.ZodMiniType>(req: Request, schema: Schema): z.infer<Schema> {
+  const fields = req.body as Record<string, unknown> | undefined;
+  let value: unknown;
+  try {
+    value = JSON.parse(typeof fields?.data === 'string' ? fields.data : '');
+  } catch {
+    throw new HttpError(400, 'VALIDATION_FAILED', 'The form could not be read');
+  }
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new HttpError(400, 'VALIDATION_FAILED', 'Some fields are not valid', {
+      fields: Object.fromEntries(
+        result.error.issues.map((issue) => [issue.path.map(String).join('.') || '_', 'invalid']),
+      ),
+    });
+  }
+  return result.data;
+}
 
 const orderSchema = z.object({
   ids: z.array(z.string().check(z.uuid())).check(z.maxLength(200)),
@@ -301,6 +341,111 @@ export function createGroupToolsRouter(deps: AppDependencies): Router {
     const grades = await myGrades(contextFor(req), userOf(req), groupIdOf(req));
     res.set('Cache-Control', 'no-store').json(grades);
   });
+
+  /* Assignments */
+
+  const assignmentIdOf = (req: Request) => parseId(req.params.assignmentId, 'Assignment');
+
+  router.get('/assignments', async (req, res) => {
+    const assignments = await listAssignments(contextFor(req), userOf(req), groupIdOf(req));
+    res.set('Cache-Control', 'no-store').json({ assignments });
+  });
+
+  router.post(
+    '/assignments',
+    acceptFiles('files', CHAT_VIDEO_MAX_BYTES, ASSIGNMENT_MAX_FILES),
+    async (req, res) => {
+      const assignment = await createAssignment(
+        contextFor(req),
+        userOf(req),
+        groupIdOf(req),
+        formData(req, assignmentInputSchema),
+        uploadedFiles(req),
+      );
+      res.status(201).json({ assignment });
+    },
+  );
+
+  router.get('/assignments/:assignmentId', async (req, res) => {
+    const detail = await assignmentDetail(
+      contextFor(req),
+      userOf(req),
+      groupIdOf(req),
+      assignmentIdOf(req),
+    );
+    res.set('Cache-Control', 'no-store').json(detail);
+  });
+
+  router.patch(
+    '/assignments/:assignmentId',
+    acceptFiles('files', CHAT_VIDEO_MAX_BYTES, ASSIGNMENT_MAX_FILES),
+    async (req, res) => {
+      const assignment = await updateAssignment(
+        contextFor(req),
+        userOf(req),
+        groupIdOf(req),
+        assignmentIdOf(req),
+        formData(req, assignmentUpdateSchema),
+        uploadedFiles(req),
+      );
+      res.json({ assignment });
+    },
+  );
+
+  router.delete('/assignments/:assignmentId', async (req, res) => {
+    await deleteAssignment(contextFor(req), userOf(req), groupIdOf(req), assignmentIdOf(req));
+    res.status(204).end();
+  });
+
+  router.put(
+    '/assignments/:assignmentId/submission',
+    acceptFiles('files', CHAT_VIDEO_MAX_BYTES, SUBMISSION_MAX_FILES),
+    async (req, res) => {
+      const assignment = await submitWork(
+        contextFor(req),
+        userOf(req),
+        groupIdOf(req),
+        assignmentIdOf(req),
+        formData(req, submissionInputSchema),
+        uploadedFiles(req),
+      );
+      res.json({ assignment });
+    },
+  );
+
+  router.delete('/assignments/:assignmentId/submission', async (req, res) => {
+    const assignment = await withdrawWork(
+      contextFor(req),
+      userOf(req),
+      groupIdOf(req),
+      assignmentIdOf(req),
+    );
+    res.json({ assignment });
+  });
+
+  router.put(
+    '/assignments/:assignmentId/submissions/:studentId/grade',
+    withBody(gradeInputSchema, async (req, res, body) => {
+      const submission = await gradeSubmission(
+        contextFor(req),
+        userOf(req),
+        groupIdOf(req),
+        assignmentIdOf(req),
+        parseId(req.params.studentId, 'Student'),
+        body,
+      );
+      res.json({ submission });
+    }),
+  );
+
+  /* Reminders */
+
+  router.post(
+    '/nudges',
+    withBody(nudgeSchema, async (req, res, body) => {
+      res.json(await nudgeStudents(contextFor(req), userOf(req), groupIdOf(req), body));
+    }),
+  );
 
   return router;
 }

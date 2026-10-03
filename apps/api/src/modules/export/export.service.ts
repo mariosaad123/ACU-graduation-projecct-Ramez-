@@ -13,6 +13,7 @@ import type { Database } from '../../db/client';
 import {
   announcementReads,
   announcements,
+  assignments,
   doctorProfiles,
   groupAssistants,
   groupMembers,
@@ -21,6 +22,7 @@ import {
   pollOptions,
   polls,
   pollVotes,
+  submissions,
   type Group,
   type User,
 } from '../../db/schema';
@@ -164,6 +166,16 @@ const TEXT = {
     pollClosed: 'مغلق',
     pollOpen: 'مفتوح',
     memberHeaders: ['الاسم', 'الدور', 'الحالة', 'انضم', 'البريد', 'الرقم الجامعي'],
+    assignments: 'الواجبات',
+    assignmentHeaders: ['م', 'الاسم', 'الرقم الجامعي'],
+    handedIn: 'سلّم',
+    handedInLate: 'سلّم متأخرًا',
+    notHandedIn: 'لم يسلّم',
+    due: 'الموعد',
+    noDue: 'بلا موعد',
+    handedInCount: 'عدد من سلّموا',
+    assignmentsNote: 'درجات الواجبات في ورقة كشف الدرجات، كل واجب في عموده.',
+    noAssignments: 'لم تُنشأ واجبات بعد.',
     overviewHeaders: ['المجموعة', 'اللغة', 'الطلاب', 'متوسط الدفعة %', 'نسبة النجاح %', 'الحالة'],
     archived: 'مؤرشفة',
     running: 'جارية',
@@ -261,6 +273,16 @@ const TEXT = {
     pollClosed: 'Closed',
     pollOpen: 'Open',
     memberHeaders: ['Name', 'Role', 'Status', 'Joined', 'Email', 'University ID'],
+    assignments: 'Assignments',
+    assignmentHeaders: ['#', 'Name', 'University ID'],
+    handedIn: 'Handed in',
+    handedInLate: 'Handed in late',
+    notHandedIn: 'Not handed in',
+    due: 'Due',
+    noDue: 'No deadline',
+    handedInCount: 'Handed in',
+    assignmentsNote: 'Assignment scores are on the grade sheet, one column each.',
+    noAssignments: 'No assignments yet.',
     overviewHeaders: ['Group', 'Language', 'Students', 'Class average %', 'Pass rate %', 'State'],
     archived: 'Archived',
     running: 'Running',
@@ -409,6 +431,12 @@ interface GroupData {
     voters: number;
     options: { text: string; votes: number }[];
   }[];
+  assignments: {
+    title: string;
+    dueAt: Date | null;
+    /** When each student handed in, and whether that was late. */
+    handedIn: Map<string, { at: Date; late: boolean }>;
+  }[];
 }
 
 async function gatherGroup(db: Database, group: Group, now: Date): Promise<GroupData> {
@@ -471,6 +499,24 @@ async function gatherGroup(db: Database, group: Group, now: Date): Promise<Group
     ]),
   ]);
 
+  const assignmentRows = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.groupId, group.id))
+    .orderBy(asc(assignments.createdAt));
+  const submissionRows =
+    assignmentRows.length === 0
+      ? []
+      : await db
+          .select()
+          .from(submissions)
+          .where(
+            inArray(
+              submissions.assignmentId,
+              assignmentRows.map((row) => row.id),
+            ),
+          );
+
   return {
     group,
     doctorName: doctor?.name ?? '',
@@ -502,6 +548,18 @@ async function gatherGroup(db: Database, group: Group, now: Date): Promise<Group
           })),
       };
     }),
+    assignments: assignmentRows.map((row) => ({
+      title: row.title,
+      dueAt: row.dueAt,
+      handedIn: new Map(
+        submissionRows
+          .filter((submission) => submission.assignmentId === row.id)
+          .map((submission) => [
+            submission.studentId,
+            { at: submission.submittedAt, late: submission.late },
+          ]),
+      ),
+    })),
   };
 }
 
@@ -977,6 +1035,94 @@ function membersSheet(book: ExcelJS.Workbook, data: GroupData, text: Text, local
   });
 }
 
+/**
+ * Who handed in what: a row per student and a column per assignment, with the day it was handed
+ * in. The scores themselves are on the grade sheet, where each assignment has its column.
+ */
+function assignmentsSheet(
+  book: ExcelJS.Workbook,
+  data: GroupData,
+  text: Text,
+  locale: ExportLocale,
+) {
+  const fixed = text.assignmentHeaders;
+  const headers = [
+    ...fixed,
+    ...data.assignments.map(
+      (assignment) =>
+        `${assignment.title}\n${text.due}: ${assignment.dueAt ? dateText(assignment.dueAt, locale) : text.noDue}`,
+    ),
+  ];
+  const sheet = addSheet(book, text.assignments, locale, { x: 2, y: 4 });
+  banner(
+    sheet,
+    Math.max(headers.length, 4),
+    `${text.assignments} — ${data.group.name}`,
+    text.platform,
+    text,
+  );
+  headerRow(sheet, 4, headers, text);
+  const students = data.gradebook.students.filter((student) => student.status === 'active');
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' });
+
+  students.forEach((student, index) => {
+    const row = sheet.getRow(5 + index);
+    [index + 1, student.name, student.universityId ?? ''].forEach((value, column) => {
+      const cell = row.getCell(column + 1);
+      cell.value = value;
+      bodyCell(cell, text, index % 2 === 1);
+    });
+    data.assignments.forEach((assignment, position) => {
+      const cell = row.getCell(fixed.length + position + 1);
+      const handedIn = assignment.handedIn.get(student.id);
+      if (!handedIn) {
+        cell.value = text.notHandedIn;
+        cell.font = { color: { argb: COLOR.red } };
+        cell.fill = solid(COLOR.redSoft);
+      } else if (handedIn.late) {
+        cell.value = `${text.handedInLate} · ${day.format(handedIn.at)}`;
+        cell.font = { color: { argb: COLOR.amber } };
+        cell.fill = solid(COLOR.amberSoft);
+      } else {
+        cell.value = `${text.handedIn} · ${day.format(handedIn.at)}`;
+        cell.font = { color: { argb: COLOR.green } };
+      }
+      cell.alignment = { horizontal: 'center' };
+      bodyCell(cell, text, index % 2 === 1);
+    });
+  });
+
+  let last = 5 + students.length;
+  if (data.assignments.length > 0 && students.length > 0) {
+    const row = sheet.getRow(last + 1);
+    const label = row.getCell(2);
+    label.value = text.handedInCount;
+    label.font = { name: text.font, bold: true, color: { argb: COLOR.navy } };
+    label.fill = solid(COLOR.blueSoft);
+    label.border = BORDER;
+    data.assignments.forEach((assignment, position) => {
+      const cell = row.getCell(fixed.length + position + 1);
+      const count = students.filter((student) => assignment.handedIn.has(student.id)).length;
+      cell.value = `${String(count)} / ${String(students.length)}`;
+      cell.font = { name: text.font, bold: true, color: { argb: COLOR.navy } };
+      cell.fill = solid(COLOR.blueSoft);
+      cell.alignment = { horizontal: 'center' };
+      cell.border = BORDER;
+    });
+    last += 2;
+  }
+  const note = sheet.getCell(last + 1, 2);
+  note.value = data.assignments.length === 0 ? text.noAssignments : text.assignmentsNote;
+  note.font = { name: text.font, italic: true, size: 10, color: { argb: COLOR.gray } };
+
+  sheet.getColumn(1).width = 6;
+  sheet.getColumn(2).width = 28;
+  sheet.getColumn(3).width = 16;
+  data.assignments.forEach((_assignment, position) => {
+    sheet.getColumn(fixed.length + position + 1).width = 26;
+  });
+}
+
 function newBook(): ExcelJS.Workbook {
   const book = new ExcelJS.Workbook();
   book.creator = 'ACU Languages';
@@ -999,6 +1145,9 @@ function fillGroupBook(
   summarySheet(book, data, text, locale, report);
   if (report === 'full') {
     gradesSheet(book, data, text, locale, text.grades, false);
+  }
+  if (report === 'full') {
+    assignmentsSheet(book, data, text, locale);
   }
   activitySheet(book, data, text, locale);
   announcementsSheet(book, data, text, locale);

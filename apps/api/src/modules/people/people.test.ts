@@ -72,7 +72,7 @@ describe('the people of a group', () => {
     await join(waiting, group);
     const active = await signInAsStudent(context);
     await post(doctor.agent, `/api/doctor/groups/${group.id}/members`, {
-      email: active.email,
+      identifier: active.email,
     }).expect(201);
 
     const people = await peopleOf(doctor, group.id);

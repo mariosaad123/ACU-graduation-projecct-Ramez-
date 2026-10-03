@@ -13,6 +13,7 @@ import type { Database } from '../../db/client';
 import {
   announcementReads,
   announcements,
+  assignments,
   chatReads,
   files,
   gradeColumns,
@@ -36,7 +37,19 @@ import { avatarUrlOf } from '../users/avatar';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function toColumn(row: GradeColumnRow): GradeColumn {
+/** The assignment behind each column that has one. */
+async function assignmentsOf(db: Database, columnIds: string[]): Promise<Map<string, string>> {
+  if (columnIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ id: assignments.id, columnId: assignments.columnId })
+    .from(assignments)
+    .where(inArray(assignments.columnId, columnIds));
+  return new Map(rows.map((row) => [row.columnId, row.id]));
+}
+
+function toColumn(row: GradeColumnRow, assignmentId: string | null = null): GradeColumn {
   return {
     id: row.id,
     title: row.title,
@@ -46,6 +59,8 @@ function toColumn(row: GradeColumnRow): GradeColumn {
     heldOn: row.heldOn,
     published: row.published,
     position: row.position,
+    source: row.source,
+    assignmentId,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -253,8 +268,12 @@ export async function loadGradebook(db: Database, groupId: string, now: Date): P
       away: true,
     },
   }));
+  const assignmentOf = await assignmentsOf(
+    db,
+    columnRows.map((row) => row.id),
+  );
   return {
-    columns: columnRows.map(toColumn),
+    columns: columnRows.map((row) => toColumn(row, assignmentOf.get(row.id) ?? null)),
     students: list,
     grades: gradeRows.map(toGrade),
     totals,
@@ -288,6 +307,7 @@ async function announcePublished(
     actor: { id: user.id, name: actorName },
     recipients: students.map((student) => student.id),
     gradeColumnId: column.id,
+    assignmentId: (await assignmentsOf(context.db, [column.id])).get(column.id),
     excerpt: column.title,
   });
 }
@@ -350,10 +370,18 @@ export async function updateColumn(
     .set(changes)
     .where(eq(gradeColumns.id, column.id))
     .returning();
+  // A column and its assignment carry one title.
+  if (row && column.source === 'assignment' && row.title !== column.title) {
+    await db
+      .update(assignments)
+      .set({ title: row.title })
+      .where(eq(assignments.columnId, column.id));
+  }
   if (row && row.published && !column.published) {
     await announcePublished(context, access, user, row);
   }
-  return toColumn(row ?? column);
+  const assignmentOf = await assignmentsOf(db, [column.id]);
+  return toColumn(row ?? column, assignmentOf.get(column.id) ?? null);
 }
 
 export async function deleteColumn(
@@ -365,6 +393,10 @@ export async function deleteColumn(
   const access = await teaching(context, user, groupId);
   assertNotArchived(access);
   const column = await findColumn(context.db, access.group.id, columnId);
+  if (column.source === 'assignment') {
+    // Removing the column would silently take the students' handed-in work with it.
+    throw new HttpError(409, 'COLUMN_HAS_ASSIGNMENT', 'Delete the assignment instead');
+  }
   await context.db.delete(gradeColumns).where(eq(gradeColumns.id, column.id));
 }
 
@@ -396,7 +428,8 @@ export async function reorderColumns(
     .from(gradeColumns)
     .where(eq(gradeColumns.groupId, access.group.id))
     .orderBy(asc(gradeColumns.position));
-  return ordered.map(toColumn);
+  const assignmentOf = await assignmentsOf(db, ids);
+  return ordered.map((row) => toColumn(row, assignmentOf.get(row.id) ?? null));
 }
 
 /**
