@@ -1,9 +1,8 @@
 import { bandOf, totalPercent, type GroupView } from '@acu/shared';
 import { useTranslation } from 'react-i18next';
-import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useFormatDate } from '../../i18n/use-format-date';
-import { describeApiError } from '../auth/api-errors';
 import { useMyGrades } from './api';
 import styles from './Gradebook.module.css';
 
@@ -18,9 +17,13 @@ export function MyGradesTab({ view }: { view: GroupView }) {
   }
   if (grades.isError) {
     return (
-      <Alert tone="danger" live>
-        {describeApiError(t, grades.error)}
-      </Alert>
+      <LoadError
+        error={grades.error}
+        retrying={grades.isFetching}
+        onRetry={() => {
+          void grades.refetch();
+        }}
+      />
     );
   }
   const { columns } = grades.data;

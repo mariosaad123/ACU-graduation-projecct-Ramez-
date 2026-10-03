@@ -1,15 +1,15 @@
 import type { GradebookStudent, GroupView } from '@acu/shared';
-import { MicrosoftExcelLogoIcon } from '@phosphor-icons/react';
+import { BellRingingIcon, MicrosoftExcelLogoIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLocale } from '../../i18n/use-locale';
-import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import { useGradebook } from './api';
+import { NudgeDialog } from '../coursework/NudgeDialog';
 import { ExportDialog } from './ExportDialog';
 import styles from './Gradebook.module.css';
 
@@ -51,15 +51,20 @@ export function ActivityTab({ view }: { view: GroupView }) {
   const gradebook = useGradebook(view.id);
   const [filter, setFilter] = useState<Filter>('all');
   const [exporting, setExporting] = useState(false);
+  const [nudging, setNudging] = useState<{ id: string; name: string }[] | null>(null);
 
   if (gradebook.isPending) {
     return <Skeleton shape="block" blockSize="16rem" />;
   }
   if (gradebook.isError) {
     return (
-      <Alert tone="danger" live>
-        {describeApiError(t, gradebook.error)}
-      </Alert>
+      <LoadError
+        error={gradebook.error}
+        retrying={gradebook.isFetching}
+        onRetry={() => {
+          void gradebook.refetch();
+        }}
+      />
     );
   }
   const { totals } = gradebook.data;
@@ -90,15 +95,28 @@ export function ActivityTab({ view }: { view: GroupView }) {
           </h2>
           <p className={styles.muted}>{t('activity.lead')}</p>
         </div>
-        <Button
-          variant="secondary"
-          iconStart={<MicrosoftExcelLogoIcon aria-hidden="true" />}
-          onClick={() => {
-            setExporting(true);
-          }}
-        >
-          {t('grades.export')}
-        </Button>
+        <div className={styles.headActions}>
+          {!view.archived && counts.quiet + counts.away > 0 && (
+            <Button
+              variant="secondary"
+              iconStart={<BellRingingIcon aria-hidden="true" />}
+              onClick={() => {
+                setNudging(students.filter((student) => stateOf(student) !== 'active'));
+              }}
+            >
+              {t('nudge.remindInactive', { count: counts.quiet + counts.away })}
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            iconStart={<MicrosoftExcelLogoIcon aria-hidden="true" />}
+            onClick={() => {
+              setExporting(true);
+            }}
+          >
+            {t('grades.export')}
+          </Button>
+        </div>
       </header>
 
       <div className={styles.filters} role="group" aria-label={t('activity.filter')}>
@@ -135,13 +153,30 @@ export function ActivityTab({ view }: { view: GroupView }) {
                   <Avatar user={student} size="2.5rem" />
                   <span className={styles.studentText}>
                     <span className={styles.studentName}>{student.name}</span>
+                    <span className={styles.columnMeta} dir="ltr">
+                      {student.universityId ?? t('grades.noUniversityId')}
+                    </span>
                     <span className={styles.columnMeta}>
                       {t('activity.lastSeen', { when: relative(activity.lastSeenAt) })}
                     </span>
                   </span>
                 </Link>
-                <span className={styles.state} data-state={state}>
-                  {t(`activity.states.${state}`)}
+                <span className={styles.activityEnd}>
+                  {state !== 'active' && !view.archived && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      iconStart={<BellRingingIcon aria-hidden="true" />}
+                      onClick={() => {
+                        setNudging([student]);
+                      }}
+                    >
+                      {t('nudge.remind')}
+                    </Button>
+                  )}
+                  <span className={styles.state} data-state={state}>
+                    {t(`activity.states.${state}`)}
+                  </span>
                 </span>
                 <dl className={styles.activityFacts}>
                   <div>
@@ -160,13 +195,17 @@ export function ActivityTab({ view }: { view: GroupView }) {
                   <div>
                     <dt>{t('activity.announcements')}</dt>
                     <dd>
-                      {activity.announcementsRead} / {totals.announcements}
+                      <bdi dir="ltr">
+                        {activity.announcementsRead} / {totals.announcements}
+                      </bdi>
                     </dd>
                   </div>
                   <div>
                     <dt>{t('activity.polls')}</dt>
                     <dd>
-                      {activity.pollsAnswered} / {totals.polls}
+                      <bdi dir="ltr">
+                        {activity.pollsAnswered} / {totals.polls}
+                      </bdi>
                     </dd>
                   </div>
                   <div>
@@ -180,6 +219,16 @@ export function ActivityTab({ view }: { view: GroupView }) {
         </ul>
       )}
 
+      {nudging && (
+        <NudgeDialog
+          groupId={view.id}
+          students={nudging}
+          reason="inactive"
+          onClose={() => {
+            setNudging(null);
+          }}
+        />
+      )}
       {exporting && (
         <ExportDialog
           groupId={view.id}

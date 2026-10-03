@@ -13,6 +13,7 @@ import {
   type GroupView,
 } from '@acu/shared';
 import {
+  ClipboardTextIcon,
   EyeIcon,
   EyeSlashIcon,
   MicrosoftExcelLogoIcon,
@@ -24,6 +25,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -38,19 +40,11 @@ import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import { useDeleteColumn, useGradebook, useSaveColumn, useSetGrades } from './api';
 import { ExportDialog } from './ExportDialog';
+import { ABSENT, EXCUSED, toNumber } from './grade-input';
+import { PasteGradesDialog } from './PasteGradesDialog';
 import styles from './Gradebook.module.css';
 
 /** What may be typed in a cell instead of a number, in either language. */
-const ABSENT = ['غ', 'غائب', 'a', 'abs'];
-const EXCUSED = ['ع', 'معذور', 'e', 'exc'];
-
-/** Arabic-Indic digits and the Arabic decimal comma, as a doctor may type them. */
-function toNumber(text: string): number | null {
-  const western = text
-    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
-    .replace(/[٫,]/g, '.');
-  return /^\d+(\.\d{1,2})?$/.test(western) ? Number(western) : null;
-}
 
 function ColumnDialog({
   groupId,
@@ -459,15 +453,20 @@ export function GradebookTab({ view }: { view: GroupView }) {
   const [columnDialog, setColumnDialog] = useState<{ column: GradeColumn | null } | null>(null);
   const [cellDialog, setCellDialog] = useState<CellTarget | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [pasting, setPasting] = useState(false);
 
   if (gradebook.isPending) {
     return <Skeleton shape="block" blockSize="16rem" />;
   }
   if (gradebook.isError) {
     return (
-      <Alert tone="danger" live>
-        {describeApiError(t, gradebook.error)}
-      </Alert>
+      <LoadError
+        error={gradebook.error}
+        retrying={gradebook.isFetching}
+        onRetry={() => {
+          void gradebook.refetch();
+        }}
+      />
     );
   }
   const { columns, students, grades } = gradebook.data;
@@ -526,6 +525,18 @@ export function GradebookTab({ view }: { view: GroupView }) {
           >
             {t('grades.export')}
           </Button>
+          {!readOnly && columns.length > 0 && active.length > 0 && (
+            <Button
+              variant="secondary"
+              iconStart={<ClipboardTextIcon aria-hidden="true" />}
+              onClick={() => {
+                setGrades.reset();
+                setPasting(true);
+              }}
+            >
+              {t('pasteGrades.open')}
+            </Button>
+          )}
           {!readOnly && (
             <Button
               iconStart={<PlusIcon aria-hidden="true" />}
@@ -592,6 +603,9 @@ export function GradebookTab({ view }: { view: GroupView }) {
                           {column.title}
                         </span>
                         <span className={styles.columnMeta}>
+                          {column.source === 'assignment' && (
+                            <ClipboardTextIcon aria-label={t('grades.fromAssignment')} />
+                          )}
                           {t(`grades.kinds.${column.kind}`)} ·{' '}
                           {t('grades.outOf', { max: column.maxScore })}
                           {column.weight !== null && ` · ${String(column.weight)}%`}
@@ -707,6 +721,32 @@ export function GradebookTab({ view }: { view: GroupView }) {
           }}
           onClose={() => {
             setCellDialog(null);
+          }}
+        />
+      )}
+      {pasting && (
+        <PasteGradesDialog
+          columns={columns}
+          students={active}
+          noteOf={(columnId, studentId) => gradeOf(columnId, studentId)?.note ?? null}
+          pending={setGrades.isPending}
+          error={setGrades.isError ? describeApiError(t, setGrades.error) : null}
+          onClose={() => {
+            setPasting(false);
+          }}
+          onApply={(columnId, entries) => {
+            setGrades.mutate(
+              { columnId, entries },
+              {
+                onSuccess: () => {
+                  toast({
+                    tone: 'success',
+                    title: t('pasteGrades.done', { count: entries.length }),
+                  });
+                  setPasting(false);
+                },
+              },
+            );
           }}
         />
       )}
