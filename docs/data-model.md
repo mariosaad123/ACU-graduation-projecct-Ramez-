@@ -444,10 +444,100 @@ sheet: no emails, with lines for the signature and the stamp. `full` adds a summ
 announcements, polls and members; `activity` leaves the grades out. Averages, maxima and minima
 are live formulas, so the sheet stays correct if a score is corrected in Excel.
 
+## Assignments
+
+```mermaid
+erDiagram
+    groups ||--o{ assignments : "has"
+    grade_columns ||--|| assignments : "holds the scores of"
+    assignments ||--o{ submissions : "receives"
+    users ||--o{ submissions : "hands in"
+    submissions ||--o{ submission_files : "carries"
+
+    assignments {
+        uuid id PK
+        uuid group_id FK
+        uuid column_id FK "unique"
+        text kind "assignment, project"
+        text title
+        text instructions
+        timestamptz due_at
+        boolean allow_late
+        timestamptz closed_at
+    }
+    submissions {
+        uuid assignment_id PK, FK
+        uuid student_id PK, FK
+        text body
+        timestamptz submitted_at
+        timestamptz updated_at
+        boolean late
+    }
+```
+
+An assignment is work students hand in on the platform. Creating one creates a gradebook column
+(`grade_columns.source = 'assignment'`) in the same transaction, and grading a submission writes
+into that column through the gradebook's own `setGrades`. A score is therefore stored once: the
+gradebook, a student's grades and every export read the same row. The column starts hidden;
+"releasing" the grades publishes it and notifies the students. Deleting the column from the
+gradebook is refused (`COLUMN_HAS_ASSIGNMENT`), because it would take the handed-in work with it;
+deleting the assignment removes both, after a confirmation that says so.
+
+| Rule                                      | How                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------ |
+| Only the staff create, change and grade   | The `teach` capability                                             |
+| A student hands in text, files, or both   | Up to five files; an empty submission is refused                   |
+| Work can be replaced or withdrawn         | Until it is graded (`SUBMISSION_LOCKED`) or closed                 |
+| A deadline may accept late work           | `allow_late`; late work is flagged. Otherwise `ASSIGNMENT_CLOSED`  |
+| The staff can close an assignment by hand | `closed_at`, whatever the deadline says                            |
+| Handed-in files are private               | File purpose `submission`: readable by their student and the staff |
+| A student sees their score once released  | `grade_columns.published`                                          |
+
+| Request                                                            | Effect                                          |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| `GET, POST /api/groups/:id/assignments`                            | Lists; creates (multipart: `data` JSON + files) |
+| `GET /api/groups/:id/assignments/:item`                            | Staff: every student with what they handed in   |
+| `PATCH, DELETE /api/groups/:id/assignments/:item`                  | Changes, closes, releases; deletes              |
+| `PUT, DELETE /api/groups/:id/assignments/:item/submission`         | A student hands in, replaces or withdraws       |
+| `PUT /api/groups/:id/assignments/:item/submissions/:student/grade` | Grades one student's work                       |
+
+## Reactions, search and reminders
+
+`message_reactions` holds one reaction per person and message: a single emoji, checked on the
+server as one grapheme. Reacting again replaces it, and `null` takes it back. Each change bumps the
+message's version, so the counts reach everyone through the chat's change feed. On a message from
+the staff, two reactions are offered to students by name ("got it", "needs explaining"), which
+gives the doctor a quick reading of the room without a new kind of data.
+
+`GET /api/groups/:id/chat/search` finds messages by words in their text or in an attached file's
+name, optionally narrowed to the staff's messages, pinned ones, those mentioning the reader, or
+those with a file. LIKE wildcards in the query are escaped.
+
+`POST /api/groups/:id/nudges` lets the staff remind students: the inactive, those who have not
+read an announcement, or those who have not handed in an assignment. A reminder is an ordinary
+notification of kind `nudge` that leads to its subject. A student already reminded in the last 12
+hours is skipped, and the answer says how many were.
+
+| Request                                              | Effect                                     |
+| ---------------------------------------------------- | ------------------------------------------ |
+| `PUT /api/groups/:id/chat/:message/reaction`         | Sets, replaces or removes the reader's own |
+| `GET /api/groups/:id/chat/:message/reactions`        | Who reacted, by emoji                      |
+| `GET /api/groups/:id/chat/search?q=&filter=&before=` | Matching messages, newest first            |
+| `POST /api/groups/:id/nudges`                        | Reminds students; `{ sent, skipped }`      |
+
+## University numbers
+
+Every student has a university number (`student_profiles.university_id`), asked for at sign-up,
+stored trimmed and in capitals, and unique across accounts (`UNIVERSITY_ID_TAKEN`). It can be
+corrected in the profile but not cleared. Accounts created before it was required are asked for it
+once at their next visit, and cannot join a group without it (`UNIVERSITY_ID_REQUIRED`). The
+number is shown to the student and to their doctors only: in the members list, the gradebook, the
+grading view and every export. A doctor can also add a student to a group by it.
+
 ## Notifications
 
 `notifications` holds what a person should see in the app: a mention, an announcement, a poll, a
-published grade or a new role. `notify()` writes those rows and, for people who allowed it on a
+published grade, a new assignment, a new role, or a reminder from the staff. `notify()` writes those rows and, for people who allowed it on a
 device, sends a Web Push message through `push_subscriptions`, each in the language that device
 was using. `notification_settings` stores which kinds reach the browser; "every message" exists
 only as a push and is never stored. Without `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` the API

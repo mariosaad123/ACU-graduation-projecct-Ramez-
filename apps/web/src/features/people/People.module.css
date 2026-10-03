@@ -25,6 +25,12 @@
   list-style: none;
 }
 
+.universityId {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
 .personLink {
   display: flex;
   flex-wrap: wrap;

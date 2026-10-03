@@ -11,6 +11,8 @@ export const NOTIFICATION_KINDS = [
   'grade',
   'role',
   'message',
+  'assignment',
+  'nudge',
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -51,6 +53,7 @@ export const notificationSettingsSchema = z.object({
   announcements: z.boolean(),
   polls: z.boolean(),
   grades: z.boolean(),
+  assignments: z.boolean(),
   /** Every chat message in their groups: off unless they turn it on. */
   messages: z.boolean(),
 });
@@ -61,6 +64,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   announcements: true,
   polls: true,
   grades: true,
+  assignments: true,
   messages: false,
 };
 

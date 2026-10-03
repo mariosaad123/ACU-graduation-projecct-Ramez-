@@ -29,6 +29,8 @@ export const personSchema = z.object({
   avatarUrl: z.nullable(z.string()),
   role: z.enum(['doctor', 'student']),
   email: z.nullable(z.string()),
+  /** A student's university number, for the student and their doctors only. */
+  universityId: z.nullable(z.string()),
   languages: z.array(learningLanguage),
   /** The language a student is studying now; null for a doctor. */
   activeLanguage: z.nullable(learningLanguage),

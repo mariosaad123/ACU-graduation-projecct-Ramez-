@@ -61,6 +61,13 @@ function assertNotOnboarded(user: User): void {
   }
 }
 
+/** One university number, one account: the same answer at sign-up and when it is corrected. */
+export function universityIdTaken(): HttpError {
+  return new HttpError(409, 'UNIVERSITY_ID_TAKEN', 'This university number is already registered', {
+    fields: { universityId: 'taken' },
+  });
+}
+
 export async function completeStudentOnboarding(
   context: OnboardingContext,
   user: User,
@@ -69,25 +76,36 @@ export async function completeStudentOnboarding(
   assertNotOnboarded(user);
   const { db, now } = context;
 
-  await db.transaction(async (tx) => {
-    // Someone who started the doctor steps and changed their mind leaves nothing behind.
-    await tx.delete(emailVerifications).where(eq(emailVerifications.userId, user.id));
-    await tx.delete(doctorProfiles).where(eq(doctorProfiles.userId, user.id));
-    await tx.delete(doctorLanguages).where(eq(doctorLanguages.userId, user.id));
-    await deleteStudentProfile(tx, user.id);
+  try {
+    await db.transaction(async (tx) => {
+      // Someone who started the doctor steps and changed their mind leaves nothing behind.
+      await tx.delete(emailVerifications).where(eq(emailVerifications.userId, user.id));
+      await tx.delete(doctorProfiles).where(eq(doctorProfiles.userId, user.id));
+      await tx.delete(doctorLanguages).where(eq(doctorLanguages.userId, user.id));
+      await deleteStudentProfile(tx, user.id);
 
-    await tx
-      .insert(studentLanguages)
-      .values(
-        request.languages.map((language) => ({ userId: user.id, language, enrolledAt: now() })),
-      );
-    await tx.insert(studentProfiles).values({
-      userId: user.id,
-      activeLanguage: request.activeLanguage,
-      goal: request.goal,
+      await tx
+        .insert(studentLanguages)
+        .values(
+          request.languages.map((language) => ({ userId: user.id, language, enrolledAt: now() })),
+        );
+      await tx.insert(studentProfiles).values({
+        userId: user.id,
+        activeLanguage: request.activeLanguage,
+        goal: request.goal,
+        universityId: request.universityId,
+      });
+      await tx
+        .update(users)
+        .set({ role: 'student', updatedAt: now() })
+        .where(eq(users.id, user.id));
     });
-    await tx.update(users).set({ role: 'student', updatedAt: now() }).where(eq(users.id, user.id));
-  });
+  } catch (error) {
+    if (uniqueViolation(error)?.includes('university_id')) {
+      throw universityIdTaken();
+    }
+    throw error;
+  }
 
   await recordAudit(db, {
     at: now(),

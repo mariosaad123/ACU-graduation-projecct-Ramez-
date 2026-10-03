@@ -55,6 +55,7 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     mentionsMe: false,
     attachment: null,
     poll: null,
+    reactions: [],
     replyTo: null,
     pinned: false,
     edited: false,
@@ -301,11 +302,9 @@ describe('a group chat', () => {
     serve({ [`GET ${CHAT}`]: () => [200, page([])] });
     renderWithProviders(<GroupChat view={view({}, { open: false, canPost: false })} />);
 
-    expect(await screen.findByText('No announcements yet.')).toBeInTheDocument();
-    expect(screen.getByText('Announcements only')).toBeInTheDocument();
-    expect(
-      screen.getByText('The chat is for announcements now: only the doctor writes.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.getByText('Closed to students')).toBeInTheDocument();
+    expect(screen.getByText(/closed to students right now/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument();
   });
 
@@ -387,7 +386,7 @@ describe('a group chat', () => {
     );
 
     expect(await screen.findByText(/^Opens /)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Let students write' }));
+    await user.click(screen.getByRole('button', { name: 'Open the chat to students' }));
 
     await vi.waitFor(() => {
       expect(calls.find((call) => call.key.startsWith('PATCH'))?.init?.body).toBe(
@@ -404,7 +403,7 @@ describe('a group chat', () => {
     });
     renderWithProviders(<GroupChat view={view({ isDoctor: true })} />);
 
-    await user.click(await screen.findByRole('button', { name: 'Stop students writing' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the chat to students' }));
 
     await vi.waitFor(() => {
       expect(calls.find((call) => call.key.startsWith('PATCH'))?.init?.body).toBe(

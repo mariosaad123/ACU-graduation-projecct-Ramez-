@@ -6,6 +6,7 @@ import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Spinner } from '../../components/ui/Spinner';
 import { ForbiddenPage } from '../../pages/ForbiddenPage';
+import { UniversityIdStep } from '../profile/UniversityIdStep';
 import { landingPathFor, useSession } from './session';
 import styles from './AuthGate.module.css';
 
@@ -63,5 +64,11 @@ export function AuthGate({ rule, children }: AuthGateProps) {
   if (!user.role) {
     return <Navigate to={landingPathFor(user)} replace />;
   }
-  return rule.roles.includes(user.role) ? children(user) : <ForbiddenPage />;
+  if (!rule.roles.includes(user.role)) {
+    return <ForbiddenPage />;
+  }
+  if (user.role === 'student' && user.student && !user.student.universityId) {
+    return <UniversityIdStep />;
+  }
+  return children(user);
 }

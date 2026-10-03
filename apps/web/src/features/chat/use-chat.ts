@@ -5,7 +5,7 @@ import {
   type ChatMessage,
 } from '@acu/shared';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api';
 
 /** How often an open chat asks for changes while the page is visible. */
@@ -122,6 +122,12 @@ export function useChat(groupId: string) {
     version.current = state.version;
   }, [state.version]);
 
+  // Asking again after a failed first load starts it over.
+  const [attempt, setAttempt] = useState(0);
+  const reload = useCallback(() => {
+    setAttempt((value) => value + 1);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     apiRequest(`/api/groups/${groupId}/chat`, { schema: chatPageSchema })
@@ -144,7 +150,7 @@ export function useChat(groupId: string) {
     return () => {
       cancelled = true;
     };
-  }, [groupId]);
+  }, [groupId, attempt]);
 
   const ready = state.status === 'ready';
   const pollNow = useCallback(async () => {
@@ -213,6 +219,7 @@ export function useChat(groupId: string) {
     messages: all.filter((message) => message.seq >= fromSeq),
     /** Newest first, including pinned messages older than the timeline. */
     pinned: all.filter((message) => message.pinned).reverse(),
+    reload,
     hasOlder: state.hasOlder,
     status: state.status,
     error: state.error,

@@ -318,6 +318,15 @@
   color: var(--color-danger);
 }
 
+.pasteSummary [data-tone='danger'] {
+  color: var(--color-danger);
+}
+
+.table tr[data-problem='true'] > td {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
 /* Dialogs */
 .form {
   display: grid;
@@ -478,6 +487,14 @@
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+}
+
+.activityEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .state {

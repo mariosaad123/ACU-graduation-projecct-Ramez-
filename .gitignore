@@ -30,3 +30,6 @@ logs/
 !.vscode/settings.json
 .DS_Store
 Thumbs.db
+
+# Emoji data copied from emojibase-data when the web app starts or builds
+apps/web/public/emoji/

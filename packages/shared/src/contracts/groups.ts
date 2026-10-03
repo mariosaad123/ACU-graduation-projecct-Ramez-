@@ -94,6 +94,7 @@ export const groupMemberSchema = z.object({
     id: z.string(),
     name: z.string(),
     email: z.string(),
+    universityId: z.nullable(z.string()),
     avatarUrl: z.nullable(z.string()),
     languages: z.array(learningLanguage),
     activeLanguage: z.nullable(learningLanguage),
@@ -122,8 +123,9 @@ export type GroupMember = z.infer<typeof groupMemberSchema>;
 export const groupMemberResponseSchema = z.object({ member: groupMemberSchema });
 export const groupMembersResponseSchema = z.object({ members: z.array(groupMemberSchema) });
 
+/** A student is added by the email they sign in with, or by their university number. */
 export const addMemberSchema = z.object({
-  email: z.string().check(z.trim(), z.toLowerCase(), z.maxLength(254), z.email()),
+  identifier: z.string().check(z.trim(), z.minLength(3), z.maxLength(254)),
 });
 export type AddMemberRequest = z.infer<typeof addMemberSchema>;
 

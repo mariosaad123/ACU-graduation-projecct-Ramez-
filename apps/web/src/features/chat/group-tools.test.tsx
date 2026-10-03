@@ -27,6 +27,7 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     mentionsMe: false,
     attachment: null,
     poll: null,
+    reactions: [],
     replyTo: null,
     pinned: true,
     edited: false,

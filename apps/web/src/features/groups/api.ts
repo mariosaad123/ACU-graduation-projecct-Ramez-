@@ -242,11 +242,11 @@ export function useMemberAction(groupId: string) {
 export function useAddMember(groupId: string) {
   const refresh = useRefreshGroups();
   return useMutation({
-    mutationFn: async (email: string) =>
+    mutationFn: async (identifier: string) =>
       (
         await apiRequest(`/api/doctor/groups/${groupId}/members`, {
           method: 'POST',
-          body: { email },
+          body: { identifier },
           schema: groupMemberResponseSchema,
         })
       ).member,

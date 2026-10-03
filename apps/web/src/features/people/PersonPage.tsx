@@ -88,6 +88,11 @@ export function PersonPage() {
                 {t('person.memberSince', { date: formatDate(profile.memberSince) })}
               </span>
             </p>
+            {profile.universityId && (
+              <p className={styles.universityId}>
+                {t('profile.universityId')}: <span dir="ltr">{profile.universityId}</span>
+              </p>
+            )}
             {profile.email && (
               <a href={`mailto:${profile.email}`} className={styles.email}>
                 <EnvelopeSimpleIcon aria-hidden="true" />

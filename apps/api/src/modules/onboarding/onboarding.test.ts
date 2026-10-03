@@ -60,8 +60,17 @@ function errorCode(response: { body: unknown }): string {
   return (response.body as { error: { code: string } }).error.code;
 }
 
+let universityIds = 0;
+
 function studentRequest(overrides: Record<string, unknown> = {}) {
-  return { languages: ['en'], activeLanguage: 'en', goal: 'study', ...overrides };
+  universityIds += 1;
+  return {
+    languages: ['en'],
+    activeLanguage: 'en',
+    goal: 'study',
+    universityId: `on-${String(universityIds)}`,
+    ...overrides,
+  };
 }
 
 describe('student onboarding', () => {
@@ -71,16 +80,22 @@ describe('student onboarding', () => {
     const response = await post(
       agent,
       '/api/onboarding/student',
-      studentRequest({ languages: ['fr'], activeLanguage: 'fr', goal: 'travel' }),
+      studentRequest({
+        languages: ['fr'],
+        activeLanguage: 'fr',
+        goal: 'travel',
+        universityId: ' 2023-a17 ',
+      }),
     ).expect(200);
 
     const user = meResponseSchema.parse(response.body).user;
     expect(user.role).toBe('student');
+    // The number is kept as the card prints it: trimmed and in capitals.
     expect(user.student).toEqual({
       activeLanguage: 'fr',
       languages: ['fr'],
       goal: 'travel',
-      universityId: null,
+      universityId: '2023-A17',
     });
     expect(user.doctor).toBeNull();
   });
@@ -99,7 +114,7 @@ describe('student onboarding', () => {
       activeLanguage: 'ja',
       languages: ['en', 'fr', 'ja'],
       goal: 'study',
-      universityId: null,
+      universityId: expect.stringMatching(/^ON-\d+$/) as string,
     });
   });
 

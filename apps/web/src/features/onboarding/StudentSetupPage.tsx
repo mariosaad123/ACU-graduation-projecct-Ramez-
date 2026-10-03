@@ -1,6 +1,7 @@
 import {
   LEARNING_GOALS,
   meResponseSchema,
+  universityIdPattern,
   type LearningGoal,
   type LearningLanguage,
 } from '@acu/shared';
@@ -13,8 +14,9 @@ import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { RadioGroup } from '../../components/ui/RadioGroup';
+import { TextField } from '../../components/ui/TextField';
 import { useLanguageName } from '../../i18n/use-language-name';
-import { apiRequest } from '../../lib/api';
+import { ApiError, apiRequest } from '../../lib/api';
 import { PageTitle } from '../../pages/PageTitle';
 import { describeApiError } from '../auth/api-errors';
 import { useSetSession } from '../auth/session';
@@ -27,6 +29,9 @@ export function StudentSetupPage() {
   const setSession = useSetSession();
   const languageName = useLanguageName();
   const pickerRef = useRef<HTMLDivElement>(null);
+  const idRef = useRef<HTMLInputElement>(null);
+  const [universityId, setUniversityId] = useState('');
+  const [idProblem, setIdProblem] = useState<'invalid' | 'taken' | null>(null);
   const [languages, setLanguages] = useState<LearningLanguage[]>([]);
   const [chosenStart, setChosenStart] = useState<LearningLanguage | null>(null);
   const [goal, setGoal] = useState<LearningGoal>('study');
@@ -41,12 +46,19 @@ export function StudentSetupPage() {
     mutationFn: (activeLanguage: LearningLanguage) =>
       apiRequest('/api/onboarding/student', {
         method: 'POST',
-        body: { languages, activeLanguage, goal },
+        body: { languages, activeLanguage, goal, universityId: universityId.trim() },
         schema: meResponseSchema,
       }),
     onSuccess: ({ user }) => {
       setSession(user);
       void navigate('/app', { replace: true });
+    },
+    onError: (error) => {
+      // Said on the field itself, where it can be corrected.
+      if (error instanceof ApiError && error.code === 'UNIVERSITY_ID_TAKEN') {
+        setIdProblem('taken');
+        idRef.current?.focus();
+      }
     },
   });
 
@@ -55,6 +67,11 @@ export function StudentSetupPage() {
     if (!startWith) {
       setShowLanguageError(true);
       pickerRef.current?.querySelector<HTMLInputElement>('input')?.focus();
+      return;
+    }
+    if (!universityIdPattern.test(universityId.trim())) {
+      setIdProblem('invalid');
+      idRef.current?.focus();
       return;
     }
     submit.mutate(startWith);
@@ -117,7 +134,29 @@ export function StudentSetupPage() {
             }))}
           />
 
-          {submit.isError && (
+          <TextField
+            ref={idRef}
+            label={t('profile.universityId')}
+            hint={t('profile.universityIdHint')}
+            error={
+              idProblem === 'invalid'
+                ? t('profile.universityIdError')
+                : idProblem === 'taken'
+                  ? t('errors.universityIdTaken')
+                  : undefined
+            }
+            dir="ltr"
+            autoComplete="off"
+            autoCapitalize="characters"
+            maxLength={20}
+            value={universityId}
+            onChange={(event) => {
+              setUniversityId(event.target.value);
+              setIdProblem(null);
+            }}
+          />
+
+          {submit.isError && idProblem !== 'taken' && (
             <Alert tone="danger" live>
               {describeApiError(t, submit.error)}
             </Alert>

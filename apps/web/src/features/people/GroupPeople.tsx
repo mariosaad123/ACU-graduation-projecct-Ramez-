@@ -3,11 +3,10 @@ import { ChalkboardTeacherIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
 import { useGroupPeople } from './api';
 import styles from './People.module.css';
@@ -30,9 +29,13 @@ export function GroupPeople({ groupId }: { groupId: string }) {
   }
   if (people.isError) {
     return (
-      <Alert tone="danger" live>
-        {describeApiError(t, people.error)}
-      </Alert>
+      <LoadError
+        error={people.error}
+        retrying={people.isFetching}
+        onRetry={() => {
+          void people.refetch();
+        }}
+      />
     );
   }
 

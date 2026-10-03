@@ -36,6 +36,7 @@ export interface NotifyEvent {
   messageId?: string;
   announcementId?: string;
   gradeColumnId?: string;
+  assignmentId?: string;
   excerpt: string | null;
   /** Every chat message is pushed to those who ask for it, but not kept in the app. */
   inApp?: boolean;
@@ -43,14 +44,18 @@ export interface NotifyEvent {
 
 const EXCERPT_LENGTH = 140;
 
-/** Where a notification leads: the message, the announcement, the grades or the group. */
+/** Where a notification leads: the message, the announcement, the work, the grades or the group. */
 export function linkOf(row: {
   kind: NotificationKind;
   groupId: string;
   messageId: string | null;
   announcementId: string | null;
+  assignmentId: string | null;
 }): string {
   const base = `/app/groups/${row.groupId}`;
+  if (row.assignmentId) {
+    return `${base}?tab=assignments&assignment=${row.assignmentId}`;
+  }
   if (row.announcementId) {
     return `${base}?tab=announcements&announcement=${row.announcementId}`;
   }
@@ -69,8 +74,10 @@ const SETTING_OF: Record<NotificationKind, keyof NotificationSettings | null> = 
   poll: 'polls',
   grade: 'grades',
   message: 'messages',
-  // Being given a role in a group is always worth knowing.
+  assignment: 'assignments',
+  // Being given a role in a group, or reminded by its staff, is always worth knowing.
   role: null,
+  nudge: null,
 };
 
 type Locale = 'ar' | 'en';
@@ -83,6 +90,8 @@ const TITLES: Record<Locale, Record<NotificationKind, (actor: string, group: str
     grade: (_actor, group) => `درجة جديدة في ${group}`,
     role: (_actor, group) => `دور جديد لك في ${group}`,
     message: (actor, group) => `${actor} في ${group}`,
+    assignment: (_actor, group) => `واجب جديد في ${group}`,
+    nudge: (actor, group) => `${actor} يذكّرك في ${group}`,
   },
   en: {
     mention: (actor, group) => `${actor} mentioned you in ${group}`,
@@ -91,6 +100,8 @@ const TITLES: Record<Locale, Record<NotificationKind, (actor: string, group: str
     grade: (_actor, group) => `New grade in ${group}`,
     role: (_actor, group) => `A new role for you in ${group}`,
     message: (actor, group) => `${actor} in ${group}`,
+    assignment: (_actor, group) => `New assignment in ${group}`,
+    nudge: (actor, group) => `${actor} sent you a reminder in ${group}`,
   },
 };
 
@@ -100,6 +111,20 @@ const ROLE_LABELS: Record<Locale, Record<string, string>> = {
     assistant: 'Teaching assistant',
     moderator: 'Moderator',
     representative: 'Class representative',
+  },
+};
+
+/** A reminder without a note of its own says why it was sent. */
+const NUDGE_LABELS: Record<Locale, Record<string, string>> = {
+  ar: {
+    'nudge:inactive': 'لم نرك في المجموعة منذ فترة.',
+    'nudge:announcement': 'هناك إعلان لم تقرأه بعد.',
+    'nudge:assignment': 'هناك واجب لم تسلّمه بعد.',
+  },
+  en: {
+    'nudge:inactive': 'We have not seen you in the group for a while.',
+    'nudge:announcement': 'There is an announcement you have not read yet.',
+    'nudge:assignment': 'There is an assignment you have not handed in yet.',
   },
 };
 
@@ -141,6 +166,7 @@ export async function notify(context: NotifyContext, event: NotifyEvent): Promis
     groupId: event.groupId,
     messageId: event.messageId ?? null,
     announcementId: event.announcementId ?? null,
+    assignmentId: event.assignmentId ?? null,
   });
 
   if (event.inApp !== false) {
@@ -153,6 +179,7 @@ export async function notify(context: NotifyContext, event: NotifyEvent): Promis
         messageId: event.messageId ?? null,
         announcementId: event.announcementId ?? null,
         gradeColumnId: event.gradeColumnId ?? null,
+        assignmentId: event.assignmentId ?? null,
         excerpt,
         createdAt: context.now(),
       })),
@@ -183,7 +210,8 @@ export async function notify(context: NotifyContext, event: NotifyEvent): Promis
       body:
         event.kind === 'role'
           ? (ROLE_LABELS[target.locale][excerpt ?? ''] ?? '')
-          : (excerpt ?? '').replaceAll('@all', EVERYONE[target.locale]),
+          : (NUDGE_LABELS[target.locale][excerpt ?? ''] ??
+            (excerpt ?? '').replaceAll('@all', EVERYONE[target.locale])),
       url: link,
       tag: event.kind === 'message' ? `group-${event.groupId}` : `${event.kind}-${link}`,
     };
@@ -285,16 +313,23 @@ export async function markNotificationsRead(
 export async function markReadFor(
   db: Database,
   userId: string,
-  target: { messageId?: string; announcementId?: string; groupGrades?: string },
+  target: {
+    messageId?: string;
+    announcementId?: string;
+    assignmentId?: string;
+    groupGrades?: string;
+  },
   now: Date,
 ): Promise<void> {
   const condition = target.messageId
     ? eq(notifications.messageId, target.messageId)
-    : target.announcementId
-      ? eq(notifications.announcementId, target.announcementId)
-      : target.groupGrades
-        ? and(eq(notifications.groupId, target.groupGrades), eq(notifications.kind, 'grade'))
-        : undefined;
+    : target.assignmentId
+      ? eq(notifications.assignmentId, target.assignmentId)
+      : target.announcementId
+        ? eq(notifications.announcementId, target.announcementId)
+        : target.groupGrades
+          ? and(eq(notifications.groupId, target.groupGrades), eq(notifications.kind, 'grade'))
+          : undefined;
   if (!condition) {
     return;
   }
@@ -312,8 +347,8 @@ export async function getSettings(db: Database, userId: string): Promise<Notific
   if (!row) {
     return DEFAULT_NOTIFICATION_SETTINGS;
   }
-  const { mentions, announcements, polls, grades, messages } = row;
-  return { mentions, announcements, polls, grades, messages };
+  const { mentions, announcements, polls, grades, assignments, messages } = row;
+  return { mentions, announcements, polls, grades, assignments, messages };
 }
 
 export async function saveSettings(

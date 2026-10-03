@@ -338,6 +338,7 @@ async function loadMembers(
         suspensionReason: users.suspensionReason,
       },
       activeLanguage: studentProfiles.activeLanguage,
+      universityId: studentProfiles.universityId,
       suspendedByName: doctorProfiles.displayName,
     })
     .from(groupMembers)
@@ -361,11 +362,12 @@ async function loadMembers(
           .where(inArray(studentLanguages.userId, ids))
           .orderBy(asc(studentLanguages.enrolledAt), asc(studentLanguages.language));
 
-  return rows.map(({ member, student, activeLanguage, suspendedByName }) => ({
+  return rows.map(({ member, student, activeLanguage, universityId, suspendedByName }) => ({
     student: {
       id: student.id,
       name: student.name,
       email: student.email,
+      universityId: universityId ?? null,
       avatarUrl: avatarUrlOf(student),
       languages: languageRows.filter((row) => row.userId === student.id).map((row) => row.language),
       activeLanguage,
@@ -428,11 +430,12 @@ async function placeActive(
 }
 
 /** Adds a student who already has an account, by the email they sign in with. */
+/** Adds a student by the email they sign in with, or by their university number. */
 export async function addMemberByEmail(
   context: GroupsContext,
   doctor: User,
   groupId: string,
-  email: string,
+  identifier: string,
 ): Promise<GroupMember> {
   const { db, now } = context;
 
@@ -441,13 +444,22 @@ export async function addMemberByEmail(
     assertActive(group);
 
     // "No account" and "not a student" answer alike: a doctor learns nothing about other roles.
+    const byEmail = identifier.includes('@');
     const [student] = await tx
       .select({ id: users.id })
       .from(users)
-      .where(and(sql`lower(${users.email}) = ${email}`, eq(users.role, 'student')))
+      .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+      .where(
+        and(
+          byEmail
+            ? sql`lower(${users.email}) = ${identifier.toLowerCase()}`
+            : eq(studentProfiles.universityId, identifier.toUpperCase()),
+          eq(users.role, 'student'),
+        ),
+      )
       .limit(1);
     if (!student) {
-      throw new HttpError(404, 'STUDENT_NOT_FOUND', 'No student uses this email');
+      throw new HttpError(404, 'STUDENT_NOT_FOUND', 'No student has this email or number');
     }
 
     const [existing] = await tx

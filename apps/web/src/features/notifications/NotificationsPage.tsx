@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -23,7 +24,7 @@ import { NotificationList } from './NotificationList';
 import { disablePush, enablePush, pushState, type PushState } from './push';
 import styles from './Notifications.module.css';
 
-const KINDS = ['mentions', 'announcements', 'polls', 'grades', 'messages'] as const;
+const KINDS = ['mentions', 'announcements', 'polls', 'grades', 'assignments', 'messages'] as const;
 
 function PushCard({ available }: { available: boolean }) {
   const { t } = useTranslation();
@@ -157,9 +158,13 @@ export function NotificationsPage() {
             </div>
             {notifications.isPending && <Skeleton shape="block" blockSize="10rem" />}
             {notifications.isError && (
-              <Alert tone="danger" live>
-                {describeApiError(t, notifications.error)}
-              </Alert>
+              <LoadError
+                error={notifications.error}
+                retrying={notifications.isFetching}
+                onRetry={() => {
+                  void notifications.refetch();
+                }}
+              />
             )}
             {notifications.isSuccess &&
               (notifications.data.notifications.length === 0 ? (
@@ -179,9 +184,13 @@ export function NotificationsPage() {
           <div className={styles.side}>
             {settings.isPending && <Skeleton shape="block" blockSize="12rem" />}
             {settings.isError && (
-              <Alert tone="danger" live>
-                {describeApiError(t, settings.error)}
-              </Alert>
+              <LoadError
+                error={settings.error}
+                retrying={settings.isFetching}
+                onRetry={() => {
+                  void settings.refetch();
+                }}
+              />
             )}
             {settings.isSuccess && (
               <>

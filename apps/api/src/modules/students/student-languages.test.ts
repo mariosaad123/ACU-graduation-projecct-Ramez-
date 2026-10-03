@@ -10,6 +10,7 @@ import {
   type Agent,
   type TestContext,
 } from '../../test/harness';
+import { nextUniversityId } from '../../test/people';
 
 let context: TestContext;
 
@@ -28,9 +29,12 @@ async function signInAsStudent(
   activeLanguage: LearningLanguage = languages[0] ?? 'en',
 ): Promise<Agent> {
   const { agent } = await signIn(context);
-  await post(agent, '/api/onboarding/student', { languages, activeLanguage, goal: 'study' }).expect(
-    200,
-  );
+  await post(agent, '/api/onboarding/student', {
+    languages,
+    activeLanguage,
+    goal: 'study',
+    universityId: nextUniversityId(),
+  }).expect(200);
   return agent;
 }
 

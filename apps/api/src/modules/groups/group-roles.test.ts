@@ -355,6 +355,7 @@ describe('notifications', () => {
       announcements: true,
       polls: true,
       grades: true,
+      assignments: true,
       messages: false,
     }).expect(200);
 

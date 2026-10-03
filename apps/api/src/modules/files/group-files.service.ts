@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, isNotNull, isNull, lt, or, sql, type SQL } from '
 import type { Database } from '../../db/client';
 import {
   announcementAttachments,
+  assignmentAttachments,
   announcements,
   files,
   groupMessages,
@@ -33,7 +34,7 @@ function likeTerm(term: string): string {
 }
 
 /**
- * Everything shared in a group, from its chat and its announcements, newest first: what the files
+ * Everything shared in a group, from its chat, its announcements and its assignments, newest first: what the files
  * tab lists, in four kinds. Files of deleted messages or announcements are gone with them.
  */
 export async function groupFiles(
@@ -47,7 +48,11 @@ export async function groupFiles(
   const shared = and(
     eq(files.groupId, group.id),
     eq(files.purpose, 'chat'),
-    or(isNotNull(groupMessages.id), isNotNull(announcements.id)),
+    or(
+      isNotNull(groupMessages.id),
+      isNotNull(announcements.id),
+      isNotNull(assignmentAttachments.assignmentId),
+    ),
   );
   const base = () =>
     db
@@ -55,6 +60,7 @@ export async function groupFiles(
         file: files,
         messageId: groupMessages.id,
         announcementId: announcements.id,
+        assignmentId: assignmentAttachments.assignmentId,
       })
       .from(files)
       .leftJoin(
@@ -68,7 +74,8 @@ export async function groupFiles(
           eq(announcements.id, announcementAttachments.announcementId),
           isNull(announcements.deletedAt),
         ),
-      );
+      )
+      .leftJoin(assignmentAttachments, eq(assignmentAttachments.fileId, files.id));
 
   const rows = await base()
     .where(
@@ -105,6 +112,7 @@ export async function groupFiles(
         isNull(announcements.deletedAt),
       ),
     )
+    .leftJoin(assignmentAttachments, eq(assignmentAttachments.fileId, files.id))
     .where(shared);
 
   const page = rows.slice(0, PAGE_SIZE);
@@ -112,8 +120,8 @@ export async function groupFiles(
   const list: GroupFile[] = page.map((row) => ({
     attachment: toAttachment(row.file),
     author: { id: row.file.ownerId, name: authors.get(row.file.ownerId)?.name ?? '' },
-    source: row.messageId ? 'chat' : 'announcement',
-    sourceId: row.messageId ?? row.announcementId ?? '',
+    source: row.messageId ? 'chat' : row.announcementId ? 'announcement' : 'assignment',
+    sourceId: row.messageId ?? row.announcementId ?? row.assignmentId ?? '',
     createdAt: row.file.createdAt.toISOString(),
   }));
 

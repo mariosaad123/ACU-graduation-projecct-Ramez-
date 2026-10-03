@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { LanguageGlyph } from '../../components/language/LanguageGlyph';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -106,6 +107,10 @@ function MemberRow({
         </p>
         <p className={styles.memberEmail}>
           <span dir="ltr">{student.email}</span>
+        </p>
+        <p className={styles.memberId}>
+          {t('profile.universityId')}:{' '}
+          <span dir="ltr">{student.universityId ?? t('grades.noUniversityId')}</span>
         </p>
         <p className={styles.muted}>{when}</p>
         {student.languages.length > 0 && (
@@ -556,9 +561,13 @@ export function MembersPanel({ group }: { group: Group }) {
   }
   if (members.isError) {
     return (
-      <Alert tone="danger" live>
-        {describeApiError(t, members.error)}
-      </Alert>
+      <LoadError
+        error={members.error}
+        retrying={members.isFetching}
+        onRetry={() => {
+          void members.refetch();
+        }}
+      />
     );
   }
 

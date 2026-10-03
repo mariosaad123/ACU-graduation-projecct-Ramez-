@@ -22,6 +22,13 @@ export interface Person {
 }
 
 let staffCounter = 0;
+let studentCounter = 0;
+
+/** A university number no other test student has. */
+export function nextUniversityId(): string {
+  studentCounter += 1;
+  return `2026${String(studentCounter).padStart(4, '0')}`;
+}
 
 export async function idOf(agent: Agent): Promise<string> {
   return meResponseSchema.parse((await agent.get('/api/me').expect(200)).body).user.id;
@@ -71,6 +78,7 @@ export async function signInAsStudent(
     languages,
     activeLanguage: languages[0],
     goal: 'study',
+    universityId: nextUniversityId(),
   }).expect(200);
   return { agent, id: await idOf(agent), email: person.email };
 }

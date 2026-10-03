@@ -20,13 +20,12 @@ import { useDeferredValue, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { AudioPlayer } from '../../components/media/AudioPlayer';
-import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TextField } from '../../components/ui/TextField';
 import { useFormatDate } from '../../i18n/use-format-date';
 import { apiRequest } from '../../lib/api';
-import { describeApiError } from '../auth/api-errors';
 import { useFormatSize } from '../chat/use-format-size';
 import styles from './Files.module.css';
 
@@ -59,9 +58,14 @@ function useGroupFiles(groupId: string, kind: AttachmentKind, search: string) {
 
 /** Where a file came from: its message in the chat, or its announcement. */
 function sourceLink(file: GroupFile): string {
-  return file.source === 'chat'
-    ? `?tab=chat&message=${file.sourceId}`
-    : `?tab=announcements&announcement=${file.sourceId}`;
+  switch (file.source) {
+    case 'chat':
+      return `?tab=chat&message=${file.sourceId}`;
+    case 'announcement':
+      return `?tab=announcements&announcement=${file.sourceId}`;
+    case 'assignment':
+      return `?tab=assignments&assignment=${file.sourceId}`;
+  }
 }
 
 function FileMeta({ file }: { file: GroupFile }) {
@@ -74,7 +78,7 @@ function FileMeta({ file }: { file: GroupFile }) {
       <time dateTime={file.createdAt}>{formatDate(file.createdAt)}</time>
       {' · '}
       <Link to={sourceLink(file)} className={styles.source}>
-        {file.source === 'chat' ? t('files.inChat') : t('files.inAnnouncement')}
+        {t(`files.sources.${file.source}`)}
         <ArrowSquareOutIcon className="mirror-in-rtl" aria-hidden="true" />
       </Link>
     </span>
@@ -212,9 +216,13 @@ export function FilesTab({ view }: { view: GroupView }) {
 
       {files.isPending && <Skeleton shape="block" blockSize="10rem" />}
       {files.isError && (
-        <Alert tone="danger" live>
-          {describeApiError(t, files.error)}
-        </Alert>
+        <LoadError
+          error={files.error}
+          retrying={files.isFetching}
+          onRetry={() => {
+            void files.refetch();
+          }}
+        />
       )}
       {files.isSuccess && list.length === 0 && (
         <p className={styles.empty}>

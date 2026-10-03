@@ -18,6 +18,10 @@ export type GradeColumnKind = (typeof GRADE_COLUMN_KINDS)[number];
 export const GRADE_STATUSES = ['scored', 'absent', 'excused'] as const;
 export type GradeStatus = (typeof GRADE_STATUSES)[number];
 
+/** How a column is filled: typed by the staff, or by grading an assignment handed in here. */
+export const GRADE_COLUMN_SOURCES = ['manual', 'assignment', 'quiz'] as const;
+export type GradeColumnSource = (typeof GRADE_COLUMN_SOURCES)[number];
+
 export const GRADE_MAX_SCORE = 1000;
 export const GRADE_NOTE_MAX_LENGTH = 300;
 
@@ -58,6 +62,9 @@ export const gradeColumnSchema = z.object({
   ...gradeColumnInputSchema.shape,
   title: z.string(),
   position: z.number(),
+  source: z.enum(GRADE_COLUMN_SOURCES),
+  /** The assignment a column belongs to, when it has one. */
+  assignmentId: z.nullable(z.string()),
   createdAt: z.string(),
 });
 export type GradeColumn = z.infer<typeof gradeColumnSchema>;

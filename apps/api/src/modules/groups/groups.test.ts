@@ -29,6 +29,7 @@ import {
   signInAsDoctor,
   signInAsStudent,
   type Person,
+  nextUniversityId,
 } from '../../test/people';
 import { JOIN_CODE_FAILURE_LIMIT } from './membership.service';
 
@@ -99,6 +100,7 @@ describe('languages a doctor teaches', () => {
       languages: ['en'],
       activeLanguage: 'en',
       goal: 'study',
+      universityId: nextUniversityId(),
     }).expect(200);
 
     expect((await me(agent)).doctor).toBeNull();
@@ -433,13 +435,13 @@ describe('a doctor managing students', () => {
 
     later();
     const added = await post(doctor.agent, `/api/doctor/groups/${group.id}/members`, {
-      email: student.email.toUpperCase(),
+      identifier: student.email.toUpperCase(),
     }).expect(201);
 
     expect(groupMemberResponseSchema.parse(added.body).member.status).toBe('active');
     expect((await me(student.agent)).student?.languages).toEqual(['en', 'fr']);
     const again = await post(doctor.agent, `/api/doctor/groups/${group.id}/members`, {
-      email: student.email,
+      identifier: student.email,
     }).expect(409);
     expect(errorOf(again).code).toBe('ALREADY_MEMBER');
   });
@@ -451,7 +453,7 @@ describe('a doctor managing students', () => {
 
     for (const email of ['nobody@gmail.com', colleague.email]) {
       const response = await post(doctor.agent, `/api/doctor/groups/${group.id}/members`, {
-        email,
+        identifier: email,
       }).expect(404);
       expect(errorOf(response).code).toBe('STUDENT_NOT_FOUND');
     }
@@ -503,6 +505,7 @@ describe('suspending a student’s account', () => {
       languages: ['en'],
       activeLanguage: 'en',
       goal: 'study',
+      universityId: nextUniversityId(),
     }).expect(200);
     const group = await createGroup(doctor);
     await post(agent, '/api/student/join', { code: group.joinCode }).expect(201);

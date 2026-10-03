@@ -8,6 +8,7 @@ import {
   type GroupView,
 } from '@acu/shared';
 import {
+  BellRingingIcon,
   CheckIcon,
   ChecksIcon,
   MegaphoneIcon,
@@ -22,6 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -34,6 +36,7 @@ import { TextField } from '../../components/ui/TextField';
 import { useToast } from '../../components/ui/toast/toast-context';
 import { useFormatDate } from '../../i18n/use-format-date';
 import { describeApiError } from '../auth/api-errors';
+import { NudgeDialog } from '../coursework/NudgeDialog';
 import { Avatar } from '../auth/Avatar';
 import { AttachmentView } from '../chat/AttachmentView';
 import { linkify } from '../chat/linkify';
@@ -238,6 +241,7 @@ function ReceiptsDialog({
   const { t } = useTranslation();
   const formatDate = useFormatDate();
   const receipts = useAnnouncementReceipts(groupId, announcement.id);
+  const [nudging, setNudging] = useState(false);
 
   return (
     <Dialog
@@ -248,9 +252,13 @@ function ReceiptsDialog({
     >
       {receipts.isPending && <Skeleton shape="block" blockSize="8rem" />}
       {receipts.isError && (
-        <Alert tone="danger" live>
-          {describeApiError(t, receipts.error)}
-        </Alert>
+        <LoadError
+          error={receipts.error}
+          retrying={receipts.isFetching}
+          onRetry={() => {
+            void receipts.refetch();
+          }}
+        />
       )}
       {receipts.isSuccess && (
         <div className={styles.receipts}>
@@ -259,6 +267,18 @@ function ReceiptsDialog({
               <WarningCircleIcon aria-hidden="true" />
               {t('announcements.notRead', { count: receipts.data.unread.length })}
             </h3>
+            {receipts.data.unread.length > 0 && (
+              <Button
+                size="sm"
+                variant="secondary"
+                iconStart={<BellRingingIcon aria-hidden="true" />}
+                onClick={() => {
+                  setNudging(true);
+                }}
+              >
+                {t('nudge.remindUnread', { count: receipts.data.unread.length })}
+              </Button>
+            )}
             {receipts.data.unread.length === 0 ? (
               <p className={styles.muted}>{t('announcements.everyoneRead')}</p>
             ) : (
@@ -292,6 +312,17 @@ function ReceiptsDialog({
             </ul>
           </section>
         </div>
+      )}
+      {nudging && receipts.isSuccess && (
+        <NudgeDialog
+          groupId={groupId}
+          students={receipts.data.unread}
+          reason="announcement"
+          targetId={announcement.id}
+          onClose={() => {
+            setNudging(false);
+          }}
+        />
       )}
     </Dialog>
   );
@@ -362,9 +393,13 @@ export function AnnouncementsTab({ view }: { view: GroupView }) {
 
       {announcements.isPending && <Skeleton shape="block" blockSize="10rem" />}
       {announcements.isError && (
-        <Alert tone="danger" live>
-          {describeApiError(t, announcements.error)}
-        </Alert>
+        <LoadError
+          error={announcements.error}
+          retrying={announcements.isFetching}
+          onRetry={() => {
+            void announcements.refetch();
+          }}
+        />
       )}
       {list?.length === 0 && (
         <div className={styles.empty}>

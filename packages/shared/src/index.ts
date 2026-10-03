@@ -12,3 +12,4 @@ export * from './contracts/schedule';
 export * from './contracts/gradebook';
 export * from './contracts/notifications';
 export * from './contracts/announcements';
+export * from './contracts/coursework';
