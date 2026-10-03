@@ -28,6 +28,16 @@ interface RequestOptions<Schema extends z.ZodMiniType> {
   schema?: Schema;
 }
 
+let onSignedOut: (() => void) | null = null;
+
+/**
+ * Called when the API says the session is over (signed out elsewhere, expired or suspended), so
+ * the app can lead to the sign-in page instead of failing request after request.
+ */
+export function watchForSignOut(handler: () => void): void {
+  onSignedOut = handler;
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   const payload: unknown = await response.json().catch(() => null);
   const parsed = apiErrorSchema.safeParse(payload);
@@ -62,6 +72,10 @@ export async function apiRequest<Schema extends z.ZodMiniType = z.ZodMiniUnknown
   }
 
   if (!response.ok) {
+    // Asking who is signed in answers 401 for a visitor: that one is not news.
+    if (response.status === 401 && path !== '/api/me') {
+      onSignedOut?.();
+    }
     throw await toApiError(response);
   }
   if (response.status === 204) {

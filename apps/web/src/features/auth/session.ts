@@ -5,6 +5,27 @@ import { reloadTo } from '../../lib/browser';
 
 export const SESSION_QUERY_KEY = ['session'] as const;
 
+const ENDED_FLAG = 'acu:session-ended';
+
+/** Remembered until the sign-in page has said it once. */
+export function markSessionEnded(): void {
+  try {
+    sessionStorage.setItem(ENDED_FLAG, '1');
+  } catch {
+    // Without storage the sign-in page simply shows no explanation.
+  }
+}
+
+export function takeSessionEnded(): boolean {
+  try {
+    const ended = sessionStorage.getItem(ENDED_FLAG) === '1';
+    sessionStorage.removeItem(ENDED_FLAG);
+    return ended;
+  } catch {
+    return false;
+  }
+}
+
 /** The signed-in account, or null for visitors. */
 async function fetchSession(): Promise<SessionUser | null> {
   try {

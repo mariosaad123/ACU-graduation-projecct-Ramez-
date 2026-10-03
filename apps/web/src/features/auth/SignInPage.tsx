@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CheckCircleIcon } from '@phosphor-icons/react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
@@ -6,7 +7,7 @@ import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
 import { PageTitle } from '../../pages/PageTitle';
 import { GoogleButton } from './GoogleButton';
-import { googleSignInUrl } from './session';
+import { googleSignInUrl, takeSessionEnded } from './session';
 import styles from './SignInPage.module.css';
 
 const FAILURES = [
@@ -29,6 +30,8 @@ export function SignInPage() {
   const [params] = useSearchParams();
   const failure = params.get('error');
   const returnTo = params.get('returnTo');
+  // Read once: the explanation should not come back after a reload.
+  const [ended] = useState(takeSessionEnded);
 
   return (
     <>
@@ -52,6 +55,7 @@ export function SignInPage() {
 
         <section className={styles.card} aria-label={t('auth.signInTitle')}>
           <h2 className={styles.cardTitle}>{t('auth.signInTitle')}</h2>
+          {ended && !isFailure(failure) && <Alert tone="info">{t('auth.sessionEnded')}</Alert>}
           {isFailure(failure) && (
             <Alert tone={failure === 'cancelled' ? 'info' : 'danger'} live>
               {t(`auth.failures.${failure}`)}

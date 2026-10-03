@@ -63,6 +63,22 @@ export function describeApiError(t: TFunction, error: unknown): string {
       return t('errors.tooManyFiles');
     case 'PUSH_NOT_CONFIGURED':
       return t('errors.pushNotConfigured');
+    case 'COLUMN_HAS_ASSIGNMENT':
+      return t('errors.columnHasAssignment');
+    case 'ASSIGNMENT_CLOSED':
+      return t('errors.assignmentClosed');
+    case 'SUBMISSION_LOCKED':
+      return t('errors.submissionLocked');
+    case 'UNIVERSITY_ID_TAKEN':
+      return t('errors.universityIdTaken');
+    case 'UNIVERSITY_ID_REQUIRED':
+      return t('errors.universityIdRequired');
+    case 'FORBIDDEN':
+      return t('errors.forbidden');
+    case 'UNAUTHENTICATED':
+      return t('errors.signedOut');
+    case 'PAYLOAD_TOO_LARGE':
+      return t('errors.fileTooLarge');
     case 'MESSAGE_NOT_EDITABLE':
       return t('errors.messageNotEditable');
     default:

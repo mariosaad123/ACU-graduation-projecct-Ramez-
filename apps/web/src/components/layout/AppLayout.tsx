@@ -1,4 +1,5 @@
 import { Outlet, ScrollRestoration, type Location } from 'react-router';
+import { ConnectionBanner } from './ConnectionBanner';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
 import { MAIN_CONTENT_ID, SkipLink } from './SkipLink';
@@ -20,6 +21,7 @@ export function AppLayout() {
     <div className={styles.shell}>
       <SkipLink />
       <SiteHeader />
+      <ConnectionBanner />
       <main id={MAIN_CONTENT_ID} tabIndex={-1} className={styles.main}>
         <Outlet />
       </main>
