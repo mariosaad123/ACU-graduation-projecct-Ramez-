@@ -51,3 +51,20 @@
   font-weight: var(--weight-regular);
   color: var(--color-text-secondary);
 }
+
+.idForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.idForm > :first-child {
+  flex: 1 1 14rem;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
