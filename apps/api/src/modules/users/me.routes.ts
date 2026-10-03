@@ -9,6 +9,7 @@ import { authOf, requireAuth } from '../../http/middleware/require-auth';
 import { acceptOneFile, uploadedFile } from '../../http/middleware/upload';
 import { withBody } from '../../http/middleware/validate';
 import { recordAudit } from '../audit/audit';
+import { agendaFor } from '../coursework/agenda.service';
 import { removeFile, saveUpload } from '../files/files.service';
 import { universityIdTaken } from '../onboarding/onboarding.service';
 import { toSessionUser } from './session-user';
@@ -32,6 +33,12 @@ export function createMeRouter(deps: AppDependencies): Router {
 
   router.get('/', async (req, res) => {
     await respondWithAccount(req, res);
+  });
+
+  /** What is waiting for the person across their groups, for the dashboard. */
+  router.get('/agenda', async (req, res) => {
+    const agenda = await agendaFor(db, authOf(req).user, now());
+    res.set('Cache-Control', 'no-store').json(agenda);
   });
 
   /** A student's university number, shown to their doctors and in grade sheets. */

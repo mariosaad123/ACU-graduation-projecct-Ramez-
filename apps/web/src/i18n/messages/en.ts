@@ -1026,6 +1026,8 @@ export const en: Messages = {
     admin: {
       lead: 'The full administration area is on its way: users, the doctor code and statistics.',
     },
+    morning: 'Good morning, {{name}}',
+    evening: 'Good evening, {{name}}',
   },
   universityIdStep: {
     title: 'Add your university ID',
@@ -1306,5 +1308,21 @@ export const en: Messages = {
       },
     },
     closing: 'A new language starts with one step.',
+  },
+  attention: {
+    title: 'Needs your attention',
+    none: 'Nothing is waiting for you. All is in order.',
+    handIn: 'Hand in: {{title}}',
+    overdue: 'past its deadline, still accepted',
+    toGrade: 'Work waiting to be graded: {{count}}',
+    requests: 'Join requests waiting for you: {{count}}',
+    announcements: 'Unread announcements: {{count}}',
+    messages: 'New messages: {{count}}',
+    awaitingApproval: 'Your request to join is waiting for the doctor',
+  },
+  install: {
+    button: 'Install as an app',
+    done: 'The platform is installed on your device',
+    iosHint: 'To install as an app: tap Share in Safari, then "Add to Home Screen".',
   },
 };

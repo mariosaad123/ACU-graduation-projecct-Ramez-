@@ -5,6 +5,7 @@ import facultyLogo from '../../assets/brand/faculty-logo.webp';
 import { ApiStatus } from '../../features/system/ApiStatus';
 import { Emblem } from '../brand/Emblem';
 import { Container } from './Container';
+import { InstallButton } from './InstallButton';
 import { FOOTER_NAV } from './nav-items';
 import styles from './SiteFooter.module.css';
 
@@ -25,6 +26,7 @@ export function SiteFooter() {
             <br />
             {t('brand.university')}
           </p>
+          <InstallButton />
         </div>
 
         <nav aria-label={t('footer.navLabel')}>

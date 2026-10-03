@@ -10,7 +10,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
@@ -19,7 +19,6 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toast/toast-context';
-import { useLocale } from '../../i18n/use-locale';
 import { describeApiError } from '../auth/api-errors';
 import { AttachmentView } from '../chat/AttachmentView';
 import { linkify } from '../chat/linkify';
@@ -27,31 +26,8 @@ import { useAssignments, useDeleteAssignment, useUpdateAssignment, useWithdrawWo
 import { AssignmentDialog } from './AssignmentDialog';
 import { ReviewPanel } from './ReviewPanel';
 import { SubmitDialog } from './SubmitDialog';
+import { useDue } from './use-due';
 import styles from './Coursework.module.css';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** A deadline in full, and how far away it is, in the reader's language. */
-function useDue() {
-  const { intlLocale } = useLocale();
-  return useMemo(() => {
-    const full = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'full', timeStyle: 'short' });
-    const relative = new Intl.RelativeTimeFormat(intlLocale, { numeric: 'auto' });
-    return (iso: string) => {
-      const date = new Date(iso);
-      const left = date.getTime() - Date.now();
-      const far = Math.abs(left) >= DAY_MS;
-      return {
-        full: full.format(date),
-        relative: far
-          ? relative.format(Math.round(left / DAY_MS), 'day')
-          : relative.format(Math.round(left / (60 * 60 * 1000)), 'hour'),
-        past: left < 0,
-        soon: left >= 0 && left < 2 * DAY_MS,
-      };
-    };
-  }, [intlLocale]);
-}
 
 function AssignmentCard({
   view,

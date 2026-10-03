@@ -1,4 +1,5 @@
 import {
+  agendaSchema,
   assignmentDetailSchema,
   assignmentResponseSchema,
   assignmentsResponseSchema,
@@ -466,6 +467,59 @@ describe('assignments', () => {
     expect(cells).toContain('Not handed in');
     expect(sheet?.getCell(8, 4).text).toBe('1 / 2');
   });
+});
+
+describe('the agenda on the dashboard', () => {
+  it('lists what a student still has to hand in, and what the doctor still has to grade', async () => {
+    const { doctor, omar, nour, group } = await classroom();
+    const assignment = await assign(doctor, group);
+    const agendaOf = async (person: Person) =>
+      agendaSchema.parse((await person.agent.get('/api/me/agenda').expect(200)).body);
+
+    expect((await agendaOf(omar)).toHandIn).toEqual([
+      {
+        assignmentId: assignment.id,
+        title: 'Essay 1',
+        groupId: group.id,
+        groupName: group.name,
+        dueAt: null,
+        overdue: false,
+      },
+    ]);
+    expect((await agendaOf(doctor)).toGrade).toEqual([]);
+
+    await handIn(omar, group.id, assignment.id, 'My city is Cairo.').expect(200);
+    await handIn(nour, group.id, assignment.id, 'My city is Giza.').expect(200);
+    expect((await agendaOf(omar)).toHandIn).toEqual([]);
+    expect((await agendaOf(doctor)).toGrade).toEqual([
+      expect.objectContaining({ assignmentId: assignment.id, waiting: 2 }),
+    ]);
+
+    await send(
+      doctor.agent,
+      'put',
+      `/api/groups/${group.id}/assignments/${assignment.id}/submissions/${omar.id}/grade`,
+      { status: 'scored', score: 15, note: null },
+    ).expect(200);
+    expect((await agendaOf(doctor)).toGrade[0]?.waiting).toBe(1);
+    // Groups that are someone else's never show up.
+    const stranger = await signInAsDoctor(context);
+    expect((await agendaOf(stranger)).toGrade).toEqual([]);
+  });
+
+  it('leaves out assignments that no longer take work and marks overdue ones', () =>
+    withOwnClock(async (timed) => {
+      const { doctor, omar, group } = await classroom(timed);
+      const dueAt = new Date(START + HOUR).toISOString();
+      await assign(doctor, group, { title: 'Late allowed', dueAt, allowLate: true });
+      await assign(doctor, group, { title: 'Strict', dueAt, allowLate: false });
+      timed.advance(2 * HOUR);
+
+      const agenda = agendaSchema.parse((await omar.agent.get('/api/me/agenda').expect(200)).body);
+      expect(agenda.toHandIn.map((item) => [item.title, item.overdue])).toEqual([
+        ['Late allowed', true],
+      ]);
+    }));
 });
 
 describe('reminders', () => {

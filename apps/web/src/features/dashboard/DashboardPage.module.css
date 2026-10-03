@@ -15,6 +15,106 @@
   font-weight: var(--weight-bold);
 }
 
+.today {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* What is waiting: the first card, with the brand's line so the eye lands on it. */
+.attention {
+  display: grid;
+  gap: var(--space-4);
+  border-inline-start: 4px solid var(--color-emblem);
+}
+
+.attentionList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attentionItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+a.attentionItem:hover {
+  background: var(--color-action-subtle);
+}
+
+.attentionIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-action);
+}
+
+.attentionIcon svg {
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
+}
+
+[data-tone='urgent'] .attentionIcon {
+  background: var(--color-emblem-subtle);
+  color: var(--color-emblem-on-subtle);
+}
+
+[data-tone='waiting'] .attentionIcon {
+  color: var(--color-text-secondary);
+}
+
+.attentionText {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.attentionTitle {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+  text-align: match-parent;
+}
+
+.attentionDetail {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: match-parent;
+}
+
+.attentionArrow {
+  color: var(--color-text-muted);
+}
+
+.allClear {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.allClear svg {
+  flex-shrink: 0;
+  inline-size: 2rem;
+  block-size: 2rem;
+  color: var(--color-success);
+}
+
 .lead {
   max-inline-size: 44rem;
   margin-block-start: calc(-1 * var(--space-4));

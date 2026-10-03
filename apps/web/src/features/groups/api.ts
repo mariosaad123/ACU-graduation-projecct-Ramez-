@@ -26,8 +26,9 @@ const membersKey = (groupId: string) => ['doctor', 'groups', groupId, 'members']
 
 /* The doctor's side */
 
-export function useDoctorGroups() {
+export function useDoctorGroups(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: DOCTOR_GROUPS_KEY,
     queryFn: async () =>
       (await apiRequest('/api/doctor/groups', { schema: groupsResponseSchema })).groups,
@@ -215,8 +216,9 @@ export function useRemoveAssistant(groupId: string) {
 }
 
 /** Groups the signed-in doctor helps run as a teaching assistant. */
-export function useAssistedGroups() {
+export function useAssistedGroups(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ASSISTED_GROUPS_KEY,
     queryFn: async () =>
       (await apiRequest('/api/doctor/assisting', { schema: assistedGroupsResponseSchema })).groups,
@@ -285,8 +287,9 @@ export function useSuspension() {
 
 /* The student's side */
 
-export function useStudentGroups() {
+export function useStudentGroups(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: STUDENT_GROUPS_KEY,
     queryFn: async () =>
       (await apiRequest('/api/student/groups', { schema: studentGroupsResponseSchema })).groups,
