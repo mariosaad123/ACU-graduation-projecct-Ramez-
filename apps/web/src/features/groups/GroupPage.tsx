@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { Container } from '../../components/layout/Container';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -431,12 +432,12 @@ function AddMemberForm({ group }: { group: Group }) {
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsed = addMemberSchema.safeParse({ email });
+    const parsed = addMemberSchema.safeParse({ identifier: email });
     if (!parsed.success) {
       setProblem(t('groups.addError'));
       return;
     }
-    add.mutate(parsed.data.email, {
+    add.mutate(parsed.data.identifier, {
       onSuccess: (member) => {
         toast({ tone: 'success', title: t('groups.added', { name: member.student.name }) });
         setEmail('');
@@ -458,7 +459,6 @@ function AddMemberForm({ group }: { group: Group }) {
         label={t('groups.addLabel')}
         hint={t('groups.addHint')}
         error={problem ?? undefined}
-        type="email"
         dir="ltr"
         autoComplete="off"
         value={email}
@@ -494,9 +494,13 @@ export function GroupPage() {
   if (groups.isError) {
     return (
       <Container className={styles.page}>
-        <Alert tone="danger" live>
-          {describeApiError(t, groups.error)}
-        </Alert>
+        <LoadError
+          error={groups.error}
+          retrying={groups.isFetching}
+          onRetry={() => {
+            void groups.refetch();
+          }}
+        />
       </Container>
     );
   }
@@ -565,9 +569,13 @@ export function GroupPage() {
 
         {view.isPending && <Spinner size="2rem" />}
         {view.isError && (
-          <Alert tone="danger" live>
-            {describeApiError(t, view.error)}
-          </Alert>
+          <LoadError
+            error={view.error}
+            retrying={view.isFetching}
+            onRetry={() => {
+              void view.refetch();
+            }}
+          />
         )}
         {view.isSuccess && (
           <GroupTabs

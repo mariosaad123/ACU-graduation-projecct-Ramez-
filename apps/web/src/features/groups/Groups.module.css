@@ -352,6 +352,12 @@
   font-weight: var(--weight-semibold);
 }
 
+.memberId {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
 .memberEmail {
   overflow: hidden;
   font-size: var(--text-sm);

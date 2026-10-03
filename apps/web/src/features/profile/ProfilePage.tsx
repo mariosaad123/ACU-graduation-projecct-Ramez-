@@ -46,7 +46,7 @@ function UniversityIdCard({ current }: { current: string | null }) {
   const [value, setValue] = useState(current ?? '');
   const [invalid, setInvalid] = useState(false);
   const save = useMutation({
-    mutationFn: (universityId: string | null) =>
+    mutationFn: (universityId: string) =>
       apiRequest('/api/me/university-id', {
         method: 'PUT',
         body: { universityId },
@@ -60,7 +60,7 @@ function UniversityIdCard({ current }: { current: string | null }) {
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsed = universityIdSchema.safeParse({ universityId: value.trim() || null });
+    const parsed = universityIdSchema.safeParse({ universityId: value });
     if (!parsed.success) {
       setInvalid(true);
       return;
@@ -81,22 +81,22 @@ function UniversityIdCard({ current }: { current: string | null }) {
                 ? describeApiError(t, save.error)
                 : undefined
           }
-          optional
           dir="ltr"
-          inputMode="numeric"
           autoComplete="off"
+          autoCapitalize="characters"
           maxLength={20}
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
             setInvalid(false);
+            save.reset();
           }}
         />
         <Button
           type="submit"
           variant="secondary"
           loading={save.isPending}
-          disabled={value.trim() === (current ?? '')}
+          disabled={value.trim().toUpperCase() === (current ?? '')}
         >
           {t('groups.save')}
         </Button>
