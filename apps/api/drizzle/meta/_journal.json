@@ -43,6 +43,13 @@
       "when": 1790964496847,
       "tag": "0005_file_blobs",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791007275723,
+      "tag": "0006_group_tools",
+      "breakpoints": true
     }
   ]
 }

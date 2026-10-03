@@ -4,7 +4,7 @@ import type { Database } from '../../db/client';
 import { doctorProfiles, groupMembers, groups, users, type User } from '../../db/schema';
 import { HttpError } from '../../http/http-error';
 import { countRecentAudit, recordAudit } from '../audit/audit';
-import { unreadCounts } from '../chat/chat.service';
+import { unreadAnnouncementCounts, unreadCounts } from '../chat/chat.service';
 import { fileUrl } from '../files/files.service';
 import { ensureStudentLanguage } from '../students/student-languages.service';
 import { avatarUrlOf } from '../users/avatar';
@@ -168,6 +168,7 @@ export async function listStudentGroups(db: Database, student: User): Promise<St
       doctorName: doctorProfiles.displayName,
       doctor: doctorPicture,
       status: groupMembers.status,
+      role: groupMembers.role,
       joinedAt: groupMembers.joinedAt,
     })
     .from(groupMembers)
@@ -184,12 +185,12 @@ export async function listStudentGroups(db: Database, student: User): Promise<St
     .orderBy(asc(groupMembers.joinedAt));
 
   // Only members read the chat; a request waiting for approval has nothing unread.
-  const unread = await unreadCounts(
-    db,
-    student.id,
-    rows.filter((row) => row.status === 'active').map((row) => row.group.id),
-  );
-  return rows.map(({ group, doctorName, doctor, status, joinedAt }) => ({
+  const activeIds = rows.filter((row) => row.status === 'active').map((row) => row.group.id);
+  const [unread, unreadAnnouncements] = await Promise.all([
+    unreadCounts(db, student.id, activeIds),
+    unreadAnnouncementCounts(db, student.id, activeIds),
+  ]);
+  return rows.map(({ group, doctorName, doctor, status, role, joinedAt }) => ({
     id: group.id,
     name: group.name,
     description: group.description,
@@ -200,6 +201,8 @@ export async function listStudentGroups(db: Database, student: User): Promise<St
     status: status === 'pending' ? 'pending' : 'active',
     joinedAt: joinedAt.toISOString(),
     unread: unread.get(group.id) ?? 0,
+    unreadAnnouncements: unreadAnnouncements.get(group.id) ?? 0,
+    role,
   }));
 }
 

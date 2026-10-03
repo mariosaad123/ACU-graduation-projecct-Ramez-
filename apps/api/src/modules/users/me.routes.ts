@@ -1,11 +1,12 @@
-import { PHOTO_MAX_BYTES, type MeResponse } from '@acu/shared';
+import { PHOTO_MAX_BYTES, universityIdSchema, type MeResponse } from '@acu/shared';
 import { eq } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
-import { users } from '../../db/schema';
+import { studentProfiles, users } from '../../db/schema';
 import type { AppDependencies } from '../../http/dependencies';
 import { HttpError } from '../../http/http-error';
 import { authOf, requireAuth } from '../../http/middleware/require-auth';
 import { acceptOneFile, uploadedFile } from '../../http/middleware/upload';
+import { withBody } from '../../http/middleware/validate';
 import { recordAudit } from '../audit/audit';
 import { removeFile, saveUpload } from '../files/files.service';
 import { toSessionUser } from './session-user';
@@ -30,6 +31,22 @@ export function createMeRouter(deps: AppDependencies): Router {
   router.get('/', async (req, res) => {
     await respondWithAccount(req, res);
   });
+
+  /** A student's university number, shown to their doctors and in grade sheets. */
+  router.put(
+    '/university-id',
+    withBody(universityIdSchema, async (req, res, body) => {
+      const { user } = authOf(req);
+      if (user.role !== 'student') {
+        throw new HttpError(403, 'FORBIDDEN', 'Only students have a university number here');
+      }
+      await db
+        .update(studentProfiles)
+        .set({ universityId: body.universityId, updatedAt: now() })
+        .where(eq(studentProfiles.userId, user.id));
+      await respondWithAccount(req, res);
+    }),
+  );
 
   /** Replaces the profile photo; the previous upload, if any, is deleted with it. */
   router.put('/avatar', acceptOneFile('file', PHOTO_MAX_BYTES), async (req, res) => {

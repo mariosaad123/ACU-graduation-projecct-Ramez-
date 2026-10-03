@@ -56,7 +56,7 @@ describe('the people of a group', () => {
     const people = await peopleOf(omar, group.id);
     const [first, ...students] = people;
 
-    expect(first).toMatchObject({ id: doctor.id, role: 'doctor', joinedAt: null });
+    expect(first).toMatchObject({ id: doctor.id, role: 'owner', joinedAt: null });
     expect(first?.name).toMatch(/^Dr\./);
     expect(students.map((person) => person.id).sort()).toEqual([omar.id, nour.id].sort());
     expect(students.map((person) => person.name)).toEqual(

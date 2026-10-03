@@ -1,9 +1,11 @@
-import type {
-  Group,
-  GroupCreateRequest,
-  GroupMember,
-  GroupMemberStatus,
-  GroupUpdateRequest,
+import {
+  isWithinSchedule,
+  nextScheduleChange,
+  type Group,
+  type GroupCreateRequest,
+  type GroupMember,
+  type GroupMemberStatus,
+  type GroupUpdateRequest,
 } from '@acu/shared';
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import * as z from 'zod/mini';
@@ -55,7 +57,7 @@ export function parseId(value: unknown, what = 'Group'): string {
  * A group that is not the doctor's own answers exactly like one that does not exist, so a doctor
  * cannot learn anything about other doctors' groups.
  */
-async function findOwnedGroup(
+export async function findOwnedGroup(
   db: Database | Transaction,
   doctorId: string,
   groupId: string,
@@ -73,7 +75,7 @@ async function findOwnedGroup(
 }
 
 /** An archived group is read-only until it is restored. */
-function assertActive(group: GroupRow): void {
+export function assertActive(group: GroupRow): void {
   if (group.archivedAt) {
     throw new HttpError(409, 'GROUP_ARCHIVED', 'This group is archived');
   }
@@ -119,6 +121,7 @@ function toGroup(row: GroupRow, counts: Group['counts'] | undefined, unread = 0)
     requiresApproval: row.requiresApproval,
     chatOpen: row.chatOpen,
     chatRateLimit: row.chatRateLimit,
+    chatSchedule: row.chatSchedule ?? null,
     photoUrl: row.photoFileId ? fileUrl(row.photoFileId) : null,
     archived: row.archivedAt !== null,
     createdAt: row.createdAt.toISOString(),
@@ -135,7 +138,7 @@ async function groupDto(db: Database, row: GroupRow): Promise<Group> {
   return toGroup(row, counts.get(row.id), unread.get(row.id));
 }
 
-async function audit(
+export async function audit(
   context: GroupsContext,
   actor: User,
   action: AuditAction,
@@ -237,11 +240,24 @@ export async function updateGroup(
     if (Object.keys(changes).length === 0) {
       return group;
     }
-    const [row] = await tx
-      .update(groups)
-      .set({ ...changes, updatedAt: now() })
-      .where(eq(groups.id, group.id))
-      .returning();
+    const set: Partial<typeof groups.$inferInsert> = { ...changes, updatedAt: now() };
+    const schedule = 'chatSchedule' in changes ? changes.chatSchedule : group.chatSchedule;
+    if ('chatSchedule' in changes) {
+      // A new schedule, or none, starts clean.
+      set.chatOverrideOpen = null;
+      set.chatOverrideUntil = null;
+    }
+    if (changes.chatOpen !== undefined && schedule) {
+      // With a schedule the switch is a by-hand choice that lasts until the schedule next changes.
+      delete set.chatOpen;
+      const agrees = isWithinSchedule(schedule, now()) === changes.chatOpen;
+      const next = nextScheduleChange(schedule, now());
+      set.chatOverrideOpen = agrees ? null : changes.chatOpen;
+      set.chatOverrideUntil = agrees
+        ? null
+        : (next?.at ?? new Date(now().getTime() + 24 * 60 * 60 * 1000));
+    }
+    const [row] = await tx.update(groups).set(set).where(eq(groups.id, group.id)).returning();
     return row ?? group;
   });
 
@@ -364,6 +380,7 @@ async function loadMembers(
     },
     status: member.status,
     chatMuted: member.chatMuted,
+    role: member.role,
     joinedAt: member.joinedAt.toISOString(),
     decidedAt: member.decidedAt?.toISOString() ?? null,
     removedAt: member.removedAt?.toISOString() ?? null,
@@ -371,7 +388,7 @@ async function loadMembers(
   }));
 }
 
-async function loadMember(
+export async function loadMember(
   db: Database,
   groupId: string,
   doctorId: string,

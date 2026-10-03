@@ -4,6 +4,7 @@ import type { Database } from '../../db/client';
 import {
   doctorLanguages,
   doctorProfiles,
+  groupAssistants,
   groupMembers,
   groups,
   studentLanguages,
@@ -12,62 +13,60 @@ import {
   type User,
 } from '../../db/schema';
 import { HttpError } from '../../http/http-error';
-import { accessOf } from '../chat/chat.service';
+import { groupAccess, groupParticipants } from '../groups/access';
 import { fileUrl } from '../files/files.service';
 import { teachesStudent } from '../groups/groups.service';
 import { avatarUrlOf } from '../users/avatar';
 
-/** The group's doctor first, then its active students by name. Pending and removed are not shown. */
+const ROLE_ORDER = ['owner', 'assistant', 'moderator', 'representative', 'student'] as const;
+
+/**
+ * The doctor first, then the teaching assistants, then the active students: moderators and
+ * representatives before the others, each by name. Pending and removed students are not shown.
+ */
 export async function groupPeople(
   db: Database,
   viewer: User,
   groupId: string,
 ): Promise<GroupPerson[]> {
-  const { group } = await accessOf(db, viewer, groupId);
+  const { group } = await groupAccess(db, viewer, groupId);
+  const roles = await groupParticipants(db, group);
+  const ids = [...roles.keys()];
+  const [people, joined] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        displayName: doctorProfiles.displayName,
+        avatarUrl: users.avatarUrl,
+        avatarFileId: users.avatarFileId,
+      })
+      .from(users)
+      .leftJoin(doctorProfiles, eq(doctorProfiles.userId, users.id))
+      .where(inArray(users.id, ids)),
+    db
+      .select({ studentId: groupMembers.studentId, joinedAt: groupMembers.joinedAt })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, 'active'))),
+  ]);
+  const joinedAt = new Map(joined.map((row) => [row.studentId, row.joinedAt]));
 
-  const [doctor] = await db
-    .select({
-      id: users.id,
-      name: doctorProfiles.displayName,
-      avatarUrl: users.avatarUrl,
-      avatarFileId: users.avatarFileId,
+  return people
+    .map((person) => {
+      const role = roles.get(person.id) ?? 'student';
+      return {
+        id: person.id,
+        name: person.displayName ?? person.name,
+        avatarUrl: avatarUrlOf(person),
+        role,
+        joinedAt: joinedAt.get(person.id)?.toISOString() ?? null,
+        me: person.id === viewer.id,
+      };
     })
-    .from(users)
-    .innerJoin(doctorProfiles, eq(doctorProfiles.userId, users.id))
-    .where(eq(users.id, group.doctorId));
-
-  const students = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      avatarUrl: users.avatarUrl,
-      avatarFileId: users.avatarFileId,
-      joinedAt: groupMembers.joinedAt,
-    })
-    .from(groupMembers)
-    .innerJoin(users, eq(users.id, groupMembers.studentId))
-    .where(and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, 'active')))
-    .orderBy(asc(users.name));
-
-  const people: GroupPerson[] = students.map((student) => ({
-    id: student.id,
-    name: student.name,
-    avatarUrl: avatarUrlOf(student),
-    role: 'student',
-    joinedAt: student.joinedAt.toISOString(),
-    me: student.id === viewer.id,
-  }));
-  if (doctor) {
-    people.unshift({
-      id: doctor.id,
-      name: doctor.name,
-      avatarUrl: avatarUrlOf(doctor),
-      role: 'doctor',
-      joinedAt: null,
-      me: doctor.id === viewer.id,
-    });
-  }
-  return people;
+    .sort(
+      (a, b) =>
+        ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || a.name.localeCompare(b.name),
+    );
 }
 
 /** Groups someone takes part in: the ones they teach, and the ones they are an active member of. */
@@ -84,7 +83,11 @@ async function groupIdsOf(db: Database, userId: string): Promise<Set<string>> {
       ),
     )
     .where(or(eq(groups.doctorId, userId), eq(groupMembers.studentId, userId)));
-  return new Set(rows.map((row) => row.id));
+  const assisted = await db
+    .select({ id: groupAssistants.groupId })
+    .from(groupAssistants)
+    .where(eq(groupAssistants.userId, userId));
+  return new Set([...rows, ...assisted].map((row) => row.id));
 }
 
 async function languagesOf(db: Database, person: User): Promise<LearningLanguage[]> {

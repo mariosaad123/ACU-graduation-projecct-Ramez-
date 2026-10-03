@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { Attachment, FilePurpose } from '@acu/shared';
-import { and, eq, inArray } from 'drizzle-orm';
+import { CHAT_ATTACHMENT_MAX_BYTES, type Attachment, type FilePurpose } from '@acu/shared';
+import { eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import type { Database } from '../../db/client';
-import { files, groupMembers, groups, type FileRow, type User } from '../../db/schema';
+import { files, type FileRow, type User } from '../../db/schema';
 import { HttpError } from '../../http/http-error';
+import { groupAccess } from '../groups/access';
 import type { FileStorage } from './storage';
 import { sniffType } from './sniff';
 
@@ -16,6 +17,8 @@ export interface FilesContext {
 export interface Upload {
   buffer: Buffer;
   originalName: string | undefined;
+  /** What the browser said the file is; only used to tell audio from video in the same container. */
+  declaredType?: string;
 }
 
 /** How each kind of image is stored: profile and group photos are square, chat images fit a box. */
@@ -80,9 +83,15 @@ export async function saveUpload(
   purpose: FilePurpose,
   groupId: string | null = null,
 ): Promise<FileRow> {
-  const sniffed = sniffType(upload.buffer, upload.originalName);
+  const sniffed = sniffType(upload.buffer, upload.originalName, upload.declaredType);
   if (!sniffed || (purpose !== 'chat' && sniffed.kind !== 'image')) {
     throw unsupported();
+  }
+  // Videos may be larger; the route already stopped anything beyond their limit.
+  if (sniffed.kind !== 'video' && upload.buffer.length > CHAT_ATTACHMENT_MAX_BYTES) {
+    throw new HttpError(413, 'FILE_TOO_LARGE', 'The file is too large', {
+      details: { maxBytes: CHAT_ATTACHMENT_MAX_BYTES },
+    });
   }
 
   let data = upload.buffer;
@@ -138,8 +147,8 @@ export async function removeFile(context: FilesContext, fileId: string | null): 
 }
 
 /**
- * A file the user may see. Profile and group photos are visible to anyone signed in; a chat
- * attachment only to the group's doctor and its current members. Anything else looks missing.
+ * A file the user may see. Profile and group photos are visible to anyone signed in; a file shared
+ * in a group only to its staff and current members. Anything else looks missing.
  */
 export async function readFileFor(
   context: FilesContext,
@@ -153,24 +162,13 @@ export async function readFileFor(
   }
 
   if (row.purpose === 'chat') {
+    // Anyone who may read the group's chat and announcements may open what was shared there.
     if (!row.groupId) {
       throw missing;
     }
-    const [group] = await context.db
-      .select({ doctorId: groups.doctorId })
-      .from(groups)
-      .where(eq(groups.id, row.groupId));
-    const [membership] = await context.db
-      .select({ status: groupMembers.status })
-      .from(groupMembers)
-      .where(
-        and(
-          eq(groupMembers.groupId, row.groupId),
-          eq(groupMembers.studentId, user.id),
-          inArray(groupMembers.status, ['active']),
-        ),
-      );
-    if (group?.doctorId !== user.id && !membership) {
+    try {
+      await groupAccess(context.db, user, row.groupId);
+    } catch {
       throw missing;
     }
   }
@@ -182,12 +180,18 @@ export async function readFileFor(
   return { row, data };
 }
 
+export function kindOf(contentType: string): Attachment['kind'] {
+  if (contentType.startsWith('image/')) {
+    return 'image';
+  }
+  if (contentType.startsWith('video/')) {
+    return 'video';
+  }
+  return contentType.startsWith('audio/') ? 'audio' : 'document';
+}
+
 export function toAttachment(row: FileRow): Attachment {
-  const kind = row.contentType.startsWith('image/')
-    ? 'image'
-    : row.contentType.startsWith('audio/')
-      ? 'audio'
-      : 'document';
+  const kind = kindOf(row.contentType);
   return {
     id: row.id,
     url: fileUrl(row.id),

@@ -1,5 +1,5 @@
 import {
-  CHAT_ATTACHMENT_MAX_BYTES,
+  CHAT_VIDEO_MAX_BYTES,
   CHAT_MESSAGE_MAX_LENGTH,
   editMessageSchema,
   markReadSchema,
@@ -42,11 +42,18 @@ function numberParam(value: unknown): number | null {
  * the chat service; the routes only read requests and shape answers.
  */
 export function createGroupChatRouter(deps: AppDependencies): Router {
-  const { db, storage, now } = deps;
+  const { db, storage, push, logger, now } = deps;
   const router = Router({ mergeParams: true });
   router.use(requireAuth);
 
-  const contextFor = (req: Request): ChatContext => ({ db, storage, now, ipAddress: req.ip });
+  const contextFor = (req: Request): ChatContext => ({
+    db,
+    storage,
+    push,
+    logger,
+    now,
+    ipAddress: req.ip,
+  });
   const groupIdOf = (req: Request) => parseId(req.params.groupId);
   const messageIdOf = (req: Request) => parseId(req.params.messageId, 'Message');
 
@@ -82,7 +89,8 @@ export function createGroupChatRouter(deps: AppDependencies): Router {
     res.set('Cache-Control', 'no-store').json(changes);
   });
 
-  router.post('/chat', acceptOneFile('file', CHAT_ATTACHMENT_MAX_BYTES), async (req, res) => {
+  // Videos may be up to 25 MB; other files are held to their own limit once recognised.
+  router.post('/chat', acceptOneFile('file', CHAT_VIDEO_MAX_BYTES), async (req, res) => {
     const fields = postFields.safeParse(req.body ?? {});
     if (!fields.success) {
       throw new HttpError(400, 'VALIDATION_FAILED', 'Some fields are not valid');
