@@ -1,4 +1,12 @@
-import type { Group, GroupMember, LearningLanguage, SessionUser, StudentGroup } from '@acu/shared';
+import {
+  CAPABILITIES,
+  type Group,
+  type GroupMember,
+  type GroupView,
+  type LearningLanguage,
+  type SessionUser,
+  type StudentGroup,
+} from '@acu/shared';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +14,7 @@ import { apiError, nth, queueResponses, renderWithProviders, sessionUser } from 
 import { DOCTOR_GROUPS_KEY, STUDENT_GROUPS_KEY } from './api';
 import { DoctorGroupsSection } from './DoctorGroupsSection';
 import { GroupPage } from './GroupPage';
-import { StudentGroupPage } from './StudentGroupPage';
+import { MemberGroupPage } from './MemberGroupPage';
 import { JoinPage } from './JoinPage';
 import { StudentGroupsCard } from './StudentGroupsCard';
 import { TeachingLanguagesCard } from './TeachingLanguagesCard';
@@ -25,6 +33,7 @@ function group(overrides: Partial<Group> = {}): Group {
     joinOpen: true,
     requiresApproval: false,
     chatOpen: true,
+    chatSchedule: null,
     chatRateLimit: 60,
     photoUrl: null,
     archived: false,
@@ -47,11 +56,44 @@ function member(overrides: Partial<GroupMember> = {}): GroupMember {
       suspension: null,
     },
     status: 'active',
+    role: 'student',
     chatMuted: false,
     joinedAt: '2026-09-30T10:00:00.000Z',
     decidedAt: '2026-09-30T10:00:00.000Z',
     removedAt: null,
     leftByThemselves: false,
+    ...overrides,
+  };
+}
+
+/** The group as the page's reader sees it: its owner unless told otherwise. */
+function groupView(
+  role: GroupView['role'] = 'owner',
+  overrides: Partial<GroupView> = {},
+): GroupView {
+  return {
+    id: GROUP_ID,
+    name: 'Conversation 2',
+    description: 'Mondays 10:00',
+    language: 'fr',
+    photoUrl: null,
+    archived: false,
+    doctor: { id: 'doctor-1', name: 'Dr. Mona', avatarUrl: null },
+    isDoctor: role === 'owner',
+    role,
+    can: CAPABILITIES[role],
+    unreadAnnouncements: 0,
+    chat: {
+      open: true,
+      mode: 'open',
+      schedule: null,
+      manual: false,
+      nextChange: null,
+      muted: false,
+      canPost: true,
+      lastReadSeq: 0,
+      rateLimit: 60,
+    },
     ...overrides,
   };
 }
@@ -64,7 +106,7 @@ function bodyOf(call: { init: RequestInit | undefined }): unknown {
 const studentUser = (languages: LearningLanguage[] = ['en']): SessionUser =>
   sessionUser({
     role: 'student',
-    student: { activeLanguage: languages[0] ?? 'en', languages, goal: 'study' },
+    student: { activeLanguage: languages[0] ?? 'en', languages, goal: 'study', universityId: null },
   });
 
 const doctorUser = sessionUser({
@@ -212,11 +254,13 @@ describe('a group’s page', () => {
       cache: [
         [DOCTOR_GROUPS_KEY, [group(overrides), group({ id: OTHER_GROUP_ID, name: 'Deutsch 1' })]],
         [['doctor', 'groups', GROUP_ID, 'members'], members],
+        [['doctor', 'groups', GROUP_ID, 'assistants'], []],
+        [['group', GROUP_ID], groupView('owner', { archived: overrides.archived ?? false })],
       ],
     });
   }
 
-  it('shows the code to share and sorts the students into tabs', () => {
+  it('sorts the students into tabs', () => {
     renderGroup([
       member(),
       member({
@@ -232,7 +276,6 @@ describe('a group’s page', () => {
     ]);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Conversation 2' })).toBeInTheDocument();
-    expect(screen.getByText('K7QM-9XRT')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Students (1)' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Requests (1)' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Out of the group (1)' })).toBeInTheDocument();
@@ -362,14 +405,17 @@ describe('a group’s page', () => {
   it('opens on the students when some are waiting for approval', () => {
     renderGroup([member({ status: 'pending' })], { counts: { active: 0, pending: 1, out: 0 } }, '');
 
-    expect(screen.getByRole('tab', { name: 'Students' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Students (1)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
   });
 
   it('lets the doctor choose how many messages each student sends a minute', async () => {
     const user = userEvent.setup();
     const { fetchMock, calls } = queueResponses([200, { group: group({ chatRateLimit: 30 }) }]);
     vi.stubGlobal('fetch', fetchMock);
-    renderGroup([member()]);
+    renderGroup([member()], {}, 'settings');
 
     const field = screen.getByLabelText(/Messages per student per minute/);
     expect(field).toHaveValue(60);
@@ -392,9 +438,51 @@ describe('a group’s page', () => {
     });
   });
 
+  it('puts the chat on a weekly schedule', async () => {
+    const user = userEvent.setup();
+    const schedule = { slots: [{ day: 0, start: '10:00', end: '12:00' }] };
+    const { fetchMock, calls } = queueResponses([
+      200,
+      { group: group({ chatSchedule: schedule }) },
+    ]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderGroup([member()], {}, 'settings');
+
+    expect(screen.getByRole('radio', { name: /Always/ })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Save chat settings' })).toBeDisabled();
+
+    await user.click(screen.getByRole('radio', { name: /On a schedule/ }));
+    expect(screen.getByText(/In Cairo time/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save chat settings' }));
+
+    await vi.waitFor(() => {
+      expect(nth(calls, 0)).toMatchObject({
+        url: `/api/doctor/groups/${GROUP_ID}`,
+        init: { method: 'PATCH', body: JSON.stringify({ chatSchedule: schedule }) },
+      });
+    });
+  });
+
+  it('keeps the students and the settings from an assistant', () => {
+    renderWithProviders(<MemberGroupPage />, {
+      route: `/app/groups/${GROUP_ID}`,
+      path: '/app/groups/:groupId',
+      session: doctorUser,
+      cache: [
+        [['group', GROUP_ID], groupView('assistant')],
+        [['group', GROUP_ID, 'people'], []],
+      ],
+    });
+
+    expect(screen.getByRole('tab', { name: 'Grades' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Students' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
   it('shows a QR code students can scan, and a large one for the projector', async () => {
     const user = userEvent.setup();
-    renderGroup([member()]);
+    renderGroup([member()], {}, 'settings');
 
     expect(
       screen.getByRole('img', { name: 'QR code to join “Conversation 2”' }),
@@ -458,6 +546,8 @@ describe('a student’s groups', () => {
       status: 'active',
       joinedAt: '2026-09-30T10:00:00.000Z',
       unread: 0,
+      unreadAnnouncements: 0,
+      role: 'student',
     };
     const { fetchMock, calls } = queueResponses(
       [200, preview],
@@ -580,17 +670,7 @@ function never(): never {
 }
 
 describe('a group as its student sees it', () => {
-  const view = {
-    id: GROUP_ID,
-    name: 'Conversation 2',
-    description: 'Mondays 10:00',
-    language: 'fr' as const,
-    photoUrl: null,
-    archived: false,
-    doctor: { name: 'Dr. Mona', avatarUrl: null },
-    isDoctor: false,
-    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0, rateLimit: 60 },
-  };
+  const view = groupView('student');
 
   it('shows who teaches the group and opens its chat', async () => {
     const { fetchMock } = queueResponses([
@@ -598,7 +678,7 @@ describe('a group as its student sees it', () => {
       { messages: [], pinned: [], version: 0, hasOlder: false },
     ]);
     vi.stubGlobal('fetch', fetchMock);
-    renderWithProviders(<StudentGroupPage />, {
+    renderWithProviders(<MemberGroupPage />, {
       route: `/app/groups/${GROUP_ID}`,
       path: '/app/groups/:groupId',
       session: studentUser(['fr']),
@@ -611,7 +691,7 @@ describe('a group as its student sees it', () => {
               id: 'doctor-1',
               name: 'Dr. Mona',
               avatarUrl: null,
-              role: 'doctor',
+              role: 'owner',
               joinedAt: null,
               me: false,
             },
@@ -634,7 +714,7 @@ describe('a group as its student sees it', () => {
   it('shows the missing page to someone outside the group', async () => {
     const { fetchMock } = queueResponses([404, apiError('NOT_FOUND')]);
     vi.stubGlobal('fetch', fetchMock);
-    renderWithProviders(<StudentGroupPage />, {
+    renderWithProviders(<MemberGroupPage />, {
       route: `/app/groups/${GROUP_ID}`,
       path: '/app/groups/:groupId',
       session: studentUser(['fr']),

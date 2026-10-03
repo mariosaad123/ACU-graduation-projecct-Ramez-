@@ -33,6 +33,14 @@ const envSchema = z
     SMTP_URL: optionalText,
     MAIL_FROM: z.string().default('ACU Languages <no-reply@localhost>'),
 
+    /**
+     * Browser notifications (Web Push). Generate a pair once with `npx web-push
+     * generate-vapid-keys`; without them push is off and in-app notifications still work.
+     */
+    VAPID_PUBLIC_KEY: optionalText,
+    VAPID_PRIVATE_KEY: optionalText,
+    /** A contact for push services: mailto: or an https address. */
+    VAPID_SUBJECT: z.string().default('mailto:no-reply@localhost'),
     /** Where uploaded photos and chat attachments are kept: a folder, or the database itself. */
     STORAGE_DRIVER: z.enum(['disk', 'database']).default('disk'),
     /** Folder for uploads when STORAGE_DRIVER is disk. */
@@ -48,6 +56,9 @@ const envSchema = z
         'GOOGLE_CLIENT_SECRET',
         'Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither',
       );
+    }
+    if (Boolean(env.VAPID_PUBLIC_KEY) !== Boolean(env.VAPID_PRIVATE_KEY)) {
+      fail('VAPID_PRIVATE_KEY', 'Set both VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY, or neither');
     }
     if (env.MAIL_TRANSPORT === 'smtp' && !env.SMTP_URL) {
       fail('SMTP_URL', 'SMTP_URL is required when MAIL_TRANSPORT is smtp');

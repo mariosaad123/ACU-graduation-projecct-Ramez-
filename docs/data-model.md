@@ -293,12 +293,12 @@ Every group has one chat, shared by its doctor and its active members.
 
 | Rule                                      | How                                                                                                                              |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| The doctor can close the chat to students | `groups.chat_open`; students then read only (`CHAT_CLOSED`)                                                                      |
+| The doctor can close the chat to students | `groups.chat_open`, a weekly schedule, or by hand over it; students then read only (`CHAT_CLOSED`)                               |
 | The doctor can mute one student           | `group_members.chat_muted` (`CHAT_MUTED`)                                                                                        |
 | An archived group's chat is read-only     | Writing answers `GROUP_ARCHIVED`                                                                                                 |
 | Only the author edits a message           | Text messages only (`MESSAGE_NOT_EDITABLE`)                                                                                      |
-| The author or the doctor deletes it       | The row stays as a placeholder; the attachment is removed                                                                        |
-| Only the doctor pins                      | `pinned_at`; a deleted message is unpinned                                                                                       |
+| The author or the staff delete it         | The row stays as a placeholder; the attachment is removed. See the roles below                                                   |
+| The staff and moderators pin              | `pinned_at`; a deleted message is unpinned                                                                                       |
 | No flooding                               | Each doctor sets the messages per student and minute (1-120, 60 by default); the doctor's own limit is 120 (`CHAT_RATE_LIMITED`) |
 
 Deleting someone else's message, muting and unmuting are written to the audit log.
@@ -316,10 +316,150 @@ client never misses an edit made to an old message. Unread counts compare `seq` 
 | `GET /api/groups/:id/chat/changes?since=<n>`       | Messages created or changed since a version       |
 | `POST /api/groups/:id/chat`                        | Sends text, a file, or both (multipart)           |
 | `PATCH, DELETE /api/groups/:id/chat/:message`      | Edits or deletes a message                        |
-| `POST /api/groups/:id/chat/:message/pin`, `/unpin` | Pins or unpins (doctor)                           |
+| `POST /api/groups/:id/chat/:message/pin`, `/unpin` | Pins or unpins (staff and moderators)             |
 | `POST /api/groups/:id/chat/read`                   | Marks the chat read up to a message               |
 
 Anyone outside the group gets a 404 for all of these, as for the doctor routes.
+
+## Roles in a group
+
+A group has one owner, the doctor who created it. Everyone else holds one of four roles, and each
+role is a fixed set of capabilities (`packages/shared/src/contracts/roles.ts`). The server works
+out the reader's role once per request (`groupAccess`) and every route asks for the capability it
+needs, so the web client and the API can never disagree about who may do what.
+
+| Capability                          | Owner | Assistant | Moderator | Representative | Student |
+| ----------------------------------- | :---: | :-------: | :-------: | :------------: | :-----: |
+| Write while the chat is closed      |  yes  |    yes    |    yes    |      yes       |         |
+| Pin and unpin messages              |  yes  |    yes    |    yes    |                |         |
+| Delete other people's messages      |  yes  |    yes    | students  |                |         |
+| Publish announcements               |  yes  |    yes    |           |      yes       |         |
+| Create polls                        |  yes  |    yes    |    yes    |      yes       |         |
+| Mention the whole group             |  yes  |    yes    |    yes    |      yes       |         |
+| Mute a student in the chat          |  yes  |    yes    |           |                |         |
+| Gradebook, activity and exports     |  yes  |    yes    |           |                |         |
+| Members, settings, code, assistants |  yes  |           |           |                |         |
+
+Assistants are doctor accounts listed in `group_assistants`; moderators and representatives are
+students, marked in `group_members.role`. A moderator deletes messages written by students and
+representatives only, never those of the staff or of another moderator. Role changes are written
+to the audit log and the person is notified.
+
+| Request                                             | Effect                              |
+| --------------------------------------------------- | ----------------------------------- |
+| `POST /api/doctor/groups/:id/members/:student/role` | Sets a student's role               |
+| `GET, POST /api/doctor/groups/:id/assistants`       | Lists assistants, adds one by email |
+| `DELETE /api/doctor/groups/:id/assistants/:doctor`  | Removes an assistant                |
+| `GET /api/doctor/assisting`                         | The groups a doctor assists in      |
+
+## When the chat is open
+
+`groups.chat_schedule` holds weekly time slots (`{ day, start, end }`, day 0 is Sunday) read in
+`Africa/Cairo`, including across daylight-saving changes. Without a schedule, `groups.chat_open`
+decides. With one, the doctor can still open or close the chat by hand: the choice is stored in
+`chat_override_open` with `chat_override_until` set to the schedule's next change, after which the
+schedule takes over again. Choosing what the schedule already says clears the override, and so
+does saving a new schedule. The group view reports `mode`, `manual` and `nextChange`, so the
+client shows "open until" or "opens at" without knowing the rules.
+
+## Mentions, polls and announcements
+
+A message names people as `@[uuid]` and everyone as `@[all]`. On write the server drops tokens for
+people outside the group, and `@[all]` from a writer without that capability; the surviving ids
+are stored in `group_messages.mentions` and `mentions_all`, and each person named is notified.
+
+A poll belongs to one chat message (`polls.message_id` is unique) with its `poll_options` and
+`poll_votes`. It may allow several choices, hide who voted, and close at a set time or when its
+author or the staff close it (`POLL_CLOSED` afterwards). A vote bumps the message's version, so
+the chat's change feed carries the new counts to everyone.
+
+Announcements live outside the chat: `announcements` with up to five files in
+`announcement_attachments`, and one row per reader in `announcement_reads`. The staff and the
+author see who read each one; the audience is the group's active students.
+
+| Request                                             | Effect                                      |
+| --------------------------------------------------- | ------------------------------------------- |
+| `POST /api/groups/:id/polls`                        | Posts a poll as a chat message              |
+| `POST /api/groups/:id/polls/:poll/vote`, `/close`   | Votes (or withdraws a vote), closes it      |
+| `GET, POST /api/groups/:id/announcements`           | Lists, publishes (multipart)                |
+| `PATCH, DELETE /api/groups/:id/announcements/:item` | Edits or removes one                        |
+| `POST /api/groups/:id/announcements/read`           | Marks announcements read                    |
+| `GET /api/groups/:id/announcements/:item/receipts`  | Who read it and who has not                 |
+| `GET /api/groups/:id/files?kind=&q=&before=`        | Everything shared, by kind, with the counts |
+
+Files are sorted into images, video, audio and documents. Video is recognised by its container
+(MP4, WebM, QuickTime) and may be up to 25 MB; everything else up to 10 MB.
+
+## Gradebook and exports
+
+```mermaid
+erDiagram
+    groups ||--o{ grade_columns : "has"
+    grade_columns ||--o{ grades : "holds"
+    users ||--o{ grades : "receives"
+
+    grade_columns {
+        uuid id PK
+        uuid group_id FK
+        text title
+        text kind "quiz, assignment, midterm, final, oral, participation, project, other"
+        numeric max_score
+        numeric weight "percent of the total, optional"
+        date held_on
+        boolean published
+        integer position
+    }
+    grades {
+        uuid column_id PK, FK
+        uuid student_id PK, FK
+        text status "scored, absent, excused"
+        numeric score
+        text note
+    }
+```
+
+A column is one quiz or task; a grade is one student's cell in it. An absent student counts as
+zero and an excused one is left out of their total; `totalPercent` in the shared package is the
+single definition of the total, and `bandOf` turns it into excellent (85), very good (75), good
+(65), pass (50) or fail. A student sees only the columns marked `published`, with their own score,
+the note and the class average. `student_profiles.university_id` is optional and appears on the
+sheets.
+
+The same query feeds the activity view: messages, last message, last visit, announcements read,
+polls answered and files shared for each student, with `quiet` (no message in seven days) and
+`away` (no visit in seven days; a message counts as a visit).
+
+| Request                                                 | Effect                                          |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| `GET /api/groups/:id/gradebook`                         | Columns, students, grades and activity          |
+| `POST, PATCH, DELETE /api/groups/:id/gradebook/columns` | Manages columns; `PUT .../gradebook/order`      |
+| `PUT /api/groups/:id/gradebook/columns/:column/grades`  | Saves one or many cells                         |
+| `GET /api/groups/:id/my-grades`                         | A student's own published grades                |
+| `PUT /api/me/university-id`                             | A student's university number                   |
+| `GET /api/groups/:id/export?report=&lang=`              | An Excel workbook for one group                 |
+| `GET /api/doctor/export?lang=`                          | One workbook covering every group a doctor owns |
+
+Exports are built with exceljs in Arabic (right to left) or English. `grades` is the official
+sheet: no emails, with lines for the signature and the stamp. `full` adds a summary, activity,
+announcements, polls and members; `activity` leaves the grades out. Averages, maxima and minima
+are live formulas, so the sheet stays correct if a score is corrected in Excel.
+
+## Notifications
+
+`notifications` holds what a person should see in the app: a mention, an announcement, a poll, a
+published grade or a new role. `notify()` writes those rows and, for people who allowed it on a
+device, sends a Web Push message through `push_subscriptions`, each in the language that device
+was using. `notification_settings` stores which kinds reach the browser; "every message" exists
+only as a push and is never stored. Without `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` the API
+runs with push switched off and everything else works.
+
+| Request                                                          | Effect                                   |
+| ---------------------------------------------------------------- | ---------------------------------------- |
+| `GET /api/notifications`, `/unread`                              | The latest, and the unread count         |
+| `POST /api/notifications/read`                                   | Marks some or all read                   |
+| `GET, PUT /api/notifications/settings`                           | What reaches the browser                 |
+| `GET /api/notifications/push-key`                                | The public key a browser subscribes with |
+| `POST /api/notifications/subscriptions`, `/subscriptions/remove` | Adds or removes this device              |
 
 ## People
 

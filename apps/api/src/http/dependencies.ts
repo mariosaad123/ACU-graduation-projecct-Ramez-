@@ -5,6 +5,7 @@ import type { IdentityProvider } from '../modules/auth/identity-provider';
 import type { Clock } from '../modules/auth/sessions';
 import type { FileStorage } from '../modules/files/storage';
 import type { Mailer } from '../modules/mail/mailer';
+import type { PushSender } from '../modules/notifications/push';
 
 export interface RateLimit {
   windowMs: number;
@@ -40,6 +41,7 @@ export interface AppDependencies {
   identityProvider: IdentityProvider | null;
   mailer: Mailer;
   storage: FileStorage;
+  push: PushSender;
   now: Clock;
   rateLimits?: RateLimits;
 }

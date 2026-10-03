@@ -1,4 +1,7 @@
 import {
+  assistantResponseSchema,
+  assistantsResponseSchema,
+  assistedGroupsResponseSchema,
   groupMemberResponseSchema,
   groupMembersResponseSchema,
   groupResponseSchema,
@@ -8,6 +11,7 @@ import {
   meResponseSchema,
   studentGroupsResponseSchema,
   type GroupCreateRequest,
+  type GroupMemberRole,
   type GroupUpdateRequest,
   type LearningLanguage,
 } from '@acu/shared';
@@ -152,6 +156,70 @@ export function useChatMute(groupId: string) {
         })
       ).member,
     onSuccess: refresh,
+  });
+}
+
+/** Makes an active student a moderator, the representative, or a plain member again. */
+export function useMemberRole(groupId: string) {
+  const refresh = useRefreshGroups();
+  return useMutation({
+    mutationFn: async ({ studentId, role }: { studentId: string; role: GroupMemberRole }) =>
+      (
+        await apiRequest(`/api/doctor/groups/${groupId}/members/${studentId}/role`, {
+          method: 'POST',
+          body: { role },
+          schema: groupMemberResponseSchema,
+        })
+      ).member,
+    onSuccess: refresh,
+  });
+}
+
+const assistantsKey = (groupId: string) => ['doctor', 'groups', groupId, 'assistants'] as const;
+export const ASSISTED_GROUPS_KEY = ['doctor', 'assisting'] as const;
+
+export function useAssistants(groupId: string) {
+  return useQuery({
+    queryKey: assistantsKey(groupId),
+    queryFn: async () =>
+      (
+        await apiRequest(`/api/doctor/groups/${groupId}/assistants`, {
+          schema: assistantsResponseSchema,
+        })
+      ).assistants,
+  });
+}
+
+export function useAddAssistant(groupId: string) {
+  const refresh = useRefreshGroups();
+  return useMutation({
+    mutationFn: async (email: string) =>
+      (
+        await apiRequest(`/api/doctor/groups/${groupId}/assistants`, {
+          method: 'POST',
+          body: { email },
+          schema: assistantResponseSchema,
+        })
+      ).assistant,
+    onSuccess: refresh,
+  });
+}
+
+export function useRemoveAssistant(groupId: string) {
+  const refresh = useRefreshGroups();
+  return useMutation({
+    mutationFn: (assistantId: string) =>
+      apiRequest(`/api/doctor/groups/${groupId}/assistants/${assistantId}`, { method: 'DELETE' }),
+    onSuccess: refresh,
+  });
+}
+
+/** Groups the signed-in doctor helps run as a teaching assistant. */
+export function useAssistedGroups() {
+  return useQuery({
+    queryKey: ASSISTED_GROUPS_KEY,
+    queryFn: async () =>
+      (await apiRequest('/api/doctor/assisting', { schema: assistedGroupsResponseSchema })).groups,
   });
 }
 

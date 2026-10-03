@@ -1,5 +1,6 @@
 import * as z from 'zod/mini';
 import { LEARNING_LANGUAGES } from '../languages';
+import { GROUP_ROLES } from './roles';
 
 const learningLanguage = z.enum(LEARNING_LANGUAGES);
 
@@ -8,8 +9,9 @@ export const groupPersonSchema = z.object({
   id: z.string(),
   name: z.string(),
   avatarUrl: z.nullable(z.string()),
-  role: z.enum(['doctor', 'student']),
-  /** When a student joined the group; null for its doctor. */
+  /** Their place in this group: doctor, teaching assistant, or a student and their role. */
+  role: z.enum(GROUP_ROLES),
+  /** When a student joined the group; null for the staff. */
   joinedAt: z.nullable(z.string()),
   me: z.boolean(),
 });

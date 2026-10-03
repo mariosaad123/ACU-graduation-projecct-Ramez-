@@ -1,5 +1,5 @@
 import { formatJoinCode, type Group, type LearningLanguage } from '@acu/shared';
-import { ArrowRightIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowRightIcon, MicrosoftExcelLogoIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
@@ -11,6 +11,7 @@ import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLanguageName } from '../../i18n/use-language-name';
 import { describeApiError } from '../auth/api-errors';
+import { ExportDialog } from '../gradebook/ExportDialog';
 import { useDoctorGroups } from './api';
 import { CopyButton } from './CopyButton';
 import { CreateGroupDialog } from './CreateGroupDialog';
@@ -81,6 +82,7 @@ export function DoctorGroupsSection({ languages }: { languages: LearningLanguage
   const groups = useDoctorGroups();
   const [searchParams, setSearchParams] = useSearchParams();
   const [creating, setCreating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // The home page's "Create a group in French" lands here with ?newGroup=fr, which opens the
   // dialog on that language until it is closed.
@@ -112,16 +114,29 @@ export function DoctorGroupsSection({ languages }: { languages: LearningLanguage
           </h2>
           <p className={styles.muted}>{t('groups.lead')}</p>
         </div>
-        {canCreate && (
-          <Button
-            iconStart={<PlusIcon aria-hidden="true" />}
-            onClick={() => {
-              setCreating(true);
-            }}
-          >
-            {t('groups.create')}
-          </Button>
-        )}
+        <div className={styles.shareActions}>
+          {(groups.data?.length ?? 0) > 0 && (
+            <Button
+              variant="secondary"
+              iconStart={<MicrosoftExcelLogoIcon aria-hidden="true" />}
+              onClick={() => {
+                setExporting(true);
+              }}
+            >
+              {t('export.all')}
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              iconStart={<PlusIcon aria-hidden="true" />}
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              {t('groups.create')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {!canCreate && <Alert tone="info">{t('groups.noTeachingLanguages')}</Alert>}
@@ -167,6 +182,15 @@ export function DoctorGroupsSection({ languages }: { languages: LearningLanguage
             ))}
           </div>
         </details>
+      )}
+
+      {exporting && (
+        <ExportDialog
+          groupId={null}
+          onClose={() => {
+            setExporting(false);
+          }}
+        />
       )}
 
       <CreateGroupDialog

@@ -1,6 +1,7 @@
 import {
   CHAT_MESSAGE_MAX_LENGTH,
   CHAT_RATE_LIMIT_MAX,
+  isStaff,
   type ChatChanges,
   type ChatMessage,
   type ChatPage,
@@ -23,91 +24,79 @@ import {
 } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import {
+  announcementReads,
+  announcements,
   chatReads,
   doctorProfiles,
-  files,
   groupMembers,
   groupMessages,
-  groups,
   users,
-  type Group,
-  type GroupMessage,
   type User,
 } from '../../db/schema';
 import { HttpError } from '../../http/http-error';
+import type { Logger } from '../../lib/logger';
 import { recordAudit } from '../audit/audit';
-import { fileUrl, removeFile, saveUpload, toAttachment, type Upload } from '../files/files.service';
+import { fileUrl, removeFile, saveUpload, type Upload } from '../files/files.service';
 import type { FileStorage } from '../files/storage';
+import {
+  assertCan,
+  assertNotArchived,
+  chatOpenNow,
+  groupAccess,
+  groupParticipants,
+  manualOverride,
+  nextChatChange,
+  type GroupAccess,
+} from '../groups/access';
+import { notify, type NotifyContext } from '../notifications/notifications.service';
+import type { PushSender } from '../notifications/push';
 import { avatarUrlOf } from '../users/avatar';
+import {
+  cleanMentions,
+  findMessage,
+  namesOf,
+  nextVersion,
+  oneMessage,
+  plainText,
+  toMessages,
+} from './messages';
 
 export interface ChatContext {
   db: Database;
   storage: FileStorage;
+  push: PushSender;
+  logger: Logger;
   now: () => Date;
   ipAddress: string | undefined;
 }
 
 const PAGE_SIZE = 50;
 const CHANGES_LIMIT = 200;
-const EXCERPT_LENGTH = 120;
 
-const nextVersion = sql`nextval('chat_version_seq')`;
-
-export interface Access {
-  group: Group;
-  isDoctor: boolean;
-  muted: boolean;
+export function notifyContext(context: ChatContext): NotifyContext {
+  return { db: context.db, push: context.push, logger: context.logger, now: context.now };
 }
 
-/**
- * The group's doctor and its active members may use its chat. Anyone else, including students
- * waiting for approval or removed from it, gets the same answer as for a group that does not exist.
- */
-export async function accessOf(db: Database, user: User, groupId: string): Promise<Access> {
-  const [group] = await db.select().from(groups).where(eq(groups.id, groupId));
-  if (group?.doctorId === user.id) {
-    return { group, isDoctor: true, muted: false };
-  }
-  if (group && user.role === 'student') {
-    const [membership] = await db
-      .select({ chatMuted: groupMembers.chatMuted })
-      .from(groupMembers)
-      .where(
-        and(
-          eq(groupMembers.groupId, group.id),
-          eq(groupMembers.studentId, user.id),
-          eq(groupMembers.status, 'active'),
-        ),
-      );
-    if (membership) {
-      return { group, isDoctor: false, muted: membership.chatMuted };
-    }
-  }
-  throw new HttpError(404, 'NOT_FOUND', 'Group not found');
-}
-
-function canPost(access: Access): boolean {
-  if (access.group.archivedAt) {
+function canPost(access: GroupAccess, now: Date): boolean {
+  if (access.group.archivedAt || access.muted) {
     return false;
   }
-  return access.isDoctor || (access.group.chatOpen && !access.muted);
+  return access.can.postWhenClosed || chatOpenNow(access.group, now);
 }
 
-/** Students follow the limit their doctor set for the group; the doctor has the ceiling. */
-function rateLimitOf(access: Access): number {
-  return access.isDoctor ? CHAT_RATE_LIMIT_MAX : access.group.chatRateLimit;
+function assertCanPost(access: GroupAccess, now: Date): void {
+  assertNotArchived(access);
+  if (access.muted) {
+    throw new HttpError(403, 'CHAT_MUTED', 'You were muted in this chat');
+  }
+  if (!access.can.postWhenClosed && !chatOpenNow(access.group, now)) {
+    throw new HttpError(403, 'CHAT_CLOSED', 'Students cannot write in this chat now');
+  }
 }
 
-function assertCanPost(access: Access): void {
-  if (access.group.archivedAt) {
-    throw new HttpError(409, 'GROUP_ARCHIVED', 'This group is archived');
-  }
-  if (!access.isDoctor && !access.group.chatOpen) {
-    throw new HttpError(403, 'CHAT_CLOSED', 'Only the doctor writes in this chat now');
-  }
-  if (!access.isDoctor && access.muted) {
-    throw new HttpError(403, 'CHAT_MUTED', 'The doctor muted you in this chat');
-  }
+/** Students follow the limit their doctor set for the group; the staff have the ceiling. */
+function rateLimitOf(access: GroupAccess): number {
+  return isStaff(access.role) ? CHAT_RATE_LIMIT_MAX : access.group.chatRateLimit;
 }
 
 async function lastReadSeq(db: Database, groupId: string, userId: string): Promise<number> {
@@ -118,14 +107,63 @@ async function lastReadSeq(db: Database, groupId: string, userId: string): Promi
   return row?.seq ?? 0;
 }
 
+/** Remembers that the person opened the group, for the activity the staff see. */
+async function markSeen(db: Database, groupId: string, userId: string, at: Date): Promise<void> {
+  await db
+    .insert(chatReads)
+    .values({ groupId, userId, lastReadSeq: 0, lastSeenAt: at })
+    .onConflictDoUpdate({
+      target: [chatReads.groupId, chatReads.userId],
+      set: { lastSeenAt: at },
+    });
+}
+
+/** Announcements in the group that the person did not write and has not seen. */
+export async function unreadAnnouncementCounts(
+  db: Database,
+  userId: string,
+  groupIds: string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (groupIds.length === 0) {
+    return counts;
+  }
+  const rows = await db
+    .select({ groupId: announcements.groupId, total: count() })
+    .from(announcements)
+    .leftJoin(
+      announcementReads,
+      and(
+        eq(announcementReads.announcementId, announcements.id),
+        eq(announcementReads.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        inArray(announcements.groupId, groupIds),
+        isNull(announcements.deletedAt),
+        ne(announcements.authorId, userId),
+        isNull(announcementReads.userId),
+      ),
+    )
+    .groupBy(announcements.groupId);
+  for (const row of rows) {
+    counts.set(row.groupId, row.total);
+  }
+  return counts;
+}
+
 export async function groupView(
   context: ChatContext,
   user: User,
   groupId: string,
 ): Promise<GroupView> {
-  const access = await accessOf(context.db, user, groupId);
+  const { db } = context;
+  const now = context.now();
+  const access = await groupAccess(db, user, groupId);
   const { group } = access;
-  const [doctor] = await context.db
+  await markSeen(db, group.id, user.id, now);
+  const [doctor] = await db
     .select({
       displayName: doctorProfiles.displayName,
       avatarUrl: users.avatarUrl,
@@ -134,6 +172,8 @@ export async function groupView(
     .from(users)
     .innerJoin(doctorProfiles, eq(doctorProfiles.userId, users.id))
     .where(eq(users.id, group.doctorId));
+  const change = nextChatChange(group, now);
+  const unread = await unreadAnnouncementCounts(db, user.id, [group.id]);
 
   return {
     id: group.id,
@@ -143,94 +183,26 @@ export async function groupView(
     photoUrl: group.photoFileId ? fileUrl(group.photoFileId) : null,
     archived: group.archivedAt !== null,
     doctor: {
+      id: group.doctorId,
       name: doctor?.displayName ?? '',
       avatarUrl: doctor ? avatarUrlOf(doctor) : null,
     },
-    isDoctor: access.isDoctor,
+    isDoctor: access.role === 'owner',
+    role: access.role,
+    can: access.can,
+    unreadAnnouncements: unread.get(group.id) ?? 0,
     chat: {
-      open: group.chatOpen,
+      open: chatOpenNow(group, now),
+      mode: group.chatSchedule ? 'scheduled' : group.chatOpen ? 'open' : 'closed',
+      schedule: group.chatSchedule ?? null,
+      manual: manualOverride(group, now) !== null,
+      nextChange: change ? { at: change.at.toISOString(), opens: change.opens } : null,
       muted: access.muted,
-      canPost: canPost(access),
-      lastReadSeq: await lastReadSeq(context.db, group.id, user.id),
+      canPost: canPost(access, now),
+      lastReadSeq: await lastReadSeq(db, group.id, user.id),
       rateLimit: rateLimitOf(access),
     },
   };
-}
-
-/** Turns stored messages into what a reader sees: authors, attachments and quoted replies. */
-async function toMessages(
-  db: Database,
-  group: Group,
-  reader: User,
-  rows: GroupMessage[],
-): Promise<ChatMessage[]> {
-  if (rows.length === 0) {
-    return [];
-  }
-  const replyIds = rows.flatMap((row) => (row.replyToId ? [row.replyToId] : []));
-  const replies =
-    replyIds.length === 0
-      ? []
-      : await db.select().from(groupMessages).where(inArray(groupMessages.id, replyIds));
-
-  const authorIds = [...new Set([...rows, ...replies].map((row) => row.authorId))];
-  const authors = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      avatarUrl: users.avatarUrl,
-      avatarFileId: users.avatarFileId,
-      displayName: doctorProfiles.displayName,
-    })
-    .from(users)
-    .leftJoin(doctorProfiles, eq(doctorProfiles.userId, users.id))
-    .where(inArray(users.id, authorIds));
-  const authorById = new Map(authors.map((author) => [author.id, author]));
-  const nameOf = (id: string) => {
-    const author = authorById.get(id);
-    return (id === group.doctorId ? author?.displayName : author?.name) ?? author?.name ?? '';
-  };
-
-  const fileIds = rows.flatMap((row) => (row.attachmentFileId ? [row.attachmentFileId] : []));
-  const attachments =
-    fileIds.length === 0 ? [] : await db.select().from(files).where(inArray(files.id, fileIds));
-  const attachmentById = new Map(attachments.map((file) => [file.id, toAttachment(file)]));
-  const replyById = new Map(replies.map((reply) => [reply.id, reply]));
-
-  return rows.map((row) => {
-    const author = authorById.get(row.authorId);
-    const reply = row.replyToId ? replyById.get(row.replyToId) : undefined;
-    const deleted = row.deletedAt !== null;
-    return {
-      id: row.id,
-      seq: row.seq,
-      version: row.version,
-      author: {
-        id: row.authorId,
-        name: nameOf(row.authorId),
-        avatarUrl: author ? avatarUrlOf(author) : null,
-        isDoctor: row.authorId === group.doctorId,
-      },
-      body: deleted ? null : row.body,
-      attachment:
-        deleted || !row.attachmentFileId
-          ? null
-          : (attachmentById.get(row.attachmentFileId) ?? null),
-      replyTo: reply
-        ? {
-            id: reply.id,
-            authorName: nameOf(reply.authorId),
-            excerpt: reply.deletedAt ? null : (reply.body?.slice(0, EXCERPT_LENGTH) ?? null),
-            hasAttachment: !reply.deletedAt && reply.attachmentFileId !== null,
-          }
-        : null,
-      pinned: !deleted && row.pinnedAt !== null,
-      edited: !deleted && row.editedAt !== null,
-      deleted,
-      mine: row.authorId === reader.id,
-      createdAt: row.createdAt.toISOString(),
-    };
-  });
 }
 
 async function latestVersion(db: Database, groupId: string): Promise<number> {
@@ -250,7 +222,8 @@ export async function chatPage(
   beforeSeq: number | null,
 ): Promise<ChatPage> {
   const { db } = context;
-  const { group } = await accessOf(db, user, groupId);
+  const now = context.now();
+  const { group, role } = await groupAccess(db, user, groupId);
   const rows = await db
     .select()
     .from(groupMessages)
@@ -278,8 +251,8 @@ export async function chatPage(
     .orderBy(desc(groupMessages.pinnedAt));
 
   return {
-    messages: await toMessages(db, group, user, page),
-    pinned: await toMessages(db, group, user, pinned),
+    messages: await toMessages(db, group, user, role, page, now),
+    pinned: await toMessages(db, group, user, role, pinned, now),
     version: await latestVersion(db, group.id),
     hasOlder,
   };
@@ -293,7 +266,7 @@ export async function chatChanges(
   sinceVersion: number,
 ): Promise<ChatChanges> {
   const { db } = context;
-  const { group } = await accessOf(db, user, groupId);
+  const { group, role } = await groupAccess(db, user, groupId);
   const rows = await db
     .select()
     .from(groupMessages)
@@ -302,47 +275,25 @@ export async function chatChanges(
     .limit(CHANGES_LIMIT);
   const last = rows.at(-1);
   return {
-    messages: await toMessages(db, group, user, rows),
+    messages: await toMessages(db, group, user, role, rows, context.now()),
     version: last ? last.version : sinceVersion,
   };
 }
 
-async function oneMessage(
+export async function markRead(
   db: Database,
-  group: Group,
-  reader: User,
-  id: string,
-): Promise<ChatMessage> {
-  const [row] = await db
-    .select()
-    .from(groupMessages)
-    .where(and(eq(groupMessages.id, id), eq(groupMessages.groupId, group.id)));
-  const [message] = row ? await toMessages(db, group, reader, [row]) : [];
-  if (!message) {
-    throw new HttpError(404, 'NOT_FOUND', 'Message not found');
-  }
-  return message;
-}
-
-async function findMessage(db: Database, groupId: string, messageId: string) {
-  const [row] = await db
-    .select()
-    .from(groupMessages)
-    .where(and(eq(groupMessages.id, messageId), eq(groupMessages.groupId, groupId)));
-  if (!row) {
-    throw new HttpError(404, 'NOT_FOUND', 'Message not found');
-  }
-  return row;
-}
-
-async function markRead(db: Database, groupId: string, userId: string, seq: number): Promise<void> {
+  groupId: string,
+  userId: string,
+  seq: number,
+  at: Date,
+): Promise<void> {
   await db
     .insert(chatReads)
-    .values({ groupId, userId, lastReadSeq: seq })
+    .values({ groupId, userId, lastReadSeq: seq, lastSeenAt: at })
     .onConflictDoUpdate({
       target: [chatReads.groupId, chatReads.userId],
       // Reading never moves backwards, whatever order the requests arrive in.
-      set: { lastReadSeq: sql`greatest(${chatReads.lastReadSeq}, ${seq})` },
+      set: { lastReadSeq: sql`greatest(${chatReads.lastReadSeq}, ${seq})`, lastSeenAt: at },
     });
 }
 
@@ -352,8 +303,41 @@ export async function markChatRead(
   groupId: string,
   seq: number,
 ): Promise<void> {
-  const { group } = await accessOf(context.db, user, groupId);
-  await markRead(context.db, group.id, user.id, seq);
+  const { group } = await groupAccess(context.db, user, groupId);
+  await markRead(context.db, group.id, user.id, seq, context.now());
+}
+
+/** Sends the notifications a new message calls for: mentions, and pushes to whoever wants all. */
+async function announceMessage(
+  context: ChatContext,
+  access: GroupAccess,
+  author: User,
+  message: { id: string; body: string | null; mentions: string[]; mentionsAll: boolean },
+  fallbackText: string,
+): Promise<void> {
+  const { group } = access;
+  const participants = await groupParticipants(context.db, group);
+  const people = await namesOf(context.db, [author.id, ...message.mentions]);
+  const names = new Map([...people].map(([id, person]) => [id, person.name]));
+  const text = message.body ? plainText(message.body, names) : fallbackText;
+  const actor = { id: author.id, name: people.get(author.id)?.name ?? author.name };
+  const event = { groupId: group.id, groupName: group.name, actor, messageId: message.id };
+
+  const mentioned = message.mentionsAll ? [...participants.keys()] : message.mentions;
+  await notify(notifyContext(context), {
+    ...event,
+    kind: 'mention',
+    recipients: mentioned,
+    excerpt: text,
+  });
+  const mentionedSet = new Set(mentioned);
+  await notify(notifyContext(context), {
+    ...event,
+    kind: 'message',
+    recipients: [...participants.keys()].filter((id) => !mentionedSet.has(id)),
+    excerpt: text,
+    inApp: false,
+  });
 }
 
 export async function postMessage(
@@ -364,11 +348,13 @@ export async function postMessage(
   upload: Upload | null,
 ): Promise<ChatMessage> {
   const { db, storage, now } = context;
-  const access = await accessOf(db, user, groupId);
-  assertCanPost(access);
+  const access = await groupAccess(db, user, groupId);
+  assertCanPost(access, now());
   const { group } = access;
 
-  const body = input.body.trim();
+  const participants = await groupParticipants(db, group);
+  const mentions = cleanMentions(input.body, participants, access.can.mentionAll);
+  const body = mentions.body;
   if (body.length > CHAT_MESSAGE_MAX_LENGTH) {
     throw new HttpError(400, 'VALIDATION_FAILED', 'The message is too long', {
       fields: { body: 'too_long' },
@@ -380,13 +366,63 @@ export async function postMessage(
     });
   }
 
-  const since = new Date(now().getTime() - 60 * 1000);
+  await assertWithinRate(db, access, user, now());
+
+  if (input.replyToId) {
+    await findMessage(db, group.id, input.replyToId);
+  }
+
+  const attachment = upload
+    ? await saveUpload({ db, storage }, user, upload, 'chat', group.id)
+    : null;
+  let created;
+  try {
+    [created] = await db
+      .insert(groupMessages)
+      .values({
+        groupId: group.id,
+        authorId: user.id,
+        body: body || null,
+        attachmentFileId: attachment?.id ?? null,
+        replyToId: input.replyToId,
+        mentions: mentions.ids,
+        mentionsAll: mentions.all,
+        createdAt: now(),
+      })
+      .returning();
+    if (!created) {
+      throw new Error('Message was not created');
+    }
+  } catch (error) {
+    await removeFile({ db, storage }, attachment?.id ?? null);
+    throw error;
+  }
+  // Writing a message means having read everything up to it.
+  await markRead(db, group.id, user.id, created.seq, now());
+  await announceMessage(
+    context,
+    access,
+    user,
+    { id: created.id, body: created.body, mentions: mentions.ids, mentionsAll: mentions.all },
+    attachment?.originalName ?? '',
+  );
+  return oneMessage(db, group, user, access.role, created.id, now());
+}
+
+/** At most the group's limit of messages (polls included) in any minute. */
+export async function assertWithinRate(
+  db: Database,
+  access: GroupAccess,
+  user: User,
+  now: Date,
+): Promise<void> {
+  const since = new Date(now.getTime() - 60 * 1000);
   const [recent] = await db
     .select({ total: count() })
     .from(groupMessages)
     .where(
       and(
-        eq(groupMessages.groupId, group.id),
+        eq(groupMessages.groupId, access.group.id),
         eq(groupMessages.authorId, user.id),
         gte(groupMessages.createdAt, since),
       ),
@@ -397,36 +433,6 @@ export async function postMessage(
       details: { limit },
     });
   }
-
-  if (input.replyToId) {
-    await findMessage(db, group.id, input.replyToId);
-  }
-
-  const attachment = upload
-    ? await saveUpload({ db, storage }, user, upload, 'chat', group.id)
-    : null;
-  try {
-    const [created] = await db
-      .insert(groupMessages)
-      .values({
-        groupId: group.id,
-        authorId: user.id,
-        body: body || null,
-        attachmentFileId: attachment?.id ?? null,
-        replyToId: input.replyToId,
-        createdAt: now(),
-      })
-      .returning();
-    if (!created) {
-      throw new Error('Message was not created');
-    }
-    // Writing a message means having read everything up to it.
-    await markRead(db, group.id, user.id, created.seq);
-    return await oneMessage(db, group, user, created.id);
-  } catch (error) {
-    await removeFile({ db, storage }, attachment?.id ?? null);
-    throw error;
-  }
 }
 
 export async function editMessage(
@@ -434,25 +440,54 @@ export async function editMessage(
   user: User,
   groupId: string,
   messageId: string,
-  body: string,
+  text: string,
 ): Promise<ChatMessage> {
   const { db, now } = context;
-  const access = await accessOf(db, user, groupId);
-  assertCanPost(access);
+  const access = await groupAccess(db, user, groupId);
+  assertCanPost(access, now());
   const message = await findMessage(db, access.group.id, messageId);
   if (message.authorId !== user.id || message.deletedAt || message.body === null) {
     throw new HttpError(403, 'MESSAGE_NOT_EDITABLE', 'Only your own text messages can be edited');
   }
+  const participants = await groupParticipants(db, access.group);
+  const mentions = cleanMentions(text, participants, access.can.mentionAll);
+  if (!mentions.body) {
+    throw new HttpError(400, 'VALIDATION_FAILED', 'Write a message', {
+      fields: { body: 'required' },
+    });
+  }
   await db
     .update(groupMessages)
-    .set({ body, editedAt: now(), version: nextVersion })
+    .set({
+      body: mentions.body,
+      mentions: mentions.ids,
+      mentionsAll: mentions.all,
+      editedAt: now(),
+      version: nextVersion,
+    })
     .where(eq(groupMessages.id, message.id));
-  return oneMessage(db, access.group, user, message.id);
+  // Only people newly mentioned by the edit are told.
+  const added = mentions.ids.filter((id) => !message.mentions.includes(id));
+  if (added.length > 0 || (mentions.all && !message.mentionsAll)) {
+    await announceMessage(
+      context,
+      access,
+      user,
+      {
+        id: message.id,
+        body: mentions.body,
+        mentions: added,
+        mentionsAll: mentions.all && !message.mentionsAll,
+      },
+      '',
+    );
+  }
+  return oneMessage(db, access.group, user, access.role, message.id, now());
 }
 
 /**
- * Deletes a message for everyone: its text and attachment are gone and it shows as deleted. The
- * author can delete their own; the doctor can delete any, and that is audited.
+ * Deletes a message for everyone: its text and attachment are gone and it shows as deleted. Authors
+ * delete their own; the staff any; a moderator the students' messages. Others' deletions are audited.
  */
 export async function deleteMessage(
   context: ChatContext,
@@ -461,10 +496,18 @@ export async function deleteMessage(
   messageId: string,
 ): Promise<ChatMessage> {
   const { db, storage, now } = context;
-  const access = await accessOf(db, user, groupId);
+  const access = await groupAccess(db, user, groupId);
   const message = await findMessage(db, access.group.id, messageId);
-  if (message.authorId !== user.id && !access.isDoctor) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot delete this message');
+  if (message.authorId !== user.id) {
+    // Someone who has left the group counts as a student.
+    const authorRole =
+      (await groupParticipants(db, access.group)).get(message.authorId) ?? 'student';
+    const allowed =
+      access.can.moderate &&
+      (isStaff(access.role) || (!isStaff(authorRole) && authorRole !== 'moderator'));
+    if (!allowed) {
+      throw new HttpError(403, 'FORBIDDEN', 'You cannot delete this message');
+    }
   }
   if (!message.deletedAt) {
     await db
@@ -473,6 +516,8 @@ export async function deleteMessage(
         body: null,
         attachmentFileId: null,
         pinnedAt: null,
+        mentions: [],
+        mentionsAll: false,
         deletedAt: now(),
         deletedByUserId: user.id,
         version: nextVersion,
@@ -489,7 +534,7 @@ export async function deleteMessage(
       });
     }
   }
-  return oneMessage(db, access.group, user, message.id);
+  return oneMessage(db, access.group, user, access.role, message.id, now());
 }
 
 export async function setPinned(
@@ -500,13 +545,9 @@ export async function setPinned(
   pinned: boolean,
 ): Promise<ChatMessage> {
   const { db, now } = context;
-  const access = await accessOf(db, user, groupId);
-  if (!access.isDoctor) {
-    throw new HttpError(403, 'FORBIDDEN', 'Only the doctor pins messages');
-  }
-  if (access.group.archivedAt) {
-    throw new HttpError(409, 'GROUP_ARCHIVED', 'This group is archived');
-  }
+  const access = await groupAccess(db, user, groupId);
+  assertCan(access, 'pin');
+  assertNotArchived(access);
   const message = await findMessage(db, access.group.id, messageId);
   if (message.deletedAt) {
     throw new HttpError(409, 'MESSAGE_NOT_EDITABLE', 'A deleted message cannot be pinned');
@@ -517,7 +558,43 @@ export async function setPinned(
       .set({ pinnedAt: pinned ? now() : null, version: nextVersion })
       .where(eq(groupMessages.id, message.id));
   }
-  return oneMessage(db, access.group, user, message.id);
+  return oneMessage(db, access.group, user, access.role, message.id, now());
+}
+
+/** The staff mute or unmute a student; the student keeps reading. */
+export async function setMemberMuted(
+  context: ChatContext,
+  user: User,
+  groupId: string,
+  studentId: string,
+  muted: boolean,
+): Promise<{ studentId: string; muted: boolean }> {
+  const { db, now } = context;
+  const access = await groupAccess(db, user, groupId);
+  assertCan(access, 'mute');
+  assertNotArchived(access);
+  const [updated] = await db
+    .update(groupMembers)
+    .set({ chatMuted: muted })
+    .where(
+      and(
+        eq(groupMembers.groupId, access.group.id),
+        eq(groupMembers.studentId, studentId),
+        eq(groupMembers.status, 'active'),
+      ),
+    )
+    .returning({ studentId: groupMembers.studentId });
+  if (!updated) {
+    throw new HttpError(404, 'NOT_FOUND', 'Student not found in this group');
+  }
+  await recordAudit(db, {
+    at: now(),
+    actorUserId: user.id,
+    action: muted ? 'group.chat_member_muted' : 'group.chat_member_unmuted',
+    metadata: { groupId: access.group.id, studentId },
+    ipAddress: context.ipAddress,
+  });
+  return { studentId, muted };
 }
 
 /** Unread messages per group for one person: others' messages after what they last read. */

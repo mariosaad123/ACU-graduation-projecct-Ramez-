@@ -11,7 +11,7 @@ import { LanguagesCard } from './LanguagesCard';
 type Student = NonNullable<SessionUser['student']>;
 
 function studentWith(activeLanguage: LearningLanguage, languages: LearningLanguage[]): Student {
-  return { activeLanguage, languages, goal: 'study' };
+  return { activeLanguage, languages, goal: 'study', universityId: null };
 }
 
 function account(student: Student) {
@@ -73,6 +73,8 @@ describe('LanguagesCard', () => {
         status: 'active',
         joinedAt: '2026-09-30T10:00:00.000Z',
         unread: 0,
+        unreadAnnouncements: 0,
+        role: 'student',
       },
     ]);
 

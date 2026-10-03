@@ -26,6 +26,7 @@ export async function toSessionUser(db: Database, user: User): Promise<SessionUs
           activeLanguage: student.activeLanguage,
           languages: studentLanguages,
           goal: student.goal,
+          universityId: student.universityId ?? null,
         }
       : null,
     doctor: doctor

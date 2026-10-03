@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { LANGUAGES, type SessionUser } from '@acu/shared';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +14,7 @@ import { useJoinGroup, useJoinPreview } from './api';
 import { GroupPhoto } from './GroupPhoto';
 import styles from './Groups.module.css';
 
-function joinErrorMessage(t: ReturnType<typeof useTranslation>['t'], error: unknown): string {
+function joinErrorMessage(t: TFunction, error: unknown): string {
   if (error instanceof ApiError && error.code === 'TOO_MANY_ATTEMPTS') {
     return t('errors.tooManyJoinCodes');
   }

@@ -21,11 +21,20 @@ const OFFICE: Record<string, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
+/** MP4 brands of ordinary video and audio files (Safari records audio as MP4 too). */
+const MP4_BRANDS = ['mp41', 'mp42', 'isom', 'iso2', 'iso4', 'iso5', 'iso6', 'avc1', 'dash', 'M4V '];
+
 /**
  * Identifies an upload from its first bytes. The name and the type the browser claims are not
- * trusted: a script renamed to .jpg is refused. Anything not recognised here is refused too.
+ * trusted: a script renamed to .jpg is refused. Anything not recognised here is refused too. WebM
+ * and MP4 hold either sound or video; for those containers only, the browser's word decides which.
  */
-export function sniffType(data: Buffer, fileName: string | undefined): SniffedType | null {
+export function sniffType(
+  data: Buffer,
+  fileName: string | undefined,
+  declaredType = '',
+): SniffedType | null {
+  const declaresVideo = declaredType.startsWith('video/');
   if (startsWith(data, [0xff, 0xd8, 0xff])) {
     return { contentType: 'image/jpeg', kind: 'image', extension: 'jpg' };
   }
@@ -42,7 +51,12 @@ export function sniffType(data: Buffer, fileName: string | undefined): SniffedTy
     return { contentType: 'application/pdf', kind: 'document', extension: 'pdf' };
   }
   if (startsWith(data, [0x1a, 0x45, 0xdf, 0xa3])) {
-    return { contentType: 'audio/webm', kind: 'audio', extension: 'webm' };
+    return declaresVideo
+      ? { contentType: 'video/webm', kind: 'video', extension: 'webm' }
+      : { contentType: 'audio/webm', kind: 'audio', extension: 'webm' };
+  }
+  if (ascii(data, 'ftyp', 4) && ascii(data, 'qt  ', 8)) {
+    return { contentType: 'video/quicktime', kind: 'video', extension: 'mov' };
   }
   if (ascii(data, 'OggS')) {
     return { contentType: 'audio/ogg', kind: 'audio', extension: 'ogg' };
@@ -56,12 +70,13 @@ export function sniffType(data: Buffer, fileName: string | undefined): SniffedTy
   ) {
     return { contentType: 'audio/mpeg', kind: 'audio', extension: 'mp3' };
   }
-  // MPEG-4 audio, as recorded by Safari: an "ftyp" box with an audio brand.
-  if (
-    ascii(data, 'ftyp', 4) &&
-    ['M4A ', 'mp42', 'isom', 'iso6'].some((brand) => ascii(data, brand, 8))
-  ) {
+  if (ascii(data, 'ftyp', 4) && ascii(data, 'M4A ', 8)) {
     return { contentType: 'audio/mp4', kind: 'audio', extension: 'm4a' };
+  }
+  if (ascii(data, 'ftyp', 4) && MP4_BRANDS.some((brand) => ascii(data, brand, 8))) {
+    return declaresVideo
+      ? { contentType: 'video/mp4', kind: 'video', extension: 'mp4' }
+      : { contentType: 'audio/mp4', kind: 'audio', extension: 'm4a' };
   }
   if (startsWith(data, [0x50, 0x4b, 0x03, 0x04])) {
     const extension = fileName?.toLowerCase().split('.').pop() ?? '';

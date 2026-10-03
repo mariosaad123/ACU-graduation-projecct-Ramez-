@@ -3,11 +3,16 @@ import {
   CHAT_RATE_LIMIT_MAX,
   CHAT_RATE_LIMIT_MIN,
   DOCTOR_STATUSES,
+  GRADE_COLUMN_KINDS,
+  GRADE_STATUSES,
+  GROUP_MEMBER_ROLES,
   GROUP_MEMBER_STATUSES,
   FILE_PURPOSES,
   LEARNING_GOALS,
   LEARNING_LANGUAGES,
+  NOTIFICATION_KINDS,
   USER_ROLES,
+  type ChatSchedule,
 } from '@acu/shared';
 import { sql } from 'drizzle-orm';
 import {
@@ -15,10 +20,12 @@ import {
   boolean,
   check,
   customType,
+  date,
   foreignKey,
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgSequence,
   pgTable,
@@ -36,6 +43,10 @@ export const learningLanguage = pgEnum('learning_language', LEARNING_LANGUAGES);
 export const learningGoal = pgEnum('learning_goal', LEARNING_GOALS);
 export const groupMemberStatus = pgEnum('group_member_status', GROUP_MEMBER_STATUSES);
 export const filePurpose = pgEnum('file_purpose', FILE_PURPOSES);
+export const groupMemberRole = pgEnum('group_member_role', GROUP_MEMBER_ROLES);
+export const gradeColumnKind = pgEnum('grade_column_kind', GRADE_COLUMN_KINDS);
+export const gradeStatus = pgEnum('grade_status', GRADE_STATUSES);
+export const notificationKind = pgEnum('notification_kind', NOTIFICATION_KINDS);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -89,6 +100,8 @@ export const studentProfiles = pgTable(
     /** The language being studied now. The composite key below keeps it one of the student's own. */
     activeLanguage: learningLanguage('active_language').notNull(),
     goal: learningGoal('goal').notNull(),
+    /** The university's student number, shown to the student's doctors only. */
+    universityId: text('university_id'),
     ...timestamps,
   },
   (table) => [
@@ -141,6 +154,14 @@ export const groups = pgTable(
     requiresApproval: boolean('requires_approval').notNull().default(false),
     /** When false only the doctor writes in the chat. */
     chatOpen: boolean('chat_open').notNull().default(true),
+    /** When set, the chat opens to students inside these weekly windows only (Cairo time). */
+    chatSchedule: jsonb('chat_schedule').$type<ChatSchedule>(),
+    /**
+     * With a schedule, the doctor can still open or close the chat by hand: that choice holds
+     * until the schedule's next change, then the schedule takes over again.
+     */
+    chatOverrideOpen: boolean('chat_override_open'),
+    chatOverrideUntil: timestamp('chat_override_until', { withTimezone: true }),
     /** Messages each student may send to the chat in a minute. */
     chatRateLimit: integer('chat_rate_limit').notNull().default(CHAT_RATE_LIMIT_DEFAULT),
     photoFileId: uuid('photo_file_id').references((): AnyPgColumn => files.id, {
@@ -183,6 +204,7 @@ export const groupMembers = pgTable(
     }),
     /** Muted by the doctor in the group chat. */
     chatMuted: boolean('chat_muted').notNull().default(false),
+    role: groupMemberRole('role').notNull().default('student'),
   },
   (table) => [
     primaryKey({ columns: [table.groupId, table.studentId] }),
@@ -257,6 +279,12 @@ export const groupMessages = pgTable(
     deletedByUserId: uuid('deleted_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    /** People mentioned in the body as @[id]; @[all] sets mentions_all. */
+    mentions: uuid('mentions')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    mentionsAll: boolean('mentions_all').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -276,9 +304,243 @@ export const chatReads = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     lastReadSeq: bigint('last_read_seq', { mode: 'number' }).notNull().default(0),
+    /** When the person last opened the group, for the activity the staff see. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   },
   (table) => [primaryKey({ columns: [table.groupId, table.userId] })],
 );
+
+/** Teaching assistants: other doctor accounts who help run a group, without its settings. */
+export const groupAssistants = pgTable(
+  'group_assistants',
+  {
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.groupId, table.userId] }),
+    index('group_assistants_user_idx').on(table.userId),
+  ],
+);
+
+/** Official notices, apart from the chat, with who has read them. */
+export const announcements = pgTable(
+  'announcements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    important: boolean('important').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [index('announcements_group_idx').on(table.groupId, table.createdAt)],
+);
+
+export const announcementAttachments = pgTable(
+  'announcement_attachments',
+  {
+    announcementId: uuid('announcement_id')
+      .notNull()
+      .references(() => announcements.id, { onDelete: 'cascade' }),
+    fileId: uuid('file_id')
+      .notNull()
+      .unique()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.announcementId, table.fileId] })],
+);
+
+export const announcementReads = pgTable(
+  'announcement_reads',
+  {
+    announcementId: uuid('announcement_id')
+      .notNull()
+      .references(() => announcements.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.userId] }),
+    index('announcement_reads_user_idx').on(table.userId),
+  ],
+);
+
+/** A question asked in the chat; it lives in one chat message. */
+export const polls = pgTable('polls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  groupId: uuid('group_id')
+    .notNull()
+    .references(() => groups.id, { onDelete: 'cascade' }),
+  messageId: uuid('message_id')
+    .notNull()
+    .unique()
+    .references(() => groupMessages.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  multiple: boolean('multiple').notNull().default(false),
+  anonymous: boolean('anonymous').notNull().default(false),
+  closesAt: timestamp('closes_at', { withTimezone: true }),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const pollOptions = pgTable(
+  'poll_options',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => polls.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    position: integer('position').notNull(),
+  },
+  (table) => [index('poll_options_poll_idx').on(table.pollId)],
+);
+
+export const pollVotes = pgTable(
+  'poll_votes',
+  {
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => polls.id, { onDelete: 'cascade' }),
+    optionId: uuid('option_id')
+      .notNull()
+      .references(() => pollOptions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    votedAt: timestamp('voted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.optionId, table.userId] }),
+    index('poll_votes_poll_user_idx').on(table.pollId, table.userId),
+  ],
+);
+
+/** The gradebook's columns: a quiz, an assignment, an exam... */
+export const gradeColumns = pgTable(
+  'grade_columns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    kind: gradeColumnKind('kind').notNull(),
+    maxScore: numeric('max_score', { precision: 7, scale: 2, mode: 'number' }).notNull(),
+    weight: numeric('weight', { precision: 5, scale: 2, mode: 'number' }),
+    heldOn: date('held_on', { mode: 'string' }),
+    published: boolean('published').notNull().default(false),
+    position: integer('position').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('grade_columns_group_idx').on(table.groupId),
+    check('grade_columns_max_score_positive', sql`${table.maxScore} > 0`),
+    check(
+      'grade_columns_weight_range',
+      sql`${table.weight} is null or (${table.weight} > 0 and ${table.weight} <= 100)`,
+    ),
+  ],
+);
+
+export const grades = pgTable(
+  'grades',
+  {
+    columnId: uuid('column_id')
+      .notNull()
+      .references(() => gradeColumns.id, { onDelete: 'cascade' }),
+    studentId: uuid('student_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: gradeStatus('status').notNull().default('scored'),
+    score: numeric('score', { precision: 7, scale: 2, mode: 'number' }),
+    note: text('note'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.columnId, table.studentId] }),
+    check('grades_score_not_negative', sql`${table.score} is null or ${table.score} >= 0`),
+  ],
+);
+
+/** What each person is told about; kept in the app and, if they allow it, pushed. */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: notificationKind('kind').notNull(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    messageId: uuid('message_id').references(() => groupMessages.id, { onDelete: 'cascade' }),
+    announcementId: uuid('announcement_id').references(() => announcements.id, {
+      onDelete: 'cascade',
+    }),
+    gradeColumnId: uuid('grade_column_id').references(() => gradeColumns.id, {
+      onDelete: 'cascade',
+    }),
+    excerpt: text('excerpt'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (table) => [index('notifications_user_idx').on(table.userId, table.createdAt)],
+);
+
+/** Browsers that may receive push notifications for a person. */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    /** The interface language on that browser, so notifications arrive in it. */
+    locale: text('locale', { enum: ['ar', 'en'] })
+      .notNull()
+      .default('ar'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('push_subscriptions_user_idx').on(table.userId)],
+);
+
+/** Which notifications reach a person's browsers; in-app ones are always kept. */
+export const notificationSettings = pgTable('notification_settings', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  mentions: boolean('mentions').notNull().default(true),
+  announcements: boolean('announcements').notNull().default(true),
+  polls: boolean('polls').notNull().default(true),
+  grades: boolean('grades').notNull().default(true),
+  messages: boolean('messages').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** The shared code that proves someone is faculty staff. Only an Argon2 hash is stored. */
 export const doctorAccessCodes = pgTable('doctor_access_codes', {
@@ -372,3 +634,6 @@ export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
 export type FileRow = typeof files.$inferSelect;
 export type GroupMessage = typeof groupMessages.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;
+export type GradeColumnRow = typeof gradeColumns.$inferSelect;
+export type Poll = typeof polls.$inferSelect;

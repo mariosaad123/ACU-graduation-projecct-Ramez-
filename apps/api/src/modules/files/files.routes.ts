@@ -4,8 +4,8 @@ import { authOf, requireAuth } from '../../http/middleware/require-auth';
 import { parseId } from '../groups/groups.service';
 import { readFileFor } from './files.service';
 
-/** Shown in the page: images and audio. Anything else is always downloaded, never rendered. */
-const INLINE = /^(image\/(webp|png|jpeg|gif)|audio\/)/;
+/** Shown in the page: images, audio and video. Anything else is always downloaded, never rendered. */
+const INLINE = /^(image\/(webp|png|jpeg|gif)|audio\/|video\/)/;
 
 export function createFilesRouter({ db, storage }: AppDependencies): Router {
   const router = Router();

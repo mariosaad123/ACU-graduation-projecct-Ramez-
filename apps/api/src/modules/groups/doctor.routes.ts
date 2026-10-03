@@ -1,6 +1,8 @@
 import {
   PHOTO_MAX_BYTES,
+  addAssistantSchema,
   addMemberSchema,
+  memberRoleSchema,
   chatMuteSchema,
   doctorLanguagesRequestSchema,
   groupCreateSchema,
@@ -36,6 +38,15 @@ import {
   type GroupsContext,
   type MemberAction,
 } from './groups.service';
+import {
+  addAssistant,
+  listAssistants,
+  listAssistedGroups,
+  removeAssistant,
+  setMemberRole,
+  type RolesContext,
+} from './roles.service';
+import { exportAllGroups, sendWorkbook } from '../export/export.service';
 import { suspendStudent, unsuspendStudent } from './suspension.service';
 
 function isMemberAction(value: string | undefined): value is MemberAction {
@@ -49,6 +60,11 @@ export function createDoctorRouter(deps: AppDependencies): Router {
   router.use(requireRole('doctor'));
 
   const contextFor = (req: Request): GroupsContext => ({ db, now, ipAddress: req.ip });
+  const rolesContextFor = (req: Request): RolesContext => ({
+    ...contextFor(req),
+    push: deps.push,
+    logger: deps.logger,
+  });
   const doctorOf = (req: Request) => authOf(req).user;
 
   router.put(
@@ -173,10 +189,12 @@ export function createDoctorRouter(deps: AppDependencies): Router {
     }),
   );
 
-  router.post('/groups/:groupId/members/:studentId/:action', async (req, res) => {
+  router.post('/groups/:groupId/members/:studentId/:action', async (req, res, next) => {
     const { action } = req.params;
+    // Other member routes (role, chat-mute) are declared further down.
     if (!isMemberAction(action)) {
-      throw new HttpError(404, 'NOT_FOUND', 'Unknown action');
+      next();
+      return;
     }
     const groupId = parseId(req.params.groupId);
     const studentId = parseId(req.params.studentId, 'Student');
@@ -197,6 +215,66 @@ export function createDoctorRouter(deps: AppDependencies): Router {
     const studentId = parseId(req.params.studentId, 'Student');
     await unsuspendStudent(contextFor(req), doctorOf(req), studentId);
     res.status(204).end();
+  });
+
+  router.post(
+    '/groups/:groupId/members/:studentId/role',
+    withBody(memberRoleSchema, async (req, res, body) => {
+      const member = await setMemberRole(
+        rolesContextFor(req),
+        doctorOf(req),
+        parseId(req.params.groupId),
+        parseId(req.params.studentId, 'Student'),
+        body.role,
+      );
+      res.json({ member });
+    }),
+  );
+
+  router.get('/groups/:groupId/assistants', async (req, res) => {
+    const assistants = await listAssistants(
+      contextFor(req),
+      doctorOf(req),
+      parseId(req.params.groupId),
+    );
+    res.set('Cache-Control', 'no-store').json({ assistants });
+  });
+
+  router.post(
+    '/groups/:groupId/assistants',
+    withBody(addAssistantSchema, async (req, res, body) => {
+      const assistant = await addAssistant(
+        rolesContextFor(req),
+        doctorOf(req),
+        parseId(req.params.groupId),
+        body.email,
+      );
+      res.status(201).json({ assistant });
+    }),
+  );
+
+  router.delete('/groups/:groupId/assistants/:assistantId', async (req, res) => {
+    await removeAssistant(
+      contextFor(req),
+      doctorOf(req),
+      parseId(req.params.groupId),
+      parseId(req.params.assistantId, 'Assistant'),
+    );
+    res.status(204).end();
+  });
+
+  router.get('/export', async (req, res) => {
+    const { buffer, fileName } = await exportAllGroups(
+      { db, now, ipAddress: req.ip },
+      doctorOf(req),
+      req.query.lang === 'en' ? 'en' : 'ar',
+    );
+    sendWorkbook(res, buffer, fileName);
+  });
+
+  router.get('/assisting', async (req, res) => {
+    const groups = await listAssistedGroups(contextFor(req), doctorOf(req));
+    res.set('Cache-Control', 'no-store').json({ groups });
   });
 
   return router;

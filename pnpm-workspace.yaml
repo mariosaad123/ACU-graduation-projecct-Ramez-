@@ -4,3 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# exceljs still asks for uuid 8, which has a known bounds-check flaw; the fixed line works the same.
+overrides:
+  uuid@<11.1.1: ^11.1.1

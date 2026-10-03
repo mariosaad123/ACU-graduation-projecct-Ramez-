@@ -1,9 +1,14 @@
-import { chatMessageResponseSchema, type ChatMessage, type GroupView } from '@acu/shared';
+import {
+  SCHEDULE_TIME_ZONE,
+  chatMessageResponseSchema,
+  type ChatMessage,
+  type GroupView,
+} from '@acu/shared';
 import {
   ArrowDownIcon,
+  CalendarDotsIcon,
   LockSimpleIcon,
   LockSimpleOpenIcon,
-  PushPinIcon,
 } from '@phosphor-icons/react';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -16,6 +21,7 @@ import {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -28,8 +34,12 @@ import { apiRequest } from '../../lib/api';
 import { copyText } from '../../lib/clipboard';
 import { describeApiError } from '../auth/api-errors';
 import { useUpdateGroup } from '../groups/api';
+import { useGroupPeople } from '../people/api';
 import { ChatComposer, type ComposerDraft } from './ChatComposer';
 import { ChatMessageItem, type MessageActions } from './ChatMessageItem';
+import { plainBody } from './mentions';
+import { PinnedBar } from './PinnedBar';
+import { PollDialog } from './PollDialog';
 import { useChat } from './use-chat';
 import styles from './Chat.module.css';
 
@@ -37,6 +47,8 @@ import styles from './Chat.module.css';
 const CONTINUE_WITHIN_MS = 5 * 60 * 1000;
 /** How near the bottom still counts as reading the latest messages. */
 const NEAR_BOTTOM_PX = 120;
+/** Older pages loaded, at most, to reach a pinned or quoted message. */
+const JUMP_PAGES = 10;
 
 /** Scrolls the message list, and only the list, so a message sits at its top or middle. */
 function scrollListTo(
@@ -76,19 +88,42 @@ function useDayLabel() {
   };
 }
 
-/** The chat of a group, for its doctor and its students alike; what each may do comes from the view. */
+/** "Sunday 10:00" in Cairo time, where the schedule is written; just the time when it is today. */
+function useChangeLabel() {
+  const { intlLocale } = useLocale();
+  return useCallback(
+    (iso: string) => {
+      const at = new Date(iso);
+      const day = new Intl.DateTimeFormat('en-CA', { timeZone: SCHEDULE_TIME_ZONE });
+      const today = day.format(at) === day.format(new Date());
+      return new Intl.DateTimeFormat(intlLocale, {
+        timeZone: SCHEDULE_TIME_ZONE,
+        weekday: today ? undefined : 'long',
+        hour: 'numeric',
+        minute: '2-digit',
+      }).format(at);
+    },
+    [intlLocale],
+  );
+}
+
+/** The chat of a group, for its staff and its students alike; what each may do comes from the view. */
 export function GroupChat({ view }: { view: GroupView }) {
   const { t } = useTranslation();
   const toast = useToast();
   const { intlLocale } = useLocale();
   const dayLabel = useDayLabel();
+  const changeLabel = useChangeLabel();
   const chat = useChat(view.id);
+  const people = useGroupPeople(view.id);
   const toggleChat = useUpdateGroup(view.id);
+  const [search, setSearch] = useSearchParams();
   const list = useRef<HTMLDivElement>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [deleting, setDeleting] = useState<ChatMessage | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   // The "new messages" line stays where it was when the chat was opened.
   const [unreadFrom] = useState(view.chat.lastReadSeq);
@@ -97,7 +132,8 @@ export function GroupChat({ view }: { view: GroupView }) {
 
   const permissions = {
     canPost: view.chat.canPost,
-    isDoctor: view.isDoctor,
+    role: view.role,
+    can: view.can,
     archived: view.archived,
   };
   const timeFormat = useMemo(
@@ -151,25 +187,44 @@ export function GroupChat({ view }: { view: GroupView }) {
     }
   }, []);
 
-  const jumpTo = useCallback((messageId: string) => {
-    const target = document.getElementById(`message-${messageId}`);
-    if (target && list.current) {
-      scrollListTo(list.current, target, 'center', 'smooth');
-      target.classList.add(styles.highlight ?? '');
-      window.setTimeout(() => {
-        target.classList.remove(styles.highlight ?? '');
-      }, 1600);
-    }
-  }, []);
+  const { hasOlder, loadOlder } = chat;
+  /** Goes to a message, loading older pages first when it is further back than what is shown. */
+  const jumpTo = useCallback(
+    async (messageId: string) => {
+      let target = document.getElementById(`message-${messageId}`);
+      let more = hasOlder;
+      for (let page = 0; !target && more && page < JUMP_PAGES; page += 1) {
+        more = await loadOlder();
+        // The older messages are in the page after the next paint.
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        target = document.getElementById(`message-${messageId}`);
+      }
+      if (target && list.current) {
+        scrollListTo(list.current, target, 'center', 'smooth');
+        target.classList.add(styles.highlight ?? '');
+        const found = target;
+        window.setTimeout(() => {
+          found.classList.remove(styles.highlight ?? '');
+        }, 1600);
+      }
+    },
+    [hasOlder, loadOlder],
+  );
 
   // First view: the first unread message, or the bottom. Later: follow new messages while at the bottom.
   const newest = chat.messages.at(-1);
+  const wanted = search.get('message');
   useLayoutEffect(() => {
     if (chat.status !== 'ready') {
       return;
     }
     if (!scrolledOnce.current) {
       scrolledOnce.current = true;
+      // A notification leads to one message: that one, rather than the first unread.
+      if (wanted) {
+        void jumpTo(wanted);
+        return;
+      }
       const firstUnread = chat.messages.find(
         (message) => message.seq > unreadFrom && !message.mine,
       );
@@ -191,6 +246,20 @@ export function GroupChat({ view }: { view: GroupView }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.status, newest?.id]);
 
+  // The address keeps ?message= only until that message has been shown.
+  useEffect(() => {
+    if (chat.status === 'ready' && wanted) {
+      setSearch(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete('message');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [chat.status, wanted, setSearch]);
+
   // Reading the bottom of the chat marks everything up to the newest message as read.
   useEffect(() => {
     // Measured, not remembered: the first view may open on the first unread message instead.
@@ -211,6 +280,15 @@ export function GroupChat({ view }: { view: GroupView }) {
     });
   }, [atBottom, newest, view.id]);
 
+  const setPinned = (message: ChatMessage, pinned: boolean) => {
+    void change(
+      apiRequest(`/api/groups/${view.id}/chat/${message.id}/${pinned ? 'pin' : 'unpin'}`, {
+        method: 'POST',
+        schema: chatMessageResponseSchema,
+      }),
+    );
+  };
+
   const actions: MessageActions = {
     onReply: (message) => {
       setEditing(null);
@@ -221,22 +299,19 @@ export function GroupChat({ view }: { view: GroupView }) {
       setEditing(message);
     },
     onDelete: setDeleting,
-    onPin: (message, pinned) => {
-      void change(
-        apiRequest(`/api/groups/${view.id}/chat/${message.id}/${pinned ? 'pin' : 'unpin'}`, {
-          method: 'POST',
-          schema: chatMessageResponseSchema,
-        }),
-      );
-    },
+    onPin: setPinned,
     onCopy: (message) => {
-      void copyText(message.body ?? '').then((copied) => {
+      const text = plainBody(message.body ?? '', message.mentions, t('chat.everyone'));
+      void copyText(text).then((copied) => {
         if (copied) {
           toast({ tone: 'success', title: t('chat.copied') });
         }
       });
     },
-    onJumpTo: jumpTo,
+    onJumpTo: (messageId) => {
+      void jumpTo(messageId);
+    },
+    onChanged: chat.apply,
   };
 
   // One line marks where unread messages start, before the first one someone else wrote.
@@ -244,13 +319,24 @@ export function GroupChat({ view }: { view: GroupView }) {
     (message) => message.seq > unreadFrom && !message.mine,
   )?.id;
 
-  const closedToStudents = !view.chat.open;
+  const { open, mode, nextChange, manual } = view.chat;
+  const when = nextChange ? changeLabel(nextChange.at) : null;
+  const status =
+    mode === 'scheduled' && when
+      ? open
+        ? t('chat.openUntil', { when })
+        : t('chat.opensAt', { when })
+      : open
+        ? t('chat.open')
+        : t('chat.closed');
   const notice = view.archived
     ? t('chat.archivedNotice')
-    : !view.isDoctor && view.chat.muted
+    : view.chat.muted
       ? t('chat.mutedNotice')
-      : !view.isDoctor && closedToStudents
-        ? t('chat.closedNotice')
+      : !open
+        ? mode === 'scheduled' && when
+          ? t('chat.closedUntilNotice', { when })
+          : t('chat.closedNotice')
         : null;
 
   return (
@@ -259,30 +345,34 @@ export function GroupChat({ view }: { view: GroupView }) {
         <h2 id={`chat-${view.id}`} className={styles.chatTitle}>
           {t('chat.title')}
         </h2>
-        <Badge tone={closedToStudents ? 'warning' : 'success'}>
-          {closedToStudents ? t('chat.closed') : t('chat.open')}
+        <Badge
+          tone={open ? 'success' : 'warning'}
+          icon={mode === 'scheduled' ? <CalendarDotsIcon aria-hidden="true" /> : undefined}
+        >
+          {status}
         </Badge>
-        {view.isDoctor && !view.archived && (
+        {manual && <Badge>{t('chat.manual')}</Badge>}
+        {view.can.manage && !view.archived && (
           <Button
             size="sm"
             variant="secondary"
             className={styles.chatToggle}
             loading={toggleChat.isPending}
             iconStart={
-              closedToStudents ? (
-                <LockSimpleOpenIcon aria-hidden="true" />
-              ) : (
+              open ? (
                 <LockSimpleIcon aria-hidden="true" />
+              ) : (
+                <LockSimpleOpenIcon aria-hidden="true" />
               )
             }
             onClick={() => {
               toggleChat.mutate(
-                { chatOpen: closedToStudents },
+                { chatOpen: !open },
                 {
                   onSuccess: () => {
                     toast({
                       tone: 'success',
-                      title: closedToStudents ? t('chat.openedDone') : t('chat.closedDone'),
+                      title: open ? t('chat.closedDone') : t('chat.openedDone'),
                     });
                   },
                   onError: (error) => {
@@ -292,37 +382,22 @@ export function GroupChat({ view }: { view: GroupView }) {
               );
             }}
           >
-            {closedToStudents ? t('chat.openChat') : t('chat.closeChat')}
+            {open ? t('chat.closeChat') : t('chat.openChat')}
           </Button>
         )}
       </header>
 
       {chat.pinned.length > 0 && (
-        <details className={styles.pinned}>
-          <summary>
-            <PushPinIcon aria-hidden="true" />
-            {t('chat.pinned', { count: chat.pinned.length })}
-            <span className={styles.pinnedPreview} dir="auto">
-              {chat.pinned[0]?.body ?? t('chat.quoteAttachment')}
-            </span>
-          </summary>
-          <ul className={styles.pinnedList}>
-            {chat.pinned.map((message) => (
-              <li key={message.id}>
-                <button
-                  type="button"
-                  className={styles.pinnedItem}
-                  onClick={() => {
-                    jumpTo(message.id);
-                  }}
-                >
-                  <span className={styles.quoteAuthor}>{message.author.name}</span>
-                  <span dir="auto">{message.body ?? t('chat.quoteAttachment')}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
+        <PinnedBar
+          pinned={chat.pinned}
+          canUnpin={view.can.pin && !view.archived}
+          onJump={(messageId) => {
+            void jumpTo(messageId);
+          }}
+          onUnpin={(message) => {
+            setPinned(message, false);
+          }}
+        />
       )}
 
       <div className={styles.viewport}>
@@ -354,9 +429,7 @@ export function GroupChat({ view }: { view: GroupView }) {
             </Button>
           )}
           {chat.status === 'ready' && chat.messages.length === 0 && (
-            <p className={styles.empty}>
-              {closedToStudents ? t('chat.emptyAnnouncements') : t('chat.empty')}
-            </p>
+            <p className={styles.empty}>{open ? t('chat.empty') : t('chat.emptyAnnouncements')}</p>
           )}
           <ol className={styles.messages} aria-live="polite" aria-relevant="additions">
             {chat.messages.map((message, index) => {
@@ -382,6 +455,7 @@ export function GroupChat({ view }: { view: GroupView }) {
                     </li>
                   )}
                   <ChatMessageItem
+                    groupId={view.id}
                     message={message}
                     continued={continued}
                     time={timeFormat.format(new Date(message.createdAt))}
@@ -416,6 +490,15 @@ export function GroupChat({ view }: { view: GroupView }) {
           editing={editing}
           sending={send.isPending}
           error={send.isError ? describeApiError(t, send.error) : null}
+          people={people.data ?? []}
+          canMentionAll={view.can.mentionAll}
+          onCreatePoll={
+            view.can.createPolls
+              ? () => {
+                  setAsking(true);
+                }
+              : undefined
+          }
           onSend={async (draft) => {
             try {
               await send.mutateAsync(draft);
@@ -447,6 +530,19 @@ export function GroupChat({ view }: { view: GroupView }) {
         />
       ) : (
         notice && <p className={styles.notice}>{notice}</p>
+      )}
+
+      {asking && (
+        <PollDialog
+          groupId={view.id}
+          onClose={() => {
+            setAsking(false);
+          }}
+          onCreated={(message) => {
+            chat.apply(message);
+            lastMarked.current = Math.max(lastMarked.current, message.seq);
+          }}
+        />
       )}
 
       <ConfirmDialog

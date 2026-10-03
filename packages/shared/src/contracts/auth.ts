@@ -40,6 +40,8 @@ export const sessionUserSchema = z.object({
       activeLanguage: learningLanguage,
       languages: languageListSchema,
       goal: z.enum(LEARNING_GOALS),
+      /** The university's student number, for doctors' grade sheets; optional. */
+      universityId: z.nullable(z.string()),
     }),
   ),
   doctor: z.nullable(
@@ -126,6 +128,12 @@ export const API_ERROR_CODES = [
   'PAYLOAD_TOO_LARGE',
   'RATE_LIMITED',
   'CHAT_RATE_LIMITED',
+  'ASSISTANT_NOT_FOUND',
+  'ALREADY_ASSISTANT',
+  'POLL_CLOSED',
+  'SCORE_TOO_HIGH',
+  'PUSH_NOT_CONFIGURED',
+  'TOO_MANY_FILES',
   'CSRF_REJECTED',
   'INTERNAL_ERROR',
   'ALREADY_ONBOARDED',
@@ -170,3 +178,8 @@ export const apiErrorSchema = z.object({
   }),
 });
 export type ApiErrorBody = z.infer<typeof apiErrorSchema>;
+
+/** Digits and letters as printed on a student card, 3 to 20 of them; empty clears it. */
+export const universityIdSchema = z.object({
+  universityId: z.nullable(z.string().check(z.trim(), z.regex(/^[A-Za-z0-9-]{3,20}$/))),
+});

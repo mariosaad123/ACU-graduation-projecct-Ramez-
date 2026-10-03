@@ -1,3 +1,4 @@
+import { isStaff } from '@acu/shared';
 import { ChalkboardTeacherIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,9 +50,16 @@ export function GroupPeople({ groupId }: { groupId: string }) {
             <Link to={`/app/people/${person.id}`} className={styles.personLink}>
               <Avatar user={person} size="2.25rem" />
               <span className={styles.personName}>{person.name}</span>
-              {person.role === 'doctor' && (
-                <Badge tone="emblem" icon={<ChalkboardTeacherIcon aria-hidden="true" />}>
-                  {t('people.doctor')}
+              {person.role !== 'student' && (
+                <Badge
+                  tone={isStaff(person.role) ? 'emblem' : 'info'}
+                  icon={
+                    person.role === 'owner' ? (
+                      <ChalkboardTeacherIcon aria-hidden="true" />
+                    ) : undefined
+                  }
+                >
+                  {t(`roles.${person.role}`)}
                 </Badge>
               )}
               {person.me && <Badge>{t('people.you')}</Badge>}

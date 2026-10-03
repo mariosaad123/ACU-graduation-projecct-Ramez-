@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatPage, GroupView } from '@acu/shared';
+import { CAPABILITIES, type ChatMessage, type ChatPage, type GroupView } from '@acu/shared';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,10 +19,24 @@ function view(
     language: 'fr',
     photoUrl: null,
     archived: false,
-    doctor: { name: 'Dr. Mona', avatarUrl: null },
+    doctor: { id: 'doctor-1', name: 'Dr. Mona', avatarUrl: null },
     isDoctor: false,
+    role: overrides.isDoctor ? 'owner' : 'student',
+    can: CAPABILITIES[overrides.isDoctor ? 'owner' : 'student'],
+    unreadAnnouncements: 0,
     ...overrides,
-    chat: { open: true, muted: false, canPost: true, lastReadSeq: 0, rateLimit: 60, ...chat },
+    chat: {
+      open: true,
+      mode: chat.open === false ? 'closed' : 'open',
+      schedule: null,
+      manual: false,
+      nextChange: null,
+      muted: false,
+      canPost: true,
+      lastReadSeq: 0,
+      rateLimit: 60,
+      ...chat,
+    },
   };
 }
 
@@ -34,9 +48,13 @@ function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
     id: `message-${String(seq)}`,
     seq,
     version: seq,
-    author: { id: 'doctor-1', name: 'Dr. Mona', avatarUrl: null, isDoctor: true },
+    author: { id: 'doctor-1', name: 'Dr. Mona', avatarUrl: null, isDoctor: true, role: 'owner' },
     body: `Message ${String(seq)}`,
+    mentions: [],
+    mentionsAll: false,
+    mentionsMe: false,
     attachment: null,
+    poll: null,
     replyTo: null,
     pinned: false,
     edited: false,
@@ -146,7 +164,13 @@ describe('a group chat', () => {
         page([
           message({ body: 'Welcome to the group' }),
           message({
-            author: { id: 'student-2', name: 'Nour Ali', avatarUrl: null, isDoctor: false },
+            author: {
+              id: 'student-2',
+              name: 'Nour Ali',
+              avatarUrl: null,
+              isDoctor: false,
+              role: 'student',
+            },
             body: 'Thank you, see https://acu.edu.eg/timetable.',
           }),
         ]),
@@ -307,7 +331,13 @@ describe('a group chat', () => {
 
   it('lets the doctor pin and delete any message, after asking', async () => {
     const user = userEvent.setup();
-    const student = { id: 'student-2', name: 'Nour Ali', avatarUrl: null, isDoctor: false };
+    const student = {
+      id: 'student-2',
+      name: 'Nour Ali',
+      avatarUrl: null,
+      isDoctor: false,
+      role: 'student' as const,
+    };
     const original = message({ author: student, body: 'Off-topic link' });
     const calls = serve({
       [`GET ${CHAT}`]: () => [200, page([original])],
@@ -324,7 +354,7 @@ describe('a group chat', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Options for Nour Ali’s message' }));
     await user.click(screen.getByRole('button', { name: 'Pin' }));
-    expect(await screen.findByText('Pinned messages (1)')).toBeInTheDocument();
+    expect(await screen.findByText(/^Pinned message/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Options for Nour Ali’s message' }));
     await user.click(screen.getByRole('button', { name: 'Delete' }));
@@ -333,7 +363,37 @@ describe('a group chat', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     expect(await screen.findByText('This message was deleted.')).toBeInTheDocument();
-    expect(screen.queryByText('Pinned messages (1)')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Pinned message/)).not.toBeInTheDocument();
+  });
+
+  it('lets the doctor open a scheduled chat by hand until its next time', async () => {
+    const user = userEvent.setup();
+    const calls = serve({
+      [`GET ${CHAT}`]: () => [200, page([])],
+      [`PATCH /api/doctor/groups/${GROUP_ID}`]: () => [200, { group: {} }],
+    });
+    renderWithProviders(
+      <GroupChat
+        view={view(
+          { isDoctor: true },
+          {
+            open: false,
+            mode: 'scheduled',
+            schedule: { slots: [{ day: 0, start: '10:00', end: '12:00' }] },
+            nextChange: { at: '2026-10-04T07:00:00.000Z', opens: true },
+          },
+        )}
+      />,
+    );
+
+    expect(await screen.findByText(/^Opens /)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Let students write' }));
+
+    await vi.waitFor(() => {
+      expect(calls.find((call) => call.key.startsWith('PATCH'))?.init?.body).toBe(
+        JSON.stringify({ chatOpen: true }),
+      );
+    });
   });
 
   it('lets the doctor close the chat to students', async () => {

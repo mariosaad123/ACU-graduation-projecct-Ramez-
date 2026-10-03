@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 import { AccountMenu } from '../../features/auth/AccountMenu';
+import { NotificationBell } from '../../features/notifications/NotificationBell';
 import { useSession } from '../../features/auth/session';
 import {
   ActiveLanguageSwitch,
@@ -67,6 +68,7 @@ export function SiteHeader() {
           ) : user ? (
             <>
               {student && <ActiveLanguageSwitch student={student} className={styles.wideOnly} />}
+              {user.role && <NotificationBell />}
               <AccountMenu user={user} />
             </>
           ) : (

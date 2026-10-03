@@ -6,6 +6,8 @@ import { createAuthRouter } from '../modules/auth/auth.routes';
 import { loadSession } from '../modules/auth/sessions';
 import { createHealthRouter } from '../modules/health/health.routes';
 import { createGroupChatRouter } from '../modules/chat/chat.routes';
+import { createGroupToolsRouter } from '../modules/chat/group-tools.routes';
+import { createNotificationsRouter } from '../modules/notifications/notifications.routes';
 import { createFilesRouter } from '../modules/files/files.routes';
 import { createDoctorRouter } from '../modules/groups/doctor.routes';
 import { createStudentGroupsRouter } from '../modules/groups/student-groups.routes';
@@ -48,6 +50,8 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api/doctor', createDoctorRouter(deps));
   app.use('/api/files', createFilesRouter(deps));
   app.use('/api/groups/:groupId', createGroupChatRouter(deps));
+  app.use('/api/groups/:groupId', createGroupToolsRouter(deps));
+  app.use('/api/notifications', createNotificationsRouter(deps));
   app.use('/api/people', createPeopleRouter(deps));
 
   app.use(notFound);

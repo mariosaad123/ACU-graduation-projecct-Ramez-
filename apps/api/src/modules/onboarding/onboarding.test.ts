@@ -76,7 +76,12 @@ describe('student onboarding', () => {
 
     const user = meResponseSchema.parse(response.body).user;
     expect(user.role).toBe('student');
-    expect(user.student).toEqual({ activeLanguage: 'fr', languages: ['fr'], goal: 'travel' });
+    expect(user.student).toEqual({
+      activeLanguage: 'fr',
+      languages: ['fr'],
+      goal: 'travel',
+      universityId: null,
+    });
     expect(user.doctor).toBeNull();
   });
 
@@ -94,6 +99,7 @@ describe('student onboarding', () => {
       activeLanguage: 'ja',
       languages: ['en', 'fr', 'ja'],
       goal: 'study',
+      universityId: null,
     });
   });
 

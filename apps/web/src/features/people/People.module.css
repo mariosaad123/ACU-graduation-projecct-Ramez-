@@ -27,8 +27,9 @@
 
 .personLink {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
   min-block-size: 3rem;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
@@ -46,10 +47,8 @@
 }
 
 .personName {
-  flex: 1;
+  flex: 1 1 7rem;
   min-inline-size: 0;
-  overflow: hidden;
   font-weight: var(--weight-medium);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }

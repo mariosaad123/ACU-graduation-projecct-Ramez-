@@ -13,6 +13,7 @@ import {
   type VerifiedIdentity,
 } from '../modules/auth/identity-provider';
 import { MemoryStorage } from '../modules/files/storage';
+import { MemoryPushSender } from '../modules/notifications/push';
 import type { MailMessage, Mailer } from '../modules/mail/mailer';
 
 export const WEB_ORIGIN = 'http://localhost:5173';
@@ -85,6 +86,7 @@ export interface TestContext {
   provider: FakeIdentityProvider;
   mailer: MemoryMailer;
   storage: MemoryStorage;
+  push: MemoryPushSender;
   /** Moves the application clock forward. */
   advance: (ms: number) => void;
   close: () => Promise<void>;
@@ -126,6 +128,7 @@ export async function createTestContext(
   const provider = new FakeIdentityProvider();
   const mailer = new MemoryMailer();
   const storage = new MemoryStorage();
+  const push = new MemoryPushSender();
   let current = new Date('2026-10-04T08:00:00.000Z');
 
   const app = createApp({
@@ -135,6 +138,7 @@ export async function createTestContext(
     identityProvider: options.googleConfigured === false ? null : provider,
     mailer,
     storage,
+    push,
     now: () => new Date(current),
     rateLimits: options.rateLimits ?? GENEROUS_LIMITS,
   });
@@ -156,6 +160,7 @@ export async function createTestContext(
     provider,
     mailer,
     storage,
+    push,
     advance: (ms) => {
       current = new Date(current.getTime() + ms);
     },

@@ -13,11 +13,16 @@ export const CHAT_POLL_MS = 5000;
 
 export const groupViewKey = (groupId: string) => ['group', groupId] as const;
 
+/** How often an open group asks whether the chat was opened, closed, or its roles changed. */
+const VIEW_REFRESH_MS = 30_000;
+
 export function useGroupView(groupId: string) {
   return useQuery({
     queryKey: groupViewKey(groupId),
     queryFn: async () =>
       (await apiRequest(`/api/groups/${groupId}`, { schema: groupViewResponseSchema })).group,
+    // The doctor may open or close the chat, or a schedule may, while the page is up.
+    refetchInterval: VIEW_REFRESH_MS,
   });
 }
 
@@ -180,15 +185,24 @@ export function useChat(groupId: string) {
   const all = useMemo(() => [...state.byId.values()].sort((a, b) => a.seq - b.seq), [state.byId]);
   const { fromSeq } = state;
 
-  const loadOlder = useCallback(async () => {
-    if (fromSeq === 0) {
-      return;
+  // Read through a ref so a caller walking back several pages always starts from the latest one.
+  const from = useRef(0);
+  useEffect(() => {
+    from.current = fromSeq;
+  }, [fromSeq]);
+
+  /** Loads the page before the oldest message shown; answers whether there is more beyond it. */
+  const loadOlder = useCallback(async (): Promise<boolean> => {
+    if (from.current === 0) {
+      return false;
     }
-    const page = await apiRequest(`/api/groups/${groupId}/chat?before=${String(fromSeq)}`, {
+    const page = await apiRequest(`/api/groups/${groupId}/chat?before=${String(from.current)}`, {
       schema: chatPageSchema,
     });
+    from.current = page.hasOlder ? (page.messages[0]?.seq ?? 0) : 0;
     dispatch({ type: 'older', messages: page.messages, hasOlder: page.hasOlder });
-  }, [groupId, fromSeq]);
+    return page.hasOlder;
+  }, [groupId]);
 
   const apply = useCallback((message: ChatMessage) => {
     dispatch({ type: 'changes', messages: [message], version: 0 });

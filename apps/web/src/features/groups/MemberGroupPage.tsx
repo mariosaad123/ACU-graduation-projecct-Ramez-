@@ -12,14 +12,16 @@ import { NotFoundPage } from '../../pages/NotFoundPage';
 import { PageTitle } from '../../pages/PageTitle';
 import { describeApiError } from '../auth/api-errors';
 import { Avatar } from '../auth/Avatar';
-import { GroupChat } from '../chat/GroupChat';
 import { useGroupView } from '../chat/use-chat';
-import { GroupPeople } from '../people/GroupPeople';
 import { GroupPhoto } from './GroupPhoto';
+import { GroupTabs } from './GroupTabs';
 import styles from './Groups.module.css';
 
-/** A group as one of its students sees it: who teaches it, and its chat. */
-export function StudentGroupPage() {
+/**
+ * A group as its students and its teaching assistants see it: who teaches it, then its chat,
+ * announcements, files and grades. What each person may do in them comes with the group.
+ */
+export function MemberGroupPage() {
   const { t } = useTranslation();
   const languageName = useLanguageName();
   const { groupId = '' } = useParams();
@@ -33,7 +35,7 @@ export function StudentGroupPage() {
     );
   }
   if (view.isError) {
-    // Not a member (any more), or a group that does not exist: the same page either way.
+    // Not in the group (any more), or a group that does not exist: the same page either way.
     if (view.error instanceof ApiError && view.error.status === 404) {
       return <NotFoundPage />;
     }
@@ -46,18 +48,24 @@ export function StudentGroupPage() {
     );
   }
   const group = view.data;
+  const assistant = group.role === 'assistant';
 
   return (
     <>
       <PageTitle>{group.name}</PageTitle>
       <Container className={styles.page}>
-        <Link to="/app#my-groups" className={styles.back}>
+        <Link to={assistant ? '/app#assisting' : '/app#my-groups'} className={styles.back}>
           <ArrowRightIcon className="mirror-in-rtl" aria-hidden="true" />
-          {t('myGroups.back')}
+          {assistant ? t('groups.back') : t('myGroups.back')}
         </Link>
 
         <header className={styles.pageHead}>
-          <GroupPhoto photoUrl={group.photoUrl} language={group.language} size="lg" active />
+          <GroupPhoto
+            photoUrl={group.photoUrl}
+            language={group.language}
+            size="lg"
+            active={!group.archived}
+          />
           <div className={styles.pageTitleBlock}>
             <h1 className={styles.pageTitle}>{group.name}</h1>
             <p className={styles.muted}>
@@ -72,16 +80,23 @@ export function StudentGroupPage() {
                 user={{ name: group.doctor.name, avatarUrl: group.doctor.avatarUrl }}
                 size="2rem"
               />
-              <span>{group.doctor.name}</span>
-              <Badge tone="emblem">{t('chat.doctor')}</Badge>
+              <Link to={`/app/people/${group.doctor.id}`} className={styles.memberLink}>
+                {group.doctor.name}
+              </Link>
+              <Badge tone="emblem">{t('roles.owner')}</Badge>
             </p>
+            {group.role !== 'student' && (
+              <div className={styles.badges}>
+                <Badge tone="info">
+                  {t('groups.yourRole', { role: t(`roles.${group.role}`) })}
+                </Badge>
+                {group.archived && <Badge>{t('groups.archived')}</Badge>}
+              </div>
+            )}
           </div>
         </header>
 
-        <div className={styles.groupLayout}>
-          <GroupChat view={group} />
-          <GroupPeople groupId={group.id} />
-        </div>
+        <GroupTabs view={group} />
       </Container>
     </>
   );

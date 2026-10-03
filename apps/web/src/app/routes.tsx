@@ -6,7 +6,8 @@ import { SignInPage } from '../features/auth/SignInPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { GroupPage } from '../features/groups/GroupPage';
 import { JoinPage } from '../features/groups/JoinPage';
-import { StudentGroupPage } from '../features/groups/StudentGroupPage';
+import { MemberGroupPage } from '../features/groups/MemberGroupPage';
+import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { PersonPage } from '../features/people/PersonPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { DoctorSetupPage } from '../features/onboarding/DoctorSetupPage';
@@ -77,7 +78,15 @@ export const routes: RouteObject[] = [
             path: 'app/groups/:groupId',
             element: (
               <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student'] }}>
-                {(user) => (user?.role === 'doctor' ? <GroupPage /> : <StudentGroupPage />)}
+                {(user) => (user?.role === 'doctor' ? <GroupPage /> : <MemberGroupPage />)}
+              </AuthGate>
+            ),
+          },
+          {
+            path: 'app/notifications',
+            element: (
+              <AuthGate rule={{ kind: 'role', roles: ['doctor', 'student', 'admin'] }}>
+                {() => <NotificationsPage />}
               </AuthGate>
             ),
           },

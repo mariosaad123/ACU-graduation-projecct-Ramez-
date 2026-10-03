@@ -53,7 +53,7 @@ describe('the people of a group', () => {
         [
           groupPeopleKey(GROUP_ID),
           [
-            person({ id: 'doctor-1', name: 'Dr. Mona', role: 'doctor', joinedAt: null }),
+            person({ id: 'doctor-1', name: 'Dr. Mona', role: 'owner', joinedAt: null }),
             person({ id: 'me', name: 'Omar Khaled', me: true }),
             person(),
           ],

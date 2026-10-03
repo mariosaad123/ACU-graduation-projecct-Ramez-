@@ -1,31 +1,41 @@
-import type { Attachment, ChatMessage } from '@acu/shared';
+import { isStaff, type ChatMessage, type GroupCapabilities, type GroupRole } from '@acu/shared';
 import {
   ArrowBendUpLeftIcon,
   CopyIcon,
   DotsThreeIcon,
-  DownloadSimpleIcon,
-  FileIcon,
-  FilePdfIcon,
   PencilSimpleIcon,
   PushPinIcon,
   PushPinSlashIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
 import clsx from 'clsx';
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { AudioPlayer } from '../../components/media/AudioPlayer';
 import { usePopover } from '../../components/ui/use-popover';
-import { useLocale } from '../../i18n/use-locale';
 import { Avatar } from '../auth/Avatar';
-import { linkify } from './linkify';
+import { AttachmentView } from './AttachmentView';
+import { renderBody } from './mentions';
+import { PollView } from './PollView';
 import styles from './Chat.module.css';
 
 export interface MessagePermissions {
   canPost: boolean;
-  isDoctor: boolean;
+  role: GroupRole;
+  can: GroupCapabilities;
   archived: boolean;
+}
+
+/** The staff delete any message; a student moderator, those of students who are not moderators. */
+function mayDelete(message: ChatMessage, permissions: MessagePermissions): boolean {
+  if (message.mine) {
+    return true;
+  }
+  const { role } = message.author;
+  return (
+    permissions.can.moderate &&
+    (isStaff(permissions.role) || (!isStaff(role) && role !== 'moderator'))
+  );
 }
 
 export interface MessageActions {
@@ -35,92 +45,8 @@ export interface MessageActions {
   onPin: (message: ChatMessage, pinned: boolean) => void;
   onCopy: (message: ChatMessage) => void;
   onJumpTo: (messageId: string) => void;
-}
-
-function useFormatSize() {
-  const { intlLocale } = useLocale();
-  return useMemo(() => {
-    const kilobytes = new Intl.NumberFormat(intlLocale, {
-      style: 'unit',
-      unit: 'kilobyte',
-      maximumFractionDigits: 0,
-    });
-    const megabytes = new Intl.NumberFormat(intlLocale, {
-      style: 'unit',
-      unit: 'megabyte',
-      maximumFractionDigits: 1,
-    });
-    return (bytes: number) =>
-      bytes < 1024 * 1024
-        ? kilobytes.format(Math.max(1, Math.round(bytes / 1024)))
-        : megabytes.format(bytes / (1024 * 1024));
-  }, [intlLocale]);
-}
-
-/** The tallest an image may be in the chat, in rem. */
-const IMAGE_MAX_REM = 20;
-
-/**
- * Reserves the image's exact box before it loads, so the chat does not jump (and lose its place
- * at the bottom) when it arrives. Tall images are narrowed rather than cropped.
- */
-function imageBox({ width, height }: Attachment): CSSProperties | undefined {
-  if (!width || !height) {
-    return undefined;
-  }
-  return {
-    aspectRatio: `${String(width)} / ${String(height)}`,
-    inlineSize: `min(100%, ${String(width)}px, ${String((IMAGE_MAX_REM * width) / height)}rem)`,
-  };
-}
-
-function AttachmentView({
-  attachment,
-  authorName,
-}: {
-  attachment: Attachment;
-  authorName: string;
-}) {
-  const { t } = useTranslation();
-  const formatSize = useFormatSize();
-
-  if (attachment.kind === 'image') {
-    return (
-      <a href={attachment.url} target="_blank" rel="noopener" className={styles.imageLink}>
-        <img
-          className={styles.image}
-          src={attachment.url}
-          alt={t('chat.photoAlt', { name: authorName })}
-          width={attachment.width ?? undefined}
-          height={attachment.height ?? undefined}
-          style={imageBox(attachment)}
-          loading="lazy"
-        />
-      </a>
-    );
-  }
-  if (attachment.kind === 'audio') {
-    return <AudioPlayer src={attachment.url} title={t('chat.voice')} className={styles.audio} />;
-  }
-  const name = attachment.name ?? t('chat.document');
-  const Icon = attachment.contentType === 'application/pdf' ? FilePdfIcon : FileIcon;
-  return (
-    <a
-      href={attachment.url}
-      download={name}
-      className={styles.document}
-      aria-label={t('chat.download', { name })}
-    >
-      <Icon className={styles.documentIcon} aria-hidden="true" />
-      <span className={styles.documentText}>
-        <span className={styles.documentName} dir="auto">
-          {name}
-        </span>
-        <span className={styles.meta}>{formatSize(attachment.size)}</span>
-      </span>
-      <DownloadSimpleIcon aria-hidden="true" />
-    </a>
-  );
+  /** A poll's votes changed: the message comes back with its new results. */
+  onChanged: (message: ChatMessage) => void;
 }
 
 function MessageMenu({
@@ -165,7 +91,7 @@ function MessageMenu({
       },
     });
   }
-  if (permissions.isDoctor && !permissions.archived) {
+  if (permissions.can.pin && !permissions.archived) {
     items.push({
       label: message.pinned ? t('chat.unpin') : t('chat.pin'),
       icon: message.pinned ? (
@@ -178,7 +104,7 @@ function MessageMenu({
       },
     });
   }
-  if (message.mine || permissions.isDoctor) {
+  if (mayDelete(message, permissions)) {
     items.push({
       label: t('chat.delete'),
       icon: <TrashIcon aria-hidden="true" />,
@@ -237,12 +163,14 @@ function MessageMenu({
 
 /** One message in a group chat, with its author, attachment, quoted reply and actions. */
 export function ChatMessageItem({
+  groupId,
   message,
   continued,
   time,
   permissions,
   actions,
 }: {
+  groupId: string;
   message: ChatMessage;
   /** Same author as the message just above, moments later: the name and photo are not repeated. */
   continued: boolean;
@@ -258,7 +186,8 @@ export function ChatMessageItem({
       id={`message-${message.id}`}
       className={clsx(styles.message, continued && styles.continued)}
       data-mine={message.mine}
-      data-doctor={author.isDoctor}
+      data-doctor={isStaff(author.role)}
+      data-mention={message.mentionsMe}
     >
       <div className={styles.avatarSlot}>
         {!continued && (
@@ -278,7 +207,9 @@ export function ChatMessageItem({
             >
               {author.name}
             </Link>
-            {author.isDoctor && <span className={styles.doctorTag}>{t('chat.doctor')}</span>}
+            {author.role !== 'student' && (
+              <span className={styles.doctorTag}>{t(`roles.${author.role}`)}</span>
+            )}
           </p>
         )}
         {message.replyTo && (
@@ -293,7 +224,7 @@ export function ChatMessageItem({
           >
             <span className={styles.quoteAuthor}>{message.replyTo.authorName}</span>
             <span className={styles.quoteText} dir="auto">
-              {message.replyTo.excerpt ??
+              {message.replyTo.excerpt?.replaceAll('@all', `@${t('chat.everyone')}`) ??
                 (message.replyTo.hasAttachment
                   ? t('chat.quoteAttachment')
                   : t('chat.quoteDeleted'))}
@@ -309,8 +240,16 @@ export function ChatMessageItem({
             )}
             {message.body && (
               <p className={styles.body} dir="auto">
-                {linkify(message.body)}
+                {renderBody(message.body, message.mentions, t('chat.everyone'))}
               </p>
+            )}
+            {message.poll && (
+              <PollView
+                groupId={groupId}
+                poll={message.poll}
+                readOnly={permissions.archived}
+                onChanged={actions.onChanged}
+              />
             )}
           </>
         )}

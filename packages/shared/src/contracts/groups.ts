@@ -2,6 +2,8 @@ import * as z from 'zod/mini';
 import { LEARNING_LANGUAGES } from '../languages';
 import { sessionUserSchema } from './auth';
 import { CHAT_RATE_LIMIT_MAX, CHAT_RATE_LIMIT_MIN } from './chat';
+import { GROUP_MEMBER_ROLES, GROUP_ROLES } from './roles';
+import { chatScheduleSchema } from './schedule';
 
 const learningLanguage = z.enum(LEARNING_LANGUAGES);
 
@@ -58,6 +60,8 @@ export const groupUpdateSchema = z.object({
   chatOpen: z.optional(z.boolean()),
   /** Messages each student may send in a minute. */
   chatRateLimit: z.optional(z.int().check(z.gte(CHAT_RATE_LIMIT_MIN), z.lte(CHAT_RATE_LIMIT_MAX))),
+  /** Weekly windows when the chat opens by itself; null goes back to the open/closed switch. */
+  chatSchedule: z.optional(z.nullable(chatScheduleSchema)),
 });
 export type GroupUpdateRequest = z.infer<typeof groupUpdateSchema>;
 
@@ -71,6 +75,7 @@ export const groupSchema = z.object({
   requiresApproval: z.boolean(),
   chatOpen: z.boolean(),
   chatRateLimit: z.number(),
+  chatSchedule: z.nullable(chatScheduleSchema),
   photoUrl: z.nullable(z.string()),
   archived: z.boolean(),
   createdAt: z.string(),
@@ -105,6 +110,7 @@ export const groupMemberSchema = z.object({
   status: z.enum(GROUP_MEMBER_STATUSES),
   /** Muted in the group chat: reads, does not write. */
   chatMuted: z.boolean(),
+  role: z.enum(GROUP_MEMBER_ROLES),
   joinedAt: z.string(),
   decidedAt: z.nullable(z.string()),
   removedAt: z.nullable(z.string()),
@@ -139,6 +145,8 @@ export const studentGroupSchema = z.object({
   status: z.enum(['pending', 'active']),
   joinedAt: z.string(),
   unread: z.number(),
+  unreadAnnouncements: z.number(),
+  role: z.enum(GROUP_MEMBER_ROLES),
 });
 export type StudentGroup = z.infer<typeof studentGroupSchema>;
 
@@ -170,3 +178,37 @@ export const joinResultSchema = z.object({
   user: sessionUserSchema,
 });
 export type JoinResult = z.infer<typeof joinResultSchema>;
+
+/** A teaching assistant: another doctor account helping run the group. */
+export const assistantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  avatarUrl: z.nullable(z.string()),
+  addedAt: z.string(),
+});
+export type Assistant = z.infer<typeof assistantSchema>;
+
+export const assistantsResponseSchema = z.object({ assistants: z.array(assistantSchema) });
+export const assistantResponseSchema = z.object({ assistant: assistantSchema });
+
+/** The doctor account's sign-in or university email. */
+export const addAssistantSchema = z.object({
+  email: z.string().check(z.trim(), z.toLowerCase(), z.maxLength(254), z.email()),
+});
+
+/** A group a doctor helps run as a teaching assistant, for their dashboard. */
+export const assistedGroupSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  language: learningLanguage,
+  photoUrl: z.nullable(z.string()),
+  doctorName: z.string(),
+  archived: z.boolean(),
+  students: z.number(),
+  unread: z.number(),
+  role: z.enum(GROUP_ROLES),
+});
+export type AssistedGroup = z.infer<typeof assistedGroupSchema>;
+
+export const assistedGroupsResponseSchema = z.object({ groups: z.array(assistedGroupSchema) });

@@ -43,4 +43,9 @@ export default defineConfig(
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },
+
+  {
+    files: ['apps/web/public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
 );

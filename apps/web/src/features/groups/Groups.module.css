@@ -519,3 +519,117 @@
   color: var(--color-link);
   text-decoration: underline;
 }
+
+/* The settings tab: sharing and details, then the chat, then the assistants. */
+.settingsTab {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.chatSettings {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.slots {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.slotsLegend {
+  padding-inline: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+
+.slotList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+.slotField {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.slotControl {
+  min-block-size: 2.75rem;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.slotControl:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.slotError {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-danger);
+}
+
+.assistants {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.assistantList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.assistant .person {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.assistantText {
+  display: grid;
+  min-inline-size: 0;
+}
+
+/* A student's role in the group, chosen from the members list. */
+.roleSelect > select {
+  min-block-size: 2.25rem;
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
