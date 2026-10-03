@@ -6,9 +6,10 @@ const TRAILING = /[.,;:!?،؛)\]}'"»]+$/;
 
 /**
  * Plain text with its web addresses as links. Nothing is ever read as HTML: the text stays text,
- * and only http and https addresses become links, opened apart from the platform.
+ * and only http and https addresses become links, opened apart from the platform. `keyPrefix`
+ * keeps keys apart when several pieces of one message are linkified.
  */
-export function linkify(text: string): ReactNode[] {
+export function linkify(text: string, keyPrefix = 'link'): ReactNode[] {
   const parts: ReactNode[] = [];
   let last = 0;
   for (const match of text.matchAll(URL_PATTERN)) {
@@ -20,7 +21,13 @@ export function linkify(text: string): ReactNode[] {
       parts.push(text.slice(last, start));
     }
     parts.push(
-      <a key={start} href={url} target="_blank" rel="noopener noreferrer nofollow" dir="ltr">
+      <a
+        key={`${keyPrefix}-${String(start)}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        dir="ltr"
+      >
         {url}
       </a>,
     );
