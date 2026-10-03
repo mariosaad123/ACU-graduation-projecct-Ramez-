@@ -50,6 +50,7 @@ function member(overrides: Partial<GroupMember> = {}): GroupMember {
       id: STUDENT_ID,
       name: 'Omar Khaled',
       email: 'omar@gmail.com',
+      universityId: '20231234',
       avatarUrl: null,
       languages: ['ja', 'fr'],
       activeLanguage: 'ja',
@@ -162,8 +163,8 @@ describe('the doctor’s groups on the dashboard', () => {
     expect(screen.getByText('K7QM-9XRT')).toBeInTheDocument();
     expect(screen.getByText('Students: 12')).toBeInTheDocument();
     expect(screen.getByText('Requests to join: 2')).toBeInTheDocument();
-    expect(screen.getByText('With your approval')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Manage “Conversation 2”' })).toHaveAttribute(
+    expect(screen.getByText('Joining needs your approval')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open “Conversation 2”' })).toHaveAttribute(
       'href',
       `/app/groups/${GROUP_ID}`,
     );

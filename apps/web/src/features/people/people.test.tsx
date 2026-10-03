@@ -29,6 +29,7 @@ function profile(overrides: Partial<Person> = {}): Person {
     avatarUrl: null,
     role: 'student',
     email: null,
+    universityId: null,
     languages: ['fr', 'ja'],
     activeLanguage: 'ja',
     memberSince: '2026-09-01T10:00:00.000Z',

@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLanguageName } from '../../i18n/use-language-name';
-import { describeApiError } from '../auth/api-errors';
 import { ExportDialog } from '../gradebook/ExportDialog';
 import { useDoctorGroups } from './api';
 import { CopyButton } from './CopyButton';
@@ -149,9 +149,13 @@ export function DoctorGroupsSection({ languages }: { languages: LearningLanguage
       )}
 
       {groups.isError && (
-        <Alert tone="danger" live>
-          {describeApiError(t, groups.error)}
-        </Alert>
+        <LoadError
+          error={groups.error}
+          retrying={groups.isFetching}
+          onRetry={() => {
+            void groups.refetch();
+          }}
+        />
       )}
 
       {groups.isSuccess && active.length === 0 && archived.length === 0 && (

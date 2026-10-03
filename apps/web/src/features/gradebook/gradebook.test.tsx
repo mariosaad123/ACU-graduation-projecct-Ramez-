@@ -92,6 +92,8 @@ function gradebook(overrides: Partial<Gradebook> = {}): Gradebook {
         heldOn: '2026-09-28',
         published: true,
         position: 0,
+        source: 'manual',
+        assignmentId: null,
         createdAt: '2026-09-28T10:00:00.000Z',
       },
     ],

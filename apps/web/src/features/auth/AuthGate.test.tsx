@@ -1,7 +1,8 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { useLocation } from 'react-router';
-import { renderWithProviders, sessionUser } from '../../test/render';
+import { apiError, queueResponses, renderWithProviders, sessionUser } from '../../test/render';
 import { AuthGate } from './AuthGate';
 
 function Where() {
@@ -50,6 +51,49 @@ describe('AuthGate for pages that need a role', () => {
     });
 
     expect(await screen.findByText('at /welcome')).toBeInTheDocument();
+  });
+
+  it('asks a student from before the university number for it, then shows the page', async () => {
+    const user = userEvent.setup();
+    const student = {
+      activeLanguage: 'fr' as const,
+      languages: ['fr' as const],
+      goal: 'study' as const,
+      universityId: null,
+    };
+    const { fetchMock, calls } = queueResponses(
+      [409, apiError('UNIVERSITY_ID_TAKEN')],
+      [
+        200,
+        {
+          user: sessionUser({
+            role: 'student',
+            student: { ...student, universityId: '2023-0417' },
+          }),
+        },
+      ],
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(page(['student']), {
+      route: '/app',
+      session: sessionUser({ role: 'student', student }),
+    });
+
+    expect(screen.queryByText('private page')).not.toBeInTheDocument();
+    const field = screen.getByLabelText('University ID');
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
+    expect(field).toHaveAccessibleDescription(/Enter it as on the card/);
+    expect(calls).toHaveLength(0);
+
+    await user.type(field, '2023-0417');
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
+    await vi.waitFor(() => {
+      expect(field).toHaveAccessibleDescription(/already on another account/);
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
+    expect(await screen.findByText('private page')).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it('shows the page to an allowed role', () => {

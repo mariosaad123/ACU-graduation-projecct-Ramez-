@@ -3,7 +3,7 @@ import { ChatsCircleIcon, SignOutIcon } from '@phosphor-icons/react';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Alert } from '../../components/ui/Alert';
+import { LoadError } from '../../components/ui/LoadError';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ButtonLink } from '../../components/ui/ButtonLink';
@@ -89,9 +89,13 @@ export function StudentGroupsCard({ student }: { student: Student }) {
 
       {groups.isPending && <Skeleton shape="block" blockSize="4rem" />}
       {groups.isError && (
-        <Alert tone="danger" live>
-          {describeApiError(t, groups.error)}
-        </Alert>
+        <LoadError
+          error={groups.error}
+          retrying={groups.isFetching}
+          onRetry={() => {
+            void groups.refetch();
+          }}
+        />
       )}
       {groups.isSuccess && groups.data.length === 0 && (
         <p className={styles.emptyList}>{t('myGroups.empty')}</p>

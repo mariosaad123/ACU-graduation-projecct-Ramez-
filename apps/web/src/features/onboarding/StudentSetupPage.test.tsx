@@ -57,11 +57,17 @@ describe('StudentSetupPage', () => {
     await user.click(screen.getByRole('checkbox', { name: /Français/ }));
     await user.click(screen.getByRole('radio', { name: /Travel/ }));
     expect(screen.queryByRole('group', { name: 'Which language do you start with?' })).toBeNull();
+    await user.type(screen.getByLabelText(/University ID/), ' 20231234 ');
     await user.click(screen.getByRole('button', { name: 'Create my account' }));
 
     expect(await screen.findByText('dashboard')).toBeInTheDocument();
     expect(nth(calls, 0).url).toBe('/api/onboarding/student');
-    expect(sentBody(calls)).toEqual({ languages: ['fr'], activeLanguage: 'fr', goal: 'travel' });
+    expect(sentBody(calls)).toEqual({
+      languages: ['fr'],
+      activeLanguage: 'fr',
+      goal: 'travel',
+      universityId: '20231234',
+    });
   });
 
   it('starts with the first language picked unless the student chooses another', async () => {
@@ -80,12 +86,14 @@ describe('StudentSetupPage', () => {
     expect(start).toHaveAccessibleDescription(/one language at a time/);
     expect(screen.getByRole('radio', { name: 'Japanese' })).toBeChecked();
 
+    await user.type(screen.getByLabelText(/University ID/), '2023-A17');
     await user.click(screen.getByRole('button', { name: 'Create my account' }));
     await screen.findByText('dashboard');
     expect(sentBody(calls)).toEqual({
       languages: ['ja', 'en'],
       activeLanguage: 'ja',
       goal: 'study',
+      universityId: '2023-A17',
     });
   });
 
@@ -109,8 +117,44 @@ describe('StudentSetupPage', () => {
     renderWithProviders(<StudentSetupPage />, { route: '/welcome/student' });
 
     await user.click(screen.getByRole('checkbox', { name: /English/ }));
+    await user.type(screen.getByLabelText(/University ID/), '20231234');
     await user.click(screen.getByRole('button', { name: 'Create my account' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your account is already set up.');
+  });
+
+  it('asks for the university number before anything is sent', async () => {
+    const user = userEvent.setup();
+    const { fetchMock, calls } = queueResponses();
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<StudentSetupPage />, { route: '/welcome/student' });
+
+    await user.click(screen.getByRole('checkbox', { name: /English/ }));
+    await user.click(screen.getByRole('button', { name: 'Create my account' }));
+
+    const field = screen.getByLabelText(/University ID/);
+    expect(field).toHaveAccessibleDescription(/Enter it as on the card/);
+    expect(field).toHaveFocus();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('says on the field itself when the number belongs to another account', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = queueResponses([409, apiError('UNIVERSITY_ID_TAKEN')]);
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithProviders(<StudentSetupPage />, { route: '/welcome/student' });
+
+    await user.click(screen.getByRole('checkbox', { name: /English/ }));
+    await user.type(screen.getByLabelText(/University ID/), '20231234');
+    await user.click(screen.getByRole('button', { name: 'Create my account' }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByLabelText(/University ID/)).toHaveAccessibleDescription(
+        /already on another account/,
+      );
+    });
+    // What was chosen is still there for another try.
+    expect(screen.getByRole('checkbox', { name: /English/ })).toBeChecked();
+    expect(screen.getByLabelText(/University ID/)).toHaveValue('20231234');
   });
 });
