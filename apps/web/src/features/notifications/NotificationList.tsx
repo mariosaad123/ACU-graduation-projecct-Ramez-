@@ -1,8 +1,10 @@
 import type { Notification, NotificationKind } from '@acu/shared';
 import {
   AtIcon,
+  BellRingingIcon,
   ChartBarIcon,
   ChatCircleIcon,
+  ClipboardTextIcon,
   GraduationCapIcon,
   MegaphoneIcon,
   ShieldStarIcon,
@@ -20,7 +22,11 @@ const ICONS: Record<NotificationKind, ReactNode> = {
   grade: <GraduationCapIcon aria-hidden="true" />,
   role: <ShieldStarIcon aria-hidden="true" />,
   message: <ChatCircleIcon aria-hidden="true" />,
+  assignment: <ClipboardTextIcon aria-hidden="true" />,
+  nudge: <BellRingingIcon aria-hidden="true" />,
 };
+
+const NUDGE_REASONS = ['inactive', 'announcement', 'assignment'] as const;
 
 function useRelativeTime() {
   const { intlLocale } = useLocale();
@@ -55,9 +61,12 @@ export function NotificationList({ notifications, onOpen }: NotificationListProp
       {notifications.map((notification) => {
         const actor = notification.actor?.name ?? '';
         const group = notification.group.name;
-        // A role notification carries the role itself; the rest carry text to quote.
-        const detail =
-          notification.kind === 'role'
+        // A role notification carries the role itself, and a reminder without a note its reason;
+        // the rest carry text to quote.
+        const reason = NUDGE_REASONS.find((entry) => notification.excerpt === `nudge:${entry}`);
+        const detail = reason
+          ? t(`notifications.nudges.${reason}`)
+          : notification.kind === 'role'
             ? notification.excerpt &&
               ['assistant', 'moderator', 'representative'].includes(notification.excerpt)
               ? t(`roles.${notification.excerpt as 'assistant' | 'moderator' | 'representative'}`)

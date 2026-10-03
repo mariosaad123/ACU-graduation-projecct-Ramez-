@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { AnnouncementsTab } from '../announcements/AnnouncementsTab';
 import { GroupChat } from '../chat/GroupChat';
+import { AssignmentsTab } from '../coursework/AssignmentsTab';
 import { FilesTab } from '../files/FilesTab';
 import { ActivityTab } from '../gradebook/ActivityTab';
 import { GradebookTab } from '../gradebook/GradebookTab';
@@ -22,7 +23,7 @@ interface GroupTabsProps {
 }
 
 /**
- * Everything a group holds, one tab each: chat, announcements, files and grades, with activity for
+ * Everything a group holds, one tab each: chat, announcements, assignments, files and grades, with activity for
  * the staff. The open tab lives in the address, so a reload, a shared link or a notification lands
  * on the right one.
  */
@@ -47,6 +48,11 @@ export function GroupTabs({ view, extra = [], initial = 'chat', unreadChat = 0 }
       id: 'announcements',
       label: counted(t('groups.tabAnnouncements'), view.unreadAnnouncements),
       content: <AnnouncementsTab view={view} />,
+    },
+    {
+      id: 'assignments',
+      label: t('groups.tabAssignments'),
+      content: <AssignmentsTab view={view} />,
     },
     { id: 'files', label: t('groups.tabFiles'), content: <FilesTab view={view} /> },
     {
